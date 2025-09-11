@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(222 84% 4.9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 84% 4.9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 84% 4.9%);
+  --primary: hsl(24 95% 53%);
+  --primary-foreground: hsl(210 40% 98%);
+  --secondary: hsl(210 40% 96%);
+  --secondary-foreground: hsl(222 47% 11%);
+  --muted: hsl(210 40% 96%);
+  --muted-foreground: hsl(215 16% 47%);
+  --accent: hsl(210 40% 96%);
+  --accent-foreground: hsl(222 47% 11%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(210 40% 98%);
+  --border: hsl(214 32% 91%);
+  --input: hsl(214 32% 91%);
+  --ring: hsl(24 95% 53%);
+  --chart-1: hsl(24 95% 53%);
+  --chart-2: hsl(159.7826 100% 36.0784%);
+  --chart-3: hsl(42.0290 92.8251% 56.2745%);
+  --chart-4: hsl(147.1429 78.5047% 41.9608%);
+  --chart-5: hsl(341.4894 75.2000% 50.9804%);
+  --sidebar: hsl(210 40% 96%);
+  --sidebar-foreground: hsl(222 84% 4.9%);
+  --sidebar-primary: hsl(24 95% 53%);
+  --sidebar-primary-foreground: hsl(210 40% 98%);
+  --sidebar-accent: hsl(210 40% 96%);
+  --sidebar-accent-foreground: hsl(222 47% 11%);
+  --sidebar-border: hsl(214 32% 91%);
+  --sidebar-ring: hsl(24 95% 53%);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: 'Courier New', monospace;
+  --radius: 8px;
+  --shadow-2xs: 0px 2px 0px 0px hsl(24 95% 53% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(24 95% 53% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(24 95% 53% / 0.00), 0px 1px 2px -1px hsl(24 95% 53% / 0.00);
+  --shadow: 0px 2px 0px 0px hsl(24 95% 53% / 0.00), 0px 1px 2px -1px hsl(24 95% 53% / 0.00);
+  --shadow-md: 0px 2px 0px 0px hsl(24 95% 53% / 0.00), 0px 2px 4px -1px hsl(24 95% 53% / 0.00);
+  --shadow-lg: 0px 2px 0px 0px hsl(24 95% 53% / 0.00), 0px 4px 6px -1px hsl(24 95% 53% / 0.00);
+  --shadow-xl: 0px 2px 0px 0px hsl(24 95% 53% / 0.00), 0px 8px 10px -1px hsl(24 95% 53% / 0.00);
+  --shadow-2xl: 0px 2px 0px 0px hsl(24 95% 53% / 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: hsl(0 0% 0%);
+  --foreground: hsl(200 6.6667% 91.1765%);
+  --card: hsl(228 9.8039% 10%);
+  --card-foreground: hsl(0 0% 85.0980%);
+  --popover: hsl(0 0% 0%);
+  --popover-foreground: hsl(200 6.6667% 91.1765%);
+  --primary: hsl(24 95% 53%);
+  --primary-foreground: hsl(210 40% 98%);
+  --secondary: hsl(195.0000 15.3846% 94.9020%);
+  --secondary-foreground: hsl(210 25% 7.8431%);
+  --muted: hsl(0 0% 9.4118%);
+  --muted-foreground: hsl(210 3.3898% 46.2745%);
+  --accent: hsl(205.7143 70% 7.8431%);
+  --accent-foreground: hsl(24 95% 53%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(210 40% 98%);
+  --border: hsl(210 5.2632% 14.9020%);
+  --input: hsl(207.6923 27.6596% 18.4314%);
+  --ring: hsl(24 95% 53%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Gym-inspired custom styles */
+.dumbbell-btn {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.dumbbell-btn:hover {
+  transform: translateY(-2px);
+}
+
+.progress-weight {
+  background: linear-gradient(90deg, var(--primary) 0%, #f59e0b 100%);
+  animation: fillProgress 2s ease-in-out;
+  transition: width 0.3s ease;
+}
+
+@keyframes fillProgress {
+  from { width: 0%; }
+  to { width: var(--progress-width); }
+}
+
+.weight-plate {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  position: relative;
+}
+
+.weight-plate::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+}
+
+.syntax-highlight {
+  font-family: var(--font-mono);
+  background: var(--muted);
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid var(--primary);
+  overflow-x: auto;  /* Adds horizontal scroll for very long content */
+  max-width: 100%;   /* Ensures it doesn't break container */
+}
+
+.syntax-highlight pre {
+  white-space: pre-wrap;      /* Allows wrapping while preserving formatting */
+  overflow-wrap: break-word;  /* Breaks long words if needed */
+  word-break: break-all;      /* Breaks long SQL statements at any character */
+  margin: 0;                  /* Remove default pre margin */
+}
+
+.code-editor {
+  font-family: var(--font-mono);
+  background: hsl(222 47% 11%);
+  color: hsl(210 40% 98%);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

@@ -1,0 +1,104 @@
+[
+  {
+    "title": "Select All Customers",
+    "question": {
+      "description": "Write a query to select all columns from the 'customers' table.",
+      "tables": [
+        {
+          "name": "customers",
+          "columns": [
+            {"name": "id", "type": "integer"},
+            {"name": "name", "type": "varchar"},
+            {"name": "email", "type": "varchar"}
+          ],
+          "sampleData": [
+            {"id": 1, "name": "John Doe", "email": "john.doe@email.com"},
+            {"id": 2, "name": "Jane Smith", "email": "jane.smith@email.com"},
+            {"id": 3, "name": "Bob Johnson", "email": "bob.johnson@email.com"}
+          ]
+        }
+      ],
+      "expectedOutput": [
+        {"id": 1, "name": "John Doe", "email": "john.doe@email.com"},
+        {"id": 2, "name": "Jane Smith", "email": "jane.smith@email.com"},
+        {"id": 3, "name": "Bob Johnson", "email": "bob.johnson@email.com"}
+      ]
+    },
+    "difficulty": "Easy",
+    "tags": ["SELECT", "Basics"],
+    "companies": ["TechCorp", "Data Inc."],
+    "hints": ["Use SELECT *.", "Specify the table name using FROM."]
+  },
+  {
+    "title": "Find Employees by Department", 
+    "question": {
+      "description": "Write a query to find all employees who work in the 'Sales' department.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            {"name": "id", "type": "integer"},
+            {"name": "name", "type": "varchar"},
+            {"name": "department", "type": "varchar"}
+          ],
+          "sampleData": [
+            {"id": 1, "name": "Alice Brown", "department": "Engineering"},
+            {"id": 2, "name": "Jane Smith", "department": "Sales"},
+            {"id": 3, "name": "Mike Wilson", "department": "Marketing"},
+            {"id": 4, "name": "Sarah Davis", "department": "Sales"}
+          ]
+        }
+      ],
+      "expectedOutput": [
+        {"id": 2, "name": "Jane Smith", "department": "Sales"},
+        {"id": 4, "name": "Sarah Davis", "department": "Sales"}
+      ]
+    },
+    "difficulty": "Medium",
+    "tags": ["SELECT", "WHERE"],
+    "companies": ["Biz Solutions"],
+    "hints": ["Use a WHERE clause to filter.", "Remember quotes for string values like 'Sales'."]
+  },
+  {
+    "title": "Calculate Total Order Amount",
+    "question": {
+      "description": "Write a query to calculate the total amount for each order.",
+      "tables": [
+        {
+          "name": "orders",
+          "columns": [
+            {"name": "id", "type": "integer"}
+          ],
+          "sampleData": [
+            {"id": 101},
+            {"id": 102},
+            {"id": 103}
+          ]
+        },
+        {
+          "name": "order_items",
+          "columns": [
+            {"name": "order_id", "type": "integer"},
+            {"name": "price", "type": "decimal"},
+            {"name": "quantity", "type": "integer"}
+          ],
+          "sampleData": [
+            {"order_id": 101, "price": 25.50, "quantity": 2},
+            {"order_id": 101, "price": 15.75, "quantity": 3},
+            {"order_id": 102, "price": 100.00, "quantity": 1},
+            {"order_id": 103, "price": 45.25, "quantity": 1}
+          ]
+        }
+      ],
+      "expectedOutput": [
+        {"order_id": 101, "total_amount": 98.25},
+        {"order_id": 102, "total_amount": 100.00},
+        {"order_id": 103, "total_amount": 45.25}
+      ]
+    },
+    "difficulty": "Hard",
+    "tags": ["JOIN", "GROUP BY", "SUM"],
+    "companies": ["eCommerce Co"],
+    "hints": ["Join orders and order_items.", "Use SUM(price * quantity).", "Group the results by order_id."]
+  }
+]
