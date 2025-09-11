@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Play, Save, RotateCcw, Lightbulb } from 'lucide-react';
+import { Play, Save, RotateCcw, Lightbulb, Dumbbell, TrendingUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -154,24 +154,30 @@ export default function SQLEditor({
   };
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* SQL Editor */}
-      <div>
-        <h3 className="text-xl font-semibold text-foreground mb-3">SQL Editor</h3>
-        <Card className="overflow-hidden">
-          <CardHeader className="bg-muted px-4 py-2 border-b border-border">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="text-sm text-muted-foreground ml-4">query.sql</span>
+    <div className={`w-full ${className}`}>
+      {/* Training Zone (Input Section) */}
+      <div className="mb-6">
+        <Card className="overflow-hidden bg-card border-border">
+          {/* Input Header */}
+          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Dumbbell className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">Training Zone</h3>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <span>PostgreSQL 14</span>
+                <ChevronDown className="h-4 w-4" />
+              </div>
             </div>
           </CardHeader>
+          
+          {/* Code Editor */}
           <CardContent className="p-0">
             <CodeMirror
               value={query}
               onChange={(value) => setQuery(value)}
-              height="16rem"
+              height="20rem"
               theme={theme}
               extensions={extensions}
               basicSetup={{
@@ -188,22 +194,96 @@ export default function SQLEditor({
                 tabSize: 2,
               }}
               data-testid="editor-sql"
-              className="code-editor"
+              className="sqlgym-editor"
             />
           </CardContent>
         </Card>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
+      {/* Performance Report (Output Section) */}
+      <div className="mb-6">
+        <Card className="overflow-hidden bg-card border-border">
+          {/* Output Header */}
+          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">Performance Report</h3>
+              </div>
+              {result && !result.error && (
+                <div className="text-sm text-muted-foreground">
+                  Execution: {result.executionTime || 0}ms
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          
+          {/* Output Content */}
+          <CardContent className="p-6 min-h-[12rem]">
+            {!result ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <div className="text-6xl mb-4">💪</div>
+                <p className="text-muted-foreground text-lg">Ready for your SQL workout!</p>
+                <p className="text-sm text-muted-foreground mt-2">Execute your query to see the gains</p>
+              </div>
+            ) : result.error ? (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3 text-red-600">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="font-medium">Workout Failed</span>
+                </div>
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">🏋️ Don't give up! Check your form and try again.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3 text-green-600">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="font-medium">
+                    {result.isCorrect ? 'Perfect Form! 🏆' : 'Workout Complete'}
+                  </span>
+                </div>
+                
+                {result.isCorrect && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">🎉</span>
+                      <div>
+                        <p className="text-green-800 dark:text-green-200 font-medium">Excellent technique!</p>
+                        <p className="text-green-700 dark:text-green-300 text-sm">You've earned XP and improved your SQL strength!</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground mb-2">📊 Query Result Preview:</p>
+                  <div className="font-mono text-sm bg-background rounded border p-3">
+                    <p>Status: {result.isCorrect ? '✅ Perfect Execution' : '⚠️ Needs Improvement'}</p>
+                    <p>Performance: {result.executionTime || 0}ms</p>
+                    <p className="text-muted-foreground mt-2">
+                      [Table data would be displayed here in production]
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gym Controls */}
+      <div className="flex flex-wrap gap-3 mb-6">
         <Button
           onClick={handleRunQuery}
           disabled={isRunning || !query.trim()}
-          className="dumbbell-btn bg-primary text-primary-foreground hover:bg-primary/90"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
           data-testid="button-run-query"
         >
-          <Play className="mr-2 h-4 w-4" />
-          {isRunning ? 'Running...' : 'Run Query'}
+          <Dumbbell className="mr-2 h-4 w-4" />
+          {isRunning ? 'Pumping...' : 'Pump It!'}
         </Button>
         
         <Button 
@@ -212,7 +292,7 @@ export default function SQLEditor({
           data-testid="button-save"
         >
           <Save className="mr-2 h-4 w-4" />
-          Save
+          Log Workout
         </Button>
         
         <Button 
@@ -221,7 +301,7 @@ export default function SQLEditor({
           data-testid="button-reset"
         >
           <RotateCcw className="mr-2 h-4 w-4" />
-          Reset
+          Cool Down
         </Button>
 
         {hints.length > 0 && (
@@ -232,17 +312,17 @@ export default function SQLEditor({
             data-testid="button-show-hint"
           >
             <Lightbulb className="mr-2 h-4 w-4" />
-            Show Hint
+            Trainer Tips
           </Button>
         )}
       </div>
 
-      {/* Hints */}
+      {/* Trainer Tips */}
       {showHint && hints.length > 0 && (
-        <Alert className="border-primary/20 bg-primary/10">
+        <Alert className="border-primary/20 bg-primary/10 mb-6">
           <Lightbulb className="h-4 w-4 text-primary" />
           <AlertDescription className="text-foreground">
-            <strong>Hint {hintIndex + 1}:</strong> {hints[hintIndex]}
+            <strong>💡 Trainer Tip {hintIndex + 1}:</strong> {hints[hintIndex]}
             {hintIndex < hints.length - 1 && (
               <Button 
                 onClick={handleNextHint}
@@ -250,61 +330,11 @@ export default function SQLEditor({
                 className="p-0 ml-2 text-primary"
                 data-testid="button-next-hint"
               >
-                Next hint →
+                Next tip →
               </Button>
             )}
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* Results Panel */}
-      {result && (
-        <div>
-          <h3 className="text-xl font-semibold text-foreground mb-3">Results</h3>
-          <Card className="overflow-hidden">
-            <CardHeader className={`px-4 py-2 border-b ${
-              result.error ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-            }`}>
-              <div className="flex items-center space-x-2">
-                {result.error ? (
-                  <>
-                    <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                    <span className="text-red-800 font-medium">Query failed</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                    <span className="text-green-800 font-medium">
-                      {result.isCorrect ? 'Query executed successfully!' : 'Query executed, but result may be incorrect'}
-                    </span>
-                  </>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              {result.error ? (
-                <p className="text-red-600 text-sm">{result.message}</p>
-              ) : (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Execution time: {result.executionTime || 0}ms
-                  </p>
-                  {result.isCorrect && (
-                    <Alert className="border-green-200 bg-green-50">
-                      <AlertDescription className="text-green-800">
-                        🎉 Congratulations! Your query is correct. You've earned XP points!
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    <p>Query result would be displayed here in a real implementation.</p>
-                    <p>Status: {result.isCorrect ? '✅ Correct' : '❌ Incorrect'}</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   );
