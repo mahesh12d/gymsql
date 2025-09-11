@@ -13,6 +13,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Link } from "wouter";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -592,9 +594,27 @@ export default function Problems() {
                         </TableCell>
 
                         <TableCell className="py-4 max-w-md">
-                          <p className="text-gray-600 text-sm line-clamp-2">
-                            {problem.question.description}
-                          </p>
+                          <div className="text-gray-600 text-sm line-clamp-2 prose prose-sm max-w-none">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({children}) => <span className="inline">{children}</span>,
+                                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                                em: ({children}) => <em className="italic">{children}</em>,
+                                code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                                // Remove block elements for table preview
+                                h1: ({children}) => <span className="font-bold">{children}</span>,
+                                h2: ({children}) => <span className="font-semibold">{children}</span>,
+                                h3: ({children}) => <span className="font-medium">{children}</span>,
+                                ul: ({children}) => <span>{children}</span>,
+                                ol: ({children}) => <span>{children}</span>,
+                                li: ({children}) => <span>{children} </span>,
+                                blockquote: ({children}) => <span className="italic">{children}</span>,
+                              }}
+                            >
+                              {problem.question.description}
+                            </ReactMarkdown>
+                          </div>
                         </TableCell>
 
                         <TableCell className="py-4">

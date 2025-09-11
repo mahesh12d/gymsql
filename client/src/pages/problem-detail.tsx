@@ -2,6 +2,8 @@ import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Users, Star, Lightbulb } from 'lucide-react';
 import { Link } from 'wouter';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -168,9 +170,33 @@ export default function ProblemDetail() {
               <CardContent className="space-y-6">
                 {/* Problem Description */}
                 <div>
-                  <p className="text-foreground leading-relaxed mb-6" data-testid="text-problem-description">
-                    {problem.question?.description}
-                  </p>
+                  <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-lg font-medium mb-2">{children}</h3>,
+                        p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
+                        ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
+                        li: ({children}) => <li className="text-foreground">{children}</li>,
+                        code: ({children, className}) => {
+                          const isInline = !className;
+                          if (isInline) {
+                            return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
+                          }
+                          return <code className={className}>{children}</code>;
+                        },
+                        pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>,
+                        blockquote: ({children}) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+                        strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                      }}
+                    >
+                      {problem.question?.description || ''}
+                    </ReactMarkdown>
+                  </div>
                 </div>
 
                 {/* Structured Table Display */}
