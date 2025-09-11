@@ -615,7 +615,15 @@ export default function Problems() {
                                 pre: () => <span className="text-green-600 font-medium">[Code] </span>,
                               }}
                             >
-                              {problem.question.description.substring(0, 200)}...
+                              {(() => {
+                                // Get first paragraph or first 150 chars to avoid breaking markdown syntax
+                                const desc = problem.question.description;
+                                const firstParagraph = desc.split('\n\n')[0];
+                                if (firstParagraph.length > 150) {
+                                  return firstParagraph.substring(0, 150) + '...';
+                                }
+                                return firstParagraph + (desc.length > firstParagraph.length ? '...' : '');
+                              })()}
                             </ReactMarkdown>
                           </div>
                         </TableCell>
