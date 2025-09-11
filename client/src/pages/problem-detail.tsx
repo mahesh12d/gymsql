@@ -186,12 +186,18 @@ export default function ProblemDetail() {
                           if (isInline) {
                             return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
                           }
-                          return <code className={className}>{children}</code>;
+                          return <code className="bg-muted text-sm font-mono block">{children}</code>;
                         },
-                        pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>,
-                        blockquote: ({children}) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+                        pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono">{children}</pre>,
+                        blockquote: ({children}) => <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 pr-4 py-3 my-4 rounded-r-lg">{children}</blockquote>,
                         strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
                         em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                        table: ({children}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-muted">{children}</table></div>,
+                        thead: ({children}) => <thead className="bg-muted/50">{children}</thead>,
+                        tbody: ({children}) => <tbody>{children}</tbody>,
+                        tr: ({children}) => <tr className="border-b border-muted">{children}</tr>,
+                        th: ({children}) => <th className="border border-muted px-3 py-2 text-left font-semibold">{children}</th>,
+                        td: ({children}) => <td className="border border-muted px-3 py-2">{children}</td>,
                       }}
                     >
                       {problem.question?.description || ''}

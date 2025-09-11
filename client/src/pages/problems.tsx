@@ -594,25 +594,28 @@ export default function Problems() {
                         </TableCell>
 
                         <TableCell className="py-4 max-w-md">
-                          <div className="text-gray-600 text-sm line-clamp-2 prose prose-sm max-w-none">
+                          <div className="text-gray-600 text-sm line-clamp-2">
                             <ReactMarkdown 
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                p: ({children}) => <span className="inline">{children}</span>,
-                                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                                // Flatten all elements for preview - keep formatting but avoid line breaks
+                                p: ({children}) => <span className="inline">{children} </span>,
+                                strong: ({children}) => <strong className="font-semibold text-gray-800">{children}</strong>,
                                 em: ({children}) => <em className="italic">{children}</em>,
-                                code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                                // Remove block elements for table preview
-                                h1: ({children}) => <span className="font-bold">{children}</span>,
-                                h2: ({children}) => <span className="font-semibold">{children}</span>,
-                                h3: ({children}) => <span className="font-medium">{children}</span>,
+                                code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">{children}</code>,
+                                h1: ({children}) => <span className="font-bold text-gray-800">{children} </span>,
+                                h2: ({children}) => <span className="font-semibold text-gray-800">{children} </span>,
+                                h3: ({children}) => <span className="font-medium text-gray-800">{children} </span>,
                                 ul: ({children}) => <span>{children}</span>,
                                 ol: ({children}) => <span>{children}</span>,
-                                li: ({children}) => <span>{children} </span>,
-                                blockquote: ({children}) => <span className="italic">{children}</span>,
+                                li: ({children}) => <span>{children} • </span>,
+                                blockquote: ({children}) => <span className="italic text-blue-600">"{children}" </span>,
+                                // Tables and code blocks are hidden in preview
+                                table: () => <span className="text-blue-600 font-medium">[Table] </span>,
+                                pre: () => <span className="text-green-600 font-medium">[Code] </span>,
                               }}
                             >
-                              {problem.question.description}
+                              {problem.question.description.substring(0, 200)}...
                             </ReactMarkdown>
                           </div>
                         </TableCell>
