@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "python -m uvicorn api.main:app --host localhost --port 8000 --reload",
+    "dev:backend": ".pythonlibs/bin/python -m uvicorn api.main:app --host localhost --port 8000 --reload",
     "dev:frontend": "vite --host 0.0.0.0 --port 5000",
     "build": "vite build",
     "start": "npm run build && .pythonlibs/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 5000"
