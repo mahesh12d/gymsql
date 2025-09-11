@@ -2,7 +2,7 @@
   {
     "title": "Select All Customers",
     "question": {
-      "description": "Write a query to select all columns from the 'customers' table.",
+      "description": "Write a query to select all columns from the `customers` table.\n\n**Assumptions:**\n- The `customers` table contains basic customer information\n- All columns should be returned in the result set\n\n*This is a fundamental SQL operation that every data professional should master.*",
       "tables": [
         {
           "name": "customers",
@@ -32,7 +32,7 @@
   {
     "title": "Find Employees by Department", 
     "question": {
-      "description": "Write a query to find all employees who work in the 'Sales' department.",
+      "description": "**Tesla SQL Interview Question**\n\nTesla is investigating departmental headcount and needs your help to extract the relevant data. Write a query to find all employees who work in the **Sales** department.\n\n## Assumptions:\n- The `employees` table contains all current employees\n- Department names are stored as exact string matches\n- Case-sensitive matching is required for department filtering\n\nThis question tests your understanding of basic filtering operations.\n\n*Effective April 11th 2023, the problem statement was updated to enhance clarity.*",
       "tables": [
         {
           "name": "employees",
@@ -62,7 +62,7 @@
   {
     "title": "Calculate Total Order Amount",
     "question": {
-      "description": "Write a query to calculate the total amount for each order.",
+      "description": "**Advanced eCommerce Analytics Challenge**\n\nAn e-commerce company needs to analyze their order values for financial reporting. Write a query to calculate the **total amount** for each order by combining price and quantity data.\n\n### Requirements:\n1. Join the `orders` and `order_items` tables\n2. Calculate total as: `price × quantity` for each item\n3. Sum all item totals per order\n4. Group results by `order_id`\n\n**Key Formula:** Total Amount = Σ(price × quantity) for each order\n\n> **Pro Tip:** Use `SUM(price * quantity)` with `GROUP BY order_id` for optimal performance.\n\n*This problem combines multiple SQL concepts: JOINs, aggregation, and grouping.*",
       "tables": [
         {
           "name": "orders",
