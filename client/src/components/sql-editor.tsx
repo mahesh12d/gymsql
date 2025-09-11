@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Play, Save, RotateCcw, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import CodeMirror from '@uiw/react-codemirror';
+import { sql, PostgreSQL } from '@codemirror/lang-sql';
+import { autocompletion } from '@codemirror/autocomplete';
+import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { oneDark } from '@codemirror/theme-one-dark';
 
 interface SQLEditorProps {
   initialQuery?: string;
@@ -23,6 +28,80 @@ export default function SQLEditor({
   const [isRunning, setIsRunning] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
+
+  // Detect dark mode
+  const isDarkMode = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  }, []);
+
+  // Configure CodeMirror extensions and theme
+  const extensions = useMemo(() => [
+    sql({
+      dialect: PostgreSQL,
+      upperCaseKeywords: true,
+      schema: {
+        customers: ['id', 'name', 'email'],
+        employees: ['id', 'name', 'department'],
+        orders: ['id', 'customer_id', 'total'],
+        order_items: ['id', 'order_id', 'price', 'quantity'],
+      }
+    }),
+    autocompletion(),
+    EditorView.lineWrapping,
+    placeholder('-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;'),
+    keymap.of([
+      ...defaultKeymap,
+      indentWithTab,
+      {
+        key: 'Mod-Enter',
+        run: () => {
+          handleRunQuery();
+          return true;
+        }
+      }
+    ])
+  ], []);
+
+  const theme = useMemo(() => {
+    if (isDarkMode) {
+      return [oneDark];
+    }
+    return [
+      EditorView.theme({
+        '&': {
+          color: 'hsl(var(--foreground))',
+          backgroundColor: 'hsl(var(--background))',
+        },
+        '.cm-content': {
+          padding: '16px',
+          fontSize: '14px',
+          fontFamily: 'var(--font-mono)',
+          minHeight: '16rem',
+        },
+        '.cm-focused': {
+          outline: 'none',
+        },
+        '.cm-editor': {
+          borderRadius: '0',
+        },
+        '.cm-scroller': {
+          fontFamily: 'var(--font-mono)',
+        },
+        '.cm-line': {
+          lineHeight: '1.5',
+        },
+        '&.cm-focused .cm-cursor': {
+          borderLeftColor: 'hsl(var(--primary))',
+        },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+          backgroundColor: 'hsl(var(--primary) / 0.2)',
+        }
+      })
+    ];
+  }, [isDarkMode]);
 
   const handleRunQuery = async () => {
     if (!query.trim()) return;
@@ -76,17 +155,27 @@ export default function SQLEditor({
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <Textarea
+            <CodeMirror
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full min-h-64 p-4 code-editor resize-none focus:outline-none border-0 rounded-none"
-              placeholder="-- Write your SQL query here
-SELECT 
-    column1,
-    column2
-FROM table_name
-WHERE condition;"
-              data-testid="textarea-sql-query"
+              onChange={(value) => setQuery(value)}
+              height="16rem"
+              theme={theme}
+              extensions={extensions}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                dropCursor: false,
+                allowMultipleSelections: false,
+                indentOnInput: true,
+                bracketMatching: true,
+                closeBrackets: true,
+                autocompletion: true,
+                highlightSelectionMatches: false,
+                searchKeymap: true,
+                tabSize: 2,
+              }}
+              data-testid="editor-sql"
+              className="code-editor"
             />
           </CardContent>
         </Card>
