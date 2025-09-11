@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Play, Save, RotateCcw, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -29,13 +29,43 @@ export default function SQLEditor({
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
 
-  // Detect dark mode
-  const isDarkMode = useMemo(() => {
+  // Detect dark mode with reactivity
+  const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
     }
     return false;
+  });
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
   }, []);
+
+  const handleRunQuery = useCallback(async () => {
+    if (!query.trim()) return;
+    
+    setIsRunning(true);
+    try {
+      const result = await onRunQuery(query);
+      setResult(result);
+    } catch (error) {
+      setResult({
+        error: true,
+        message: error instanceof Error ? error.message : 'Query execution failed',
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  }, [query, onRunQuery]);
 
   // Configure CodeMirror extensions and theme
   const extensions = useMemo(() => [
@@ -63,7 +93,7 @@ export default function SQLEditor({
         }
       }
     ])
-  ], []);
+  ], [handleRunQuery]);
 
   const theme = useMemo(() => {
     if (isDarkMode) {
@@ -102,23 +132,6 @@ export default function SQLEditor({
       })
     ];
   }, [isDarkMode]);
-
-  const handleRunQuery = async () => {
-    if (!query.trim()) return;
-    
-    setIsRunning(true);
-    try {
-      const result = await onRunQuery(query);
-      setResult(result);
-    } catch (error) {
-      setResult({
-        error: true,
-        message: error instanceof Error ? error.message : 'Query execution failed',
-      });
-    } finally {
-      setIsRunning(false);
-    }
-  };
 
   const handleSave = () => {
     localStorage.setItem('sqlgym_last_query', query);
@@ -169,7 +182,7 @@ export default function SQLEditor({
                 indentOnInput: true,
                 bracketMatching: true,
                 closeBrackets: true,
-                autocompletion: true,
+                autocompletion: false,
                 highlightSelectionMatches: false,
                 searchKeymap: true,
                 tabSize: 2,
