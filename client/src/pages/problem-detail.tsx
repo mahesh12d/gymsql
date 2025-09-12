@@ -242,6 +242,40 @@ export default function ProblemDetail() {
                       tables={problem.question?.tables || []} 
                       expectedOutput={problem.question?.expectedOutput || []}
                     />
+
+                    {/* Hints Section */}
+                    {problem?.hints && problem.hints.length > 0 && (
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={handleShowHint}
+                          variant="outline"
+                          className="w-full text-primary hover:bg-primary/10"
+                          data-testid="button-show-hint"
+                        >
+                          <Lightbulb className="mr-2 h-4 w-4" />
+                          Show Hints
+                        </Button>
+                        
+                        {showHint && (
+                          <Alert className="border-primary/20 bg-primary/10">
+                            <Lightbulb className="h-4 w-4 text-primary" />
+                            <AlertDescription className="text-foreground">
+                              <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
+                              {hintIndex < problem.hints.length - 1 && (
+                                <Button 
+                                  onClick={handleNextHint}
+                                  variant="link" 
+                                  className="p-0 ml-2 text-primary"
+                                  data-testid="button-next-hint"
+                                >
+                                  Next hint →
+                                </Button>
+                              )}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
@@ -293,42 +327,6 @@ export default function ProblemDetail() {
                       </div>
                     </CardContent>
                   </Card>
-                )}
-              </div>
-              
-              {/* Hints Section - At Bottom of Left Panel */}
-              <div className="flex-shrink-0 p-6 pt-0">
-                {problem?.hints && problem.hints.length > 0 && (
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={handleShowHint}
-                      variant="outline"
-                      className="w-full text-primary hover:bg-primary/10"
-                      data-testid="button-show-hint"
-                    >
-                      <Lightbulb className="mr-2 h-4 w-4" />
-                      Show Hints
-                    </Button>
-                    
-                    {showHint && (
-                      <Alert className="border-primary/20 bg-primary/10">
-                        <Lightbulb className="h-4 w-4 text-primary" />
-                        <AlertDescription className="text-foreground">
-                          <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
-                          {hintIndex < problem.hints.length - 1 && (
-                            <Button 
-                              onClick={handleNextHint}
-                              variant="link" 
-                              className="p-0 ml-2 text-primary"
-                              data-testid="button-next-hint"
-                            >
-                              Next hint →
-                            </Button>
-                          )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
                 )}
               </div>
             </div>
