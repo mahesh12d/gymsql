@@ -181,7 +181,7 @@ function EditorOutputSplit({
             <CodeMirror
               value={query}
               onChange={(value) => setQuery(value)}
-              height="calc(100vh - 280px)"
+              height="calc(100vh - 200px)"
               theme={theme}
               extensions={extensions}
               basicSetup={{
@@ -204,13 +204,13 @@ function EditorOutputSplit({
         </Card>
       </div>
       
-      {/* Action Buttons - Always visible at bottom */}
-      <div className="flex-shrink-0 p-4 bg-background border-t border-border">
-        <div className="flex justify-center gap-4">
+      {/* Action Buttons */}
+      <div className="flex-shrink-0 p-2 bg-muted/30">
+        <div className="flex justify-end gap-3">
           <Button
             onClick={handleRun}
             disabled={isRunning || !query.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold h-10 px-6 rounded-lg shadow-sm"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-8"
             data-testid="button-run-query"
           >
             <Play className="mr-2 h-4 w-4" />
@@ -220,15 +220,12 @@ function EditorOutputSplit({
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !query.trim()}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-10 px-6 rounded-lg shadow-sm"
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-8"
             data-testid="button-submit"
           >
             <Save className="mr-2 h-4 w-4" />
             {isSubmitting ? 'Submitting...' : 'Check Solution'}
           </Button>
-        </div>
-        <div className="text-center mt-2">
-          <p className="text-xs text-muted-foreground">Use Alt + Enter to run query • Highlight some code to execute selection only</p>
         </div>
       </div>
     </div>
