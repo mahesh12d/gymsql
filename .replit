@@ -9,7 +9,7 @@ packages = ["cargo", "libiconv", "libxcrypt", "rustc"]
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = [".pythonlibs/bin/python3", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "5000"]
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 5000
