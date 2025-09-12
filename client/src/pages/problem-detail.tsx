@@ -491,7 +491,7 @@ export default function ProblemDetail() {
           leftPanel={
             /* Problem Panel with Tabs - Full Height */
             <div className="h-full flex flex-col overflow-hidden bg-background">
-              <Tabs defaultValue="question" className="flex-1 flex flex-col">
+              <Tabs defaultValue="question" className="flex-1 flex flex-col h-full">
                 <TabsList className="grid grid-cols-4 m-0 rounded-none border-b bg-muted/30">
                       <TabsTrigger value="question" className="flex items-center gap-2" data-testid="tab-question">
                         <FileText className="h-4 w-4" />
@@ -536,11 +536,11 @@ export default function ProblemDetail() {
                       </div>
                     </div>
                     
-                    <TabsContent value="question" className="flex-1 overflow-auto p-6 pt-0 mt-0" data-testid="content-question">
-                      <div className="space-y-6">
+                    <TabsContent value="question" className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-0 mt-0 min-h-0" data-testid="content-question">
+                      <div className="space-y-6 pb-8">
                         {/* Problem Description */}
                         <div>
-                          <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
+                          <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none break-words" data-testid="text-problem-description">
                             <ReactMarkdown 
                               remarkPlugins={[remarkGfm]}
                               components={{
