@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2 } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -502,163 +502,249 @@ export default function ProblemDetail() {
           minRightWidth={30}
           className="h-full"
           leftPanel={
-            /* Problem Panel - Full Height */
+            /* Problem Panel with Tabs - Full Height */
             <div className="h-full flex flex-col overflow-hidden bg-background">
-              <div className="flex-1 space-y-6 p-6 overflow-auto">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
-                          {problem.title}
-                        </h1>
-                        <Badge className={getDifficultyColor(problem.difficulty)}>
-                          {problem.difficulty}
+              <Card className="flex-1 flex flex-col overflow-hidden">
+                <CardHeader className="flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
+                        {problem.title}
+                      </h1>
+                      <Badge className={getDifficultyColor(problem.difficulty)}>
+                        {problem.difficulty}
+                      </Badge>
+                      {hasCorrectSubmission && (
+                        <Badge className="bg-green-100 text-green-800">
+                          ✓ Solved
                         </Badge>
-                        {hasCorrectSubmission && (
-                          <Badge className="bg-green-100 text-green-800">
-                            ✓ Solved
-                          </Badge>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-4 h-4" />
-                        <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
-                      </div>
+                  </div>
+                  <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-4 h-4" />
+                      <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Problem Description */}
-                    <div>
-                      <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
-                            h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
-                            h3: ({children}) => <h3 className="text-lg font-medium mb-2">{children}</h3>,
-                            p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
-                            ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
-                            ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
-                            li: ({children}) => <li className="text-foreground">{children}</li>,
-                            code: ({children, className}) => {
-                              const isInline = !className;
-                              if (isInline) {
-                                return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
-                              }
-                              return <code className="bg-muted text-sm font-mono block">{children}</code>;
-                            },
-                            pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono">{children}</pre>,
-                            blockquote: ({children}) => <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 pr-4 py-3 my-4 rounded-r-lg">{children}</blockquote>,
-                            strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
-                            em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
-                            table: ({children}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-muted">{children}</table></div>,
-                            thead: ({children}) => <thead className="bg-muted/50">{children}</thead>,
-                            tbody: ({children}) => <tbody>{children}</tbody>,
-                            tr: ({children}) => <tr className="border-b border-muted">{children}</tr>,
-                            th: ({children}) => <th className="border border-muted px-3 py-2 text-left font-semibold">{children}</th>,
-                            td: ({children}) => <td className="border border-muted px-3 py-2">{children}</td>,
-                          }}
-                        >
-                          {problem.question?.description || ''}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="flex-1 flex flex-col min-h-0 p-0">
+                  <Tabs defaultValue="question" className="flex-1 flex flex-col">
+                    <TabsList className="grid grid-cols-4 mx-6 mt-6">
+                      <TabsTrigger value="question" className="flex items-center gap-2" data-testid="tab-question">
+                        <FileText className="h-4 w-4" />
+                        Question
+                      </TabsTrigger>
+                      <TabsTrigger value="solution" className="flex items-center gap-2" data-testid="tab-solution">
+                        <Code2 className="h-4 w-4" />
+                        Solution
+                      </TabsTrigger>
+                      <TabsTrigger value="discussion" className="flex items-center gap-2" data-testid="tab-discussion">
+                        <MessageSquare className="h-4 w-4" />
+                        Discussion
+                      </TabsTrigger>
+                      <TabsTrigger value="submission" className="flex items-center gap-2" data-testid="tab-submission">
+                        <CheckCircle className="h-4 w-4" />
+                        Submission
+                      </TabsTrigger>
+                    </TabsList>
                     
-                    {/* Structured Table Display */}
-                    <TableDisplay 
-                      tables={problem.question?.tables || []} 
-                      expectedOutput={problem.question?.expectedOutput || []}
-                    />
-
-                    {/* Hints Section */}
-                    {problem?.hints && problem.hints.length > 0 && (
-                      <div className="space-y-3">
-                        <Button 
-                          onClick={handleShowHint}
-                          variant="outline"
-                          className="w-full text-primary hover:bg-primary/10"
-                          data-testid="button-show-hint"
-                        >
-                          <Lightbulb className="mr-2 h-4 w-4" />
-                          Show Hints
-                        </Button>
+                    <TabsContent value="question" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-question">
+                      <div className="space-y-6">
+                        {/* Problem Description */}
+                        <div>
+                          <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
+                                h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
+                                h3: ({children}) => <h3 className="text-lg font-medium mb-2">{children}</h3>,
+                                p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
+                                ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
+                                ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
+                                li: ({children}) => <li className="text-foreground">{children}</li>,
+                                code: ({children, className}) => {
+                                  const isInline = !className;
+                                  if (isInline) {
+                                    return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
+                                  }
+                                  return <code className="bg-muted text-sm font-mono block">{children}</code>;
+                                },
+                                pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono">{children}</pre>,
+                                blockquote: ({children}) => <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 pr-4 py-3 my-4 rounded-r-lg">{children}</blockquote>,
+                                strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                                em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                                table: ({children}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-muted">{children}</table></div>,
+                                thead: ({children}) => <thead className="bg-muted/50">{children}</thead>,
+                                tbody: ({children}) => <tbody>{children}</tbody>,
+                                tr: ({children}) => <tr className="border-b border-muted">{children}</tr>,
+                                th: ({children}) => <th className="border border-muted px-3 py-2 text-left font-semibold">{children}</th>,
+                                td: ({children}) => <td className="border border-muted px-3 py-2">{children}</td>,
+                              }}
+                            >
+                              {problem.question?.description || ''}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
                         
-                        {showHint && (
-                          <Alert className="border-primary/20 bg-primary/10">
-                            <Lightbulb className="h-4 w-4 text-primary" />
-                            <AlertDescription className="text-foreground">
-                              <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
-                              {hintIndex < problem.hints.length - 1 && (
-                                <Button 
-                                  onClick={handleNextHint}
-                                  variant="link" 
-                                  className="p-0 ml-2 text-primary"
-                                  data-testid="button-next-hint"
-                                >
-                                  Next hint →
-                                </Button>
-                              )}
-                            </AlertDescription>
-                          </Alert>
+                        {/* Structured Table Display */}
+                        <TableDisplay 
+                          tables={problem.question?.tables || []} 
+                          expectedOutput={problem.question?.expectedOutput || []}
+                        />
+
+                        {/* Hints Section */}
+                        {problem?.hints && problem.hints.length > 0 && (
+                          <div className="space-y-3">
+                            <Button 
+                              onClick={handleShowHint}
+                              variant="outline"
+                              className="w-full text-primary hover:bg-primary/10"
+                              data-testid="button-show-hint"
+                            >
+                              <Lightbulb className="mr-2 h-4 w-4" />
+                              Show Hints
+                            </Button>
+                            
+                            {showHint && (
+                              <Alert className="border-primary/20 bg-primary/10">
+                                <Lightbulb className="h-4 w-4 text-primary" />
+                                <AlertDescription className="text-foreground">
+                                  <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
+                                  {hintIndex < problem.hints.length - 1 && (
+                                    <Button 
+                                      onClick={handleNextHint}
+                                      variant="link" 
+                                      className="p-0 ml-2 text-primary"
+                                      data-testid="button-next-hint"
+                                    >
+                                      Next hint →
+                                    </Button>
+                                  )}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                {/* Tags */}
-                {problem.tags && problem.tags.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Tags</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {problem.tags.map((tag: string, index: number) => (
-                          <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-                
-                {/* Previous Submissions */}
-                {userSubmissions && userSubmissions.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Your Submissions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {userSubmissions.slice(0, 5).map((submission, index) => (
-                          <div 
-                            key={submission.id} 
-                            className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                            data-testid={`submission-${index}`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-3 h-3 rounded-full ${
-                                submission.isCorrect ? 'bg-green-500' : 'bg-red-500'
-                              }`} />
-                              <span className="text-sm font-medium">
-                                {submission.isCorrect ? 'Correct' : 'Incorrect'}
-                              </span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {new Date(submission.submittedAt).toLocaleDateString()}
+
+                        {/* Tags */}
+                        {problem.tags && problem.tags.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-foreground mb-2">Tags</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {problem.tags.map((tag: string, index: number) => (
+                                <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
+                                  {tag}
+                                </Badge>
+                              ))}
                             </div>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="solution" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-solution">
+                      <div className="space-y-6">
+                        <div className="text-center py-8">
+                          <Code2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-foreground mb-2">Solution</h3>
+                          <p className="text-muted-foreground mb-4">
+                            Complete this problem to view the official solution and explanations.
+                          </p>
+                          {!hasCorrectSubmission && (
+                            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30">
+                              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                                💡 Solve the problem first to unlock the detailed solution walkthrough!
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                          {hasCorrectSubmission && (
+                            <div className="mt-6 p-6 bg-muted/50 rounded-lg">
+                              <h4 className="font-semibold mb-4">Official Solution:</h4>
+                              <div className="text-left font-mono text-sm bg-background rounded border p-4">
+                                <p className="text-muted-foreground">[Solution code would be displayed here]</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="discussion" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-discussion">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-foreground">Discussion</h3>
+                          <Button variant="outline" size="sm" data-testid="button-new-discussion">
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            New Discussion
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="text-center py-8">
+                            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <h4 className="text-base font-semibold text-foreground mb-2">No discussions yet</h4>
+                            <p className="text-muted-foreground mb-4">
+                              Be the first to start a discussion about this problem!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="submission" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-submission">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-foreground">My Submissions</h3>
+                          <div className="text-sm text-muted-foreground">
+                            {userSubmissions?.length || 0} submissions
+                          </div>
+                        </div>
+                        
+                        {userSubmissions && userSubmissions.length > 0 ? (
+                          <div className="space-y-3">
+                            {userSubmissions.map((submission, index) => (
+                              <Card key={submission.id} className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className={`w-3 h-3 rounded-full ${
+                                      submission.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                                    }`} />
+                                    <span className="text-sm font-mono">
+                                      Submission {index + 1}
+                                    </span>
+                                    {submission.isCorrect && (
+                                      <Badge className="bg-green-100 text-green-800 text-xs">
+                                        ✓ Accepted
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(submission.submittedAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <div className="mt-3 text-sm text-muted-foreground">
+                                  Runtime: {submission.executionTime || 'N/A'}ms
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <h4 className="text-base font-semibold text-foreground mb-2">No submissions yet</h4>
+                            <p className="text-muted-foreground mb-4">
+                              Submit your first solution to see it here!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
             </div>
           }
           rightPanel={
