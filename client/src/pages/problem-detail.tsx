@@ -514,26 +514,20 @@ export default function ProblemDetail() {
                     <TabsContent value="question" className="flex-1 overflow-y-auto overflow-x-hidden p-6 mt-0 min-h-0" data-testid="content-question">
                       <div className="space-y-6 pb-8">
                         {/* Title Header - Now scrollable */}
-                        <div className="pb-4 border-b">
+                        <div className="pb-3 border-b">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
+                            <div className="flex items-center space-x-3">
+                              <h1 className="text-lg font-bold text-foreground" data-testid="text-problem-title">
                                 {problem.title}
                               </h1>
-                              <Badge className={getDifficultyColor(problem.difficulty)}>
+                              <Badge className={`${getDifficultyColor(problem.difficulty)} text-xs px-2 py-1`}>
                                 {problem.difficulty}
                               </Badge>
                               {hasCorrectSubmission && (
-                                <Badge className="bg-green-100 text-green-800">
+                                <Badge className="bg-green-100 text-green-800 text-xs px-2 py-1">
                                   ✓ Solved
                                 </Badge>
                               )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
-                            <div className="flex items-center space-x-1">
-                              <Users className="w-4 h-4" />
-                              <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
                             </div>
                           </div>
                         </div>
