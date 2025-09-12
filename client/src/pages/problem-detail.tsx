@@ -38,6 +38,7 @@ function EditorOutputSplit({
   const [result, setResult] = useState<any>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
 
   // Detect dark mode with reactivity
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -64,6 +65,7 @@ function EditorOutputSplit({
     if (!query.trim()) return;
     
     setIsRunning(true);
+    setShowOutput(true);
     try {
       const runResult = await handleRunQuery(query);
       setResult(runResult);
@@ -81,6 +83,7 @@ function EditorOutputSplit({
     if (!query.trim()) return;
     
     setIsSubmitting(true);
+    setShowOutput(true);
     try {
       const submitResult = await handleSubmitSolution(query);
       setResult(submitResult);
@@ -302,15 +305,25 @@ function EditorOutputSplit({
     </Card>
   );
 
+  // Show resizable layout when output is visible, otherwise show just the editor
+  if (showOutput) {
+    return (
+      <VerticalResizableSplitter
+        topPanel={editorPanel}
+        bottomPanel={outputPanel}
+        defaultTopHeight={60}
+        minTopHeight={35}
+        minBottomHeight={25}
+        className="h-full"
+      />
+    );
+  }
+
+  // Show just the editor when no output
   return (
-    <VerticalResizableSplitter
-      topPanel={editorPanel}
-      bottomPanel={outputPanel}
-      defaultTopHeight={60}
-      minTopHeight={35}
-      minBottomHeight={25}
-      className="h-full"
-    />
+    <div className="h-full">
+      {editorPanel}
+    </div>
   );
 }
 
