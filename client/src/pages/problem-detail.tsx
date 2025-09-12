@@ -506,30 +506,6 @@ export default function ProblemDetail() {
             /* Problem Panel with Tabs - Full Height */
             <div className="h-full flex flex-col overflow-hidden bg-background">
               <Card className="flex-1 flex flex-col overflow-hidden">
-                <CardHeader className="flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
-                        {problem.title}
-                      </h1>
-                      <Badge className={getDifficultyColor(problem.difficulty)}>
-                        {problem.difficulty}
-                      </Badge>
-                      {hasCorrectSubmission && (
-                        <Badge className="bg-green-100 text-green-800">
-                          ✓ Solved
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
-                    <div className="flex items-center space-x-1">
-                      <Users className="w-4 h-4" />
-                      <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                
                 <CardContent className="flex-1 flex flex-col min-h-0 p-0">
                   <Tabs defaultValue="question" className="flex-1 flex flex-col">
                     <TabsList className="grid grid-cols-4 mx-6 mt-6">
@@ -551,7 +527,32 @@ export default function ProblemDetail() {
                       </TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="question" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-question">
+                    {/* Title Header - Now inside tabs */}
+                    <div className="flex-shrink-0 px-6 py-4 border-b">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
+                            {problem.title}
+                          </h1>
+                          <Badge className={getDifficultyColor(problem.difficulty)}>
+                            {problem.difficulty}
+                          </Badge>
+                          {hasCorrectSubmission && (
+                            <Badge className="bg-green-100 text-green-800">
+                              ✓ Solved
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-4 h-4" />
+                          <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <TabsContent value="question" className="flex-1 overflow-auto p-6 pt-0 mt-0" data-testid="content-question">
                       <div className="space-y-6">
                         {/* Problem Description */}
                         <div>
@@ -646,7 +647,7 @@ export default function ProblemDetail() {
                       </div>
                     </TabsContent>
                     
-                    <TabsContent value="solution" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-solution">
+                    <TabsContent value="solution" className="flex-1 overflow-auto p-6 pt-0 mt-0" data-testid="content-solution">
                       <div className="space-y-6">
                         <div className="text-center py-8">
                           <Code2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -673,7 +674,7 @@ export default function ProblemDetail() {
                       </div>
                     </TabsContent>
                     
-                    <TabsContent value="discussion" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-discussion">
+                    <TabsContent value="discussion" className="flex-1 overflow-auto p-6 pt-0 mt-0" data-testid="content-discussion">
                       <div className="space-y-6">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-foreground">Discussion</h3>
@@ -695,7 +696,7 @@ export default function ProblemDetail() {
                       </div>
                     </TabsContent>
                     
-                    <TabsContent value="submission" className="flex-1 overflow-auto p-6 mt-0" data-testid="content-submission">
+                    <TabsContent value="submission" className="flex-1 overflow-auto p-6 pt-0 mt-0" data-testid="content-submission">
                       <div className="space-y-6">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-foreground">My Submissions</h3>
