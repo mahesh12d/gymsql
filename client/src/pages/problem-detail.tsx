@@ -505,10 +505,8 @@ export default function ProblemDetail() {
           leftPanel={
             /* Problem Panel with Tabs - Full Height */
             <div className="h-full flex flex-col overflow-hidden bg-background">
-              <Card className="flex-1 flex flex-col overflow-hidden">
-                <CardContent className="flex-1 flex flex-col min-h-0 p-0">
-                  <Tabs defaultValue="question" className="flex-1 flex flex-col">
-                    <TabsList className="grid grid-cols-4 mx-6 mt-6">
+              <Tabs defaultValue="question" className="flex-1 flex flex-col">
+                <TabsList className="grid grid-cols-4 m-0 rounded-none border-b bg-muted/30">
                       <TabsTrigger value="question" className="flex items-center gap-2" data-testid="tab-question">
                         <FileText className="h-4 w-4" />
                         Question
@@ -745,8 +743,6 @@ export default function ProblemDetail() {
                       </div>
                     </TabsContent>
                   </Tabs>
-                </CardContent>
-              </Card>
             </div>
           }
           rightPanel={
