@@ -1,6 +1,7 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Users, Star, Lightbulb } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,11 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import { problemsApi, submissionsApi } from '@/lib/auth';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import SQLEditor from '@/components/sql-editor';
 import TableDisplay from '@/components/table-display';
+import ResizableSplitter from '@/components/resizable-splitter';
+
 
 export default function ProblemDetail() {
   const params = useParams();
@@ -20,6 +24,8 @@ export default function ProblemDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showHint, setShowHint] = useState(false);
+  const [hintIndex, setHintIndex] = useState(0);
 
   const { data: problem, isLoading: problemLoading } = useQuery({
     queryKey: ['/api/problems', problemId],
@@ -59,14 +65,27 @@ export default function ProblemDetail() {
     },
   });
 
+  // Run Code - Non-persistent evaluation (no auth required)
   const handleRunQuery = async (query: string) => {
+    // For now, return a mock evaluation result
+    // In a real app, this would call a separate evaluation endpoint
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate processing
+    return {
+      isCorrect: false,
+      message: 'Query executed successfully. Use "Check Solution" to submit your final answer.',
+      executionTime: Math.floor(Math.random() * 50) + 10,
+    };
+  };
+  
+  // Check Solution - Persistent submission (auth required)
+  const handleSubmitSolution = async (query: string) => {
     if (!user) {
       toast({
         title: 'Authentication required',
         description: 'Please log in to submit solutions.',
         variant: 'destructive',
       });
-      return;
+      throw new Error('Authentication required');
     }
     
     return submitMutation.mutateAsync(query);
@@ -126,6 +145,16 @@ export default function ProblemDetail() {
 
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
 
+  const handleShowHint = () => {
+    setShowHint(true);
+  };
+
+  const handleNextHint = () => {
+    if (problem?.hints && hintIndex < problem.hints.length - 1) {
+      setHintIndex(hintIndex + 1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -160,119 +189,160 @@ export default function ProblemDetail() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Single Question Block - Now displays structured table format */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Question</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Problem Description */}
-                <div>
-                  <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-lg font-medium mb-2">{children}</h3>,
-                        p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
-                        ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
-                        ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
-                        li: ({children}) => <li className="text-foreground">{children}</li>,
-                        code: ({children, className}) => {
-                          const isInline = !className;
-                          if (isInline) {
-                            return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
-                          }
-                          return <code className="bg-muted text-sm font-mono block">{children}</code>;
-                        },
-                        pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono">{children}</pre>,
-                        blockquote: ({children}) => <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 pr-4 py-3 my-4 rounded-r-lg">{children}</blockquote>,
-                        strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
-                        em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
-                        table: ({children}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-muted">{children}</table></div>,
-                        thead: ({children}) => <thead className="bg-muted/50">{children}</thead>,
-                        tbody: ({children}) => <tbody>{children}</tbody>,
-                        tr: ({children}) => <tr className="border-b border-muted">{children}</tr>,
-                        th: ({children}) => <th className="border border-muted px-3 py-2 text-left font-semibold">{children}</th>,
-                        td: ({children}) => <td className="border border-muted px-3 py-2">{children}</td>,
-                      }}
-                    >
-                      {problem.question?.description || ''}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-
-                {/* Structured Table Display */}
-                <TableDisplay 
-                  tables={problem.question?.tables || []} 
-                  expectedOutput={problem.question?.expectedOutput || []}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Tags */}
-            {problem.tags && problem.tags.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tags</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {problem.tags.map((tag: string, index: number) => (
-                      <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Previous Submissions */}
-            {userSubmissions && userSubmissions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Submissions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {userSubmissions.slice(0, 5).map((submission, index) => (
-                      <div 
-                        key={submission.id} 
-                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                        data-testid={`submission-${index}`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            submission.isCorrect ? 'bg-green-500' : 'bg-red-500'
-                          }`} />
-                          <span className="text-sm font-medium">
-                            {submission.isCorrect ? 'Correct' : 'Incorrect'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(submission.submittedAt).toLocaleDateString()}
-                        </div>
+        <ResizableSplitter
+          defaultLeftWidth={45}
+          className="h-[calc(100vh-200px)]" 
+          leftPanel={
+            <div className="h-full flex flex-col p-6 overflow-auto">
+              {/* Question Panel */}
+              <div className="flex-1 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Question</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Problem Description */}
+                    <div>
+                      <div className="text-foreground leading-relaxed mb-6 prose prose-sm max-w-none" data-testid="text-problem-description">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({children}) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
+                            h2: ({children}) => <h2 className="text-xl font-semibold mb-3">{children}</h2>,
+                            h3: ({children}) => <h3 className="text-lg font-medium mb-2">{children}</h3>,
+                            p: ({children}) => <p className="mb-4 leading-relaxed">{children}</p>,
+                            ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
+                            li: ({children}) => <li className="text-foreground">{children}</li>,
+                            code: ({children, className}) => {
+                              const isInline = !className;
+                              if (isInline) {
+                                return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
+                              }
+                              return <code className="bg-muted text-sm font-mono block">{children}</code>;
+                            },
+                            pre: ({children}) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono">{children}</pre>,
+                            blockquote: ({children}) => <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 pr-4 py-3 my-4 rounded-r-lg">{children}</blockquote>,
+                            strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                            em: ({children}) => <em className="italic text-muted-foreground">{children}</em>,
+                            table: ({children}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-muted">{children}</table></div>,
+                            thead: ({children}) => <thead className="bg-muted/50">{children}</thead>,
+                            tbody: ({children}) => <tbody>{children}</tbody>,
+                            tr: ({children}) => <tr className="border-b border-muted">{children}</tr>,
+                            th: ({children}) => <th className="border border-muted px-3 py-2 text-left font-semibold">{children}</th>,
+                            td: ({children}) => <td className="border border-muted px-3 py-2">{children}</td>,
+                          }}
+                        >
+                          {problem.question?.description || ''}
+                        </ReactMarkdown>
                       </div>
-                    ))}
+                    </div>
+                    
+                    {/* Structured Table Display */}
+                    <TableDisplay 
+                      tables={problem.question?.tables || []} 
+                      expectedOutput={problem.question?.expectedOutput || []}
+                    />
+                  </CardContent>
+                </Card>
+                
+                {/* Tags */}
+                {problem.tags && problem.tags.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Tags</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {problem.tags.map((tag: string, index: number) => (
+                          <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Previous Submissions */}
+                {userSubmissions && userSubmissions.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Your Submissions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {userSubmissions.slice(0, 5).map((submission, index) => (
+                          <div 
+                            key={submission.id} 
+                            className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                            data-testid={`submission-${index}`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-3 h-3 rounded-full ${
+                                submission.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                              }`} />
+                              <span className="text-sm font-medium">
+                                {submission.isCorrect ? 'Correct' : 'Incorrect'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(submission.submittedAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+              
+              {/* Hints Section - At Bottom of Left Panel */}
+              <div className="flex-shrink-0 mt-6">
+                {problem?.hints && problem.hints.length > 0 && (
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleShowHint}
+                      variant="outline"
+                      className="w-full text-primary hover:bg-primary/10"
+                      data-testid="button-show-hint"
+                    >
+                      <Lightbulb className="mr-2 h-4 w-4" />
+                      Show Hints
+                    </Button>
+                    
+                    {showHint && (
+                      <Alert className="border-primary/20 bg-primary/10">
+                        <Lightbulb className="h-4 w-4 text-primary" />
+                        <AlertDescription className="text-foreground">
+                          <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
+                          {hintIndex < problem.hints.length - 1 && (
+                            <Button 
+                              onClick={handleNextHint}
+                              variant="link" 
+                              className="p-0 ml-2 text-primary"
+                              data-testid="button-next-hint"
+                            >
+                              Next hint →
+                            </Button>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* SQL Editor */}
-          <div>
+                )}
+              </div>
+            </div>
+          }
+          rightPanel={
             <SQLEditor
+              initialQuery={problem?.question?.starterQuery || ''}
               onRunQuery={handleRunQuery}
-              hints={problem.hints || []}
-              className="sticky top-8"
+              onSubmitSolution={handleSubmitSolution}
+              className="h-full"
             />
-          </div>
-        </div>
+          }
+        />
       </div>
     </div>
   );
