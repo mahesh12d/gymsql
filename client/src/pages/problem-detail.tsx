@@ -1,10 +1,16 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import CodeMirror from '@uiw/react-codemirror';
+import { sql, PostgreSQL } from '@codemirror/lang-sql';
+import { autocompletion } from '@codemirror/autocomplete';
+import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { oneDark } from '@codemirror/theme-one-dark';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +22,297 @@ import { useToast } from '@/hooks/use-toast';
 import SQLEditor from '@/components/sql-editor';
 import TableDisplay from '@/components/table-display';
 import ResizableSplitter from '@/components/resizable-splitter';
+import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
 
+// Editor and Output Split Component
+function EditorOutputSplit({ 
+  problem, 
+  handleRunQuery, 
+  handleSubmitSolution 
+}: {
+  problem: any;
+  handleRunQuery: (query: string) => Promise<any>;
+  handleSubmitSolution: (query: string) => Promise<any>;
+}) {
+  const [query, setQuery] = useState(problem?.question?.starterQuery || '');
+  const [result, setResult] = useState<any>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Detect dark mode with reactivity
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
+
+  const handleRun = useCallback(async () => {
+    if (!query.trim()) return;
+    
+    setIsRunning(true);
+    try {
+      const runResult = await handleRunQuery(query);
+      setResult(runResult);
+    } catch (error) {
+      setResult({
+        error: true,
+        message: error instanceof Error ? error.message : 'Query execution failed',
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  }, [query, handleRunQuery]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!query.trim()) return;
+    
+    setIsSubmitting(true);
+    try {
+      const submitResult = await handleSubmitSolution(query);
+      setResult(submitResult);
+      localStorage.setItem('sqlgym_last_query', query);
+    } catch (error) {
+      setResult({
+        error: true,
+        message: error instanceof Error ? error.message : 'Submission failed',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [query, handleSubmitSolution]);
+
+  // Configure CodeMirror extensions and theme
+  const extensions = useMemo(() => [
+    sql({
+      dialect: PostgreSQL,
+      upperCaseKeywords: true,
+      schema: {
+        customers: ['id', 'name', 'email'],
+        employees: ['id', 'name', 'department'],
+        orders: ['id', 'customer_id', 'total'],
+        order_items: ['id', 'order_id', 'price', 'quantity'],
+      }
+    }),
+    autocompletion(),
+    EditorView.lineWrapping,
+    placeholder('-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;'),
+    keymap.of([
+      ...defaultKeymap,
+      indentWithTab,
+      {
+        key: 'Mod-Enter',
+        run: () => {
+          handleRun();
+          return true;
+        }
+      }
+    ])
+  ], [handleRun]);
+
+  const theme = useMemo(() => {
+    if (isDarkMode) {
+      return [oneDark];
+    }
+    return [
+      EditorView.theme({
+        '&': {
+          color: 'hsl(var(--foreground))',
+          backgroundColor: 'hsl(var(--background))',
+        },
+        '.cm-content': {
+          padding: '16px',
+          fontSize: '14px',
+          fontFamily: 'var(--font-mono)',
+          minHeight: '200px',
+        },
+        '.cm-focused': {
+          outline: 'none',
+        },
+        '.cm-editor': {
+          borderRadius: '0',
+        },
+        '.cm-scroller': {
+          fontFamily: 'var(--font-mono)',
+        },
+        '.cm-line': {
+          lineHeight: '1.5',
+        },
+        '&.cm-focused .cm-cursor': {
+          borderLeftColor: 'hsl(var(--primary))',
+        },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+          backgroundColor: 'hsl(var(--primary) / 0.2)',
+        }
+      })
+    ];
+  }, [isDarkMode]);
+
+  // Editor panel
+  const editorPanel = (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
+        <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0 border-b">
+          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-lg font-semibold text-foreground">Code</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <span>PostgreSQL 14</span>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="p-0 flex-1 min-h-0">
+            <CodeMirror
+              value={query}
+              onChange={(value) => setQuery(value)}
+              height="100%"
+              theme={theme}
+              extensions={extensions}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                dropCursor: false,
+                allowMultipleSelections: false,
+                indentOnInput: true,
+                bracketMatching: true,
+                closeBrackets: true,
+                autocompletion: false,
+                highlightSelectionMatches: false,
+                searchKeymap: true,
+                tabSize: 2,
+              }}
+              data-testid="editor-sql"
+              className="sqlgym-editor h-full"
+            />
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="flex-shrink-0 p-4 bg-muted/30 border-b border-border">
+        <div className="flex justify-end gap-3">
+          <Button
+            onClick={handleRun}
+            disabled={isRunning || !query.trim()}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+            data-testid="button-run-query"
+          >
+            <Play className="mr-2 h-4 w-4" />
+            {isRunning ? 'Running...' : 'Run Code'}
+          </Button>
+          
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !query.trim()}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+            data-testid="button-submit"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {isSubmitting ? 'Submitting...' : 'Check Solution'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Output panel
+  const outputPanel = (
+    <Card className="h-full rounded-none border-0">
+      <CardHeader className="bg-muted/50 px-6 py-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-foreground">Output</span>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {result?.executionTime && `Execution time: ${result.executionTime || 0.01604} seconds`}
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-6 h-full overflow-auto">
+        {!result ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="text-4xl mb-4">⚡</div>
+            <p className="text-muted-foreground">Ready to execute!</p>
+            <p className="text-sm text-muted-foreground mt-2">Use Alt + Enter to run query</p>
+          </div>
+        ) : result.error ? (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 text-red-600">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="font-medium">Query Failed</span>
+            </div>
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Check your query and try again.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-green-600">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="font-medium">
+                  {result.isCorrect ? 'Perfect! 🏆' : 'Query Complete'}
+                </span>
+              </div>
+            </div>
+            
+            {result.isCorrect && (
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">🎉</span>
+                  <div>
+                    <p className="text-green-800 dark:text-green-200 font-medium">Excellent work!</p>
+                    <p className="text-green-700 dark:text-green-300 text-sm">Your solution is correct!</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground mb-2">📊 Query Results:</p>
+              <div className="font-mono text-sm bg-background rounded border p-3 overflow-x-auto">
+                <p>Status: {result.isCorrect ? '✅ Correct' : '⚠️ Review needed'}</p>
+                <p className="text-muted-foreground mt-2">
+                  [Table data would be displayed here]
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <VerticalResizableSplitter
+      topPanel={editorPanel}
+      bottomPanel={outputPanel}
+      defaultTopHeight={60}
+      minTopHeight={35}
+      minBottomHeight={25}
+      className="h-full"
+    />
+  );
+}
 
 export default function ProblemDetail() {
   const params = useParams();
@@ -156,24 +452,27 @@ export default function ProblemDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button Only */}
-        <div className="mb-4">
-          <Link href="/problems">
-            <Button variant="ghost" data-testid="button-back">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Problems
-            </Button>
-          </Link>
-        </div>
+    <div className="h-screen bg-background flex flex-col">
+      {/* Top Navigation Bar */}
+      <div className="flex-shrink-0 bg-background border-b border-border px-6 py-3">
+        <Link href="/problems">
+          <Button variant="ghost" data-testid="button-back">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Problems
+          </Button>
+        </Link>
+      </div>
 
+      {/* Main Content Area */}
+      <div className="flex-1 min-h-0">
         <ResizableSplitter
           defaultLeftWidth={45}
-          className="h-[calc(100vh-120px)]" 
+          minLeftWidth={30}
+          minRightWidth={30}
+          className="h-full"
           leftPanel={
-            <div className="h-full flex flex-col overflow-hidden">
-              {/* Question Panel */}
+            /* Problem Panel - Full Height */
+            <div className="h-full flex flex-col overflow-hidden bg-background">
               <div className="flex-1 space-y-6 p-6 overflow-auto">
                 <Card>
                   <CardHeader>
@@ -332,14 +631,12 @@ export default function ProblemDetail() {
             </div>
           }
           rightPanel={
-            <div className="h-full">
-              <SQLEditor
-                initialQuery={problem?.question?.starterQuery || ''}
-                onRunQuery={handleRunQuery}
-                onSubmitSolution={handleSubmitSolution}
-                className="h-full"
-              />
-            </div>
+            /* Editor + Output Panels with Vertical Split */
+            <EditorOutputSplit 
+              problem={problem}
+              handleRunQuery={handleRunQuery}
+              handleSubmitSolution={handleSubmitSolution}
+            />
           }
         />
       </div>
