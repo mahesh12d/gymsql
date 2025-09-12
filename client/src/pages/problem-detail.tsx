@@ -172,9 +172,9 @@ export default function ProblemDetail() {
           defaultLeftWidth={45}
           className="h-[calc(100vh-120px)]" 
           leftPanel={
-            <div className="h-full flex flex-col p-6 overflow-auto">
+            <div className="h-full flex flex-col overflow-hidden">
               {/* Question Panel */}
-              <div className="flex-1 space-y-6">
+              <div className="flex-1 space-y-6 p-6 overflow-auto">
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -297,7 +297,7 @@ export default function ProblemDetail() {
               </div>
               
               {/* Hints Section - At Bottom of Left Panel */}
-              <div className="flex-shrink-0 mt-6">
+              <div className="flex-shrink-0 p-6 pt-0">
                 {problem?.hints && problem.hints.length > 0 && (
                   <div className="space-y-3">
                     <Button 
@@ -334,12 +334,14 @@ export default function ProblemDetail() {
             </div>
           }
           rightPanel={
-            <SQLEditor
-              initialQuery={problem?.question?.starterQuery || ''}
-              onRunQuery={handleRunQuery}
-              onSubmitSolution={handleSubmitSolution}
-              className="h-full"
-            />
+            <div className="h-full">
+              <SQLEditor
+                initialQuery={problem?.question?.starterQuery || ''}
+                onRunQuery={handleRunQuery}
+                onSubmitSolution={handleSubmitSolution}
+                className="h-full"
+              />
+            </div>
           }
         />
       </div>
