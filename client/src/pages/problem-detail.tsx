@@ -181,7 +181,7 @@ function EditorOutputSplit({
             <CodeMirror
               value={query}
               onChange={(value) => setQuery(value)}
-              height="calc(100vh - 280px)"
+              height="calc(100vh - 240px)"
               theme={theme}
               extensions={extensions}
               basicSetup={{
@@ -205,12 +205,12 @@ function EditorOutputSplit({
       </div>
       
       {/* Action Buttons */}
-      <div className="flex-shrink-0 p-4 bg-muted/30 border-b border-border">
+      <div className="flex-shrink-0 p-3 bg-muted/30 border-b border-border">
         <div className="flex justify-end gap-3">
           <Button
             onClick={handleRun}
             disabled={isRunning || !query.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-9"
             data-testid="button-run-query"
           >
             <Play className="mr-2 h-4 w-4" />
@@ -220,7 +220,7 @@ function EditorOutputSplit({
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !query.trim()}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9"
             data-testid="button-submit"
           >
             <Save className="mr-2 h-4 w-4" />
@@ -464,22 +464,22 @@ export default function ProblemDetail() {
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Top Navigation Bar - Compact */}
-      <div className="flex-shrink-0 bg-background border-b border-border px-4 py-2">
+      <div className="flex-shrink-0 bg-background border-b border-border px-3 py-1.5">
         <div className="flex items-center justify-between">
           <Link href="/problems">
-            <Button variant="ghost" size="sm" data-testid="button-back">
-              <ArrowLeft className="mr-2 h-3 w-3" />
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-back">
+              <ArrowLeft className="mr-1 h-3 w-3" />
               Back to Questions
             </Button>
           </Link>
           
           {/* Question Navigation */}
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" data-testid="button-previous">
-              <ChevronLeft className="h-4 w-4" />
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="button-previous">
+              <ChevronLeft className="h-3 w-3" />
             </Button>
             
-            <div className="flex items-center space-x-2 text-sm">
+            <div className="flex items-center space-x-2 text-xs">
               <span className="text-muted-foreground">PostgreSQL</span>
               <span className="text-muted-foreground">|</span>
               <span className="font-medium text-foreground" data-testid="text-current-problem">
@@ -487,8 +487,8 @@ export default function ProblemDetail() {
               </span>
             </div>
             
-            <Button variant="ghost" size="sm" data-testid="button-next">
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="button-next">
+              <ChevronRight className="h-3 w-3" />
             </Button>
           </div>
         </div>
