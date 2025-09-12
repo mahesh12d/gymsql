@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -466,14 +466,35 @@ export default function ProblemDetail() {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      {/* Top Navigation Bar */}
-      <div className="flex-shrink-0 bg-background border-b border-border px-6 py-3">
-        <Link href="/problems">
-          <Button variant="ghost" data-testid="button-back">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Problems
-          </Button>
-        </Link>
+      {/* Top Navigation Bar - Compact */}
+      <div className="flex-shrink-0 bg-background border-b border-border px-4 py-2">
+        <div className="flex items-center justify-between">
+          <Link href="/problems">
+            <Button variant="ghost" size="sm" data-testid="button-back">
+              <ArrowLeft className="mr-2 h-3 w-3" />
+              Back to Questions
+            </Button>
+          </Link>
+          
+          {/* Question Navigation */}
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm" data-testid="button-previous">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center space-x-2 text-sm">
+              <span className="text-muted-foreground">PostgreSQL</span>
+              <span className="text-muted-foreground">|</span>
+              <span className="font-medium text-foreground" data-testid="text-current-problem">
+                {problem?.title || 'Current Problem'}
+              </span>
+            </div>
+            
+            <Button variant="ghost" size="sm" data-testid="button-next">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main Content Area */}
