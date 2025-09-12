@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Play, Save, RotateCcw, Lightbulb, Dumbbell, TrendingUp, ChevronDown } from 'lucide-react';
+import { Play, Save, RotateCcw, Lightbulb, Dumbbell, TrendingUp, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { autocompletion } from '@codemirror/autocomplete';
@@ -28,6 +29,8 @@ export default function SQLEditor({
   const [isRunning, setIsRunning] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
+  const [showOutput, setShowOutput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Detect dark mode with reactivity
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -54,6 +57,7 @@ export default function SQLEditor({
     if (!query.trim()) return;
     
     setIsRunning(true);
+    setShowOutput(true);
     try {
       const result = await onRunQuery(query);
       setResult(result);
@@ -133,9 +137,21 @@ export default function SQLEditor({
     ];
   }, [isDarkMode]);
 
-  const handleSave = () => {
-    localStorage.setItem('sqlgym_last_query', query);
-    // Could also save to user's drafts via API
+  const handleSubmit = async () => {
+    if (!query.trim()) return;
+    
+    setIsSubmitting(true);
+    setShowOutput(true);
+    try {
+      // Save the query
+      localStorage.setItem('sqlgym_last_query', query);
+      // Could also submit to user's solutions via API
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+    } catch (error) {
+      console.error('Submit failed:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
@@ -154,175 +170,197 @@ export default function SQLEditor({
   };
 
   return (
-    <div className={`w-full ${className}`}>
-      {/* Training Zone (Input Section) */}
-      <div className="mb-6">
-        <Card className="overflow-hidden bg-card border-border">
-          {/* Input Header */}
-          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Dumbbell className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold text-foreground">Training Zone</h3>
+    <div className={`w-full h-full ${className}`}>
+      <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-200px)] min-h-[600px]">
+        {/* Left Panel - SQL Editor */}
+        <ResizablePanel defaultSize={60} minSize={40}>
+          <Card className="h-full overflow-hidden bg-card border-border">
+            {/* Input Header */}
+            <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Dumbbell className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-foreground">SQL Editor</h3>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <span>PostgreSQL 14</span>
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <span>PostgreSQL 14</span>
-                <ChevronDown className="h-4 w-4" />
-              </div>
-            </div>
-          </CardHeader>
-          
-          {/* Code Editor */}
-          <CardContent className="p-0">
-            <CodeMirror
-              value={query}
-              onChange={(value) => setQuery(value)}
-              height="20rem"
-              theme={theme}
-              extensions={extensions}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: true,
-                dropCursor: false,
-                allowMultipleSelections: false,
-                indentOnInput: true,
-                bracketMatching: true,
-                closeBrackets: true,
-                autocompletion: false,
-                highlightSelectionMatches: false,
-                searchKeymap: true,
-                tabSize: 2,
-              }}
-              data-testid="editor-sql"
-              className="sqlgym-editor"
-            />
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            
+            {/* Code Editor */}
+            <CardContent className="p-0 h-full">
+              <CodeMirror
+                value={query}
+                onChange={(value) => setQuery(value)}
+                height="calc(100% - 1rem)"
+                theme={theme}
+                extensions={extensions}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: true,
+                  dropCursor: false,
+                  allowMultipleSelections: false,
+                  indentOnInput: true,
+                  bracketMatching: true,
+                  closeBrackets: true,
+                  autocompletion: false,
+                  highlightSelectionMatches: false,
+                  searchKeymap: true,
+                  tabSize: 2,
+                }}
+                data-testid="editor-sql"
+                className="sqlgym-editor h-full"
+              />
+            </CardContent>
+          </Card>
+        </ResizablePanel>
+        
+        <ResizableHandle withHandle />
+        
+        {/* Right Panel - Controls and Output */}
+        <ResizablePanel defaultSize={40} minSize={25}>
+          <div className="h-full flex flex-col">
+            {/* Control Panel */}
+            <Card className="mb-4">
+              <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
+                <h3 className="text-lg font-semibold text-foreground">Actions</h3>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleRunQuery}
+                    disabled={isRunning || !query.trim()}
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                    data-testid="button-run-query"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    {isRunning ? 'Running...' : 'Run'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={isSubmitting || !query.trim()}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-submit"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleReset} 
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-reset"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset
+                  </Button>
 
-      {/* Performance Report (Output Section) */}
-      <div className="mb-6">
-        <Card className="overflow-hidden bg-card border-border">
-          {/* Output Header */}
-          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold text-foreground">Performance Report</h3>
-              </div>
-              {result && !result.error && (
-                <div className="text-sm text-muted-foreground">
-                  Execution: {result.executionTime || 0}ms
+                  {hints.length > 0 && (
+                    <Button 
+                      onClick={handleShowHint} 
+                      variant="outline"
+                      className="w-full text-primary hover:bg-primary/10"
+                      data-testid="button-show-hint"
+                    >
+                      <Lightbulb className="mr-2 h-4 w-4" />
+                      Show Hint
+                    </Button>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          
-          {/* Output Content */}
-          <CardContent className="p-6 min-h-[12rem]">
-            {!result ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <div className="text-6xl mb-4">💪</div>
-                <p className="text-muted-foreground text-lg">Ready for your SQL workout!</p>
-                <p className="text-sm text-muted-foreground mt-2">Execute your query to see the gains</p>
-              </div>
-            ) : result.error ? (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 text-red-600">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <span className="font-medium">Workout Failed</span>
-                </div>
-                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                  <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">🏋️ Don't give up! Check your form and try again.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 text-green-600">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="font-medium">
-                    {result.isCorrect ? 'Perfect Form! 🏆' : 'Workout Complete'}
-                  </span>
-                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Output Panel - Only show when there's output or when triggered */}
+            {showOutput && (
+              <Card className="flex-1 overflow-hidden">
+                <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold text-foreground">Output</h3>
+                    </div>
+                    <Button 
+                      onClick={() => setShowOutput(false)}
+                      variant="ghost"
+                      size="sm"
+                      data-testid="button-hide-output"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
                 
-                {result.isCorrect && (
-                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-2xl">🎉</span>
-                      <div>
-                        <p className="text-green-800 dark:text-green-200 font-medium">Excellent technique!</p>
-                        <p className="text-green-700 dark:text-green-300 text-sm">You've earned XP and improved your SQL strength!</p>
+                {/* Output Content */}
+                <CardContent className="p-6 flex-1 overflow-auto">
+                  {!result ? (
+                    <div className="flex flex-col items-center justify-center h-40 text-center">
+                      <div className="text-6xl mb-4">💪</div>
+                      <p className="text-muted-foreground text-lg">Ready to execute!</p>
+                      <p className="text-sm text-muted-foreground mt-2">Run your query to see results</p>
+                    </div>
+                  ) : result.error ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3 text-red-600">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="font-medium">Query Failed</span>
+                      </div>
+                      <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Check your query and try again.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3 text-green-600">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="font-medium">
+                          {result.isCorrect ? 'Perfect! 🏆' : 'Query Complete'}
+                        </span>
+                      </div>
+                      
+                      {result.isCorrect && (
+                        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl">🎉</span>
+                            <div>
+                              <p className="text-green-800 dark:text-green-200 font-medium">Excellent work!</p>
+                              <p className="text-green-700 dark:text-green-300 text-sm">Your solution is correct!</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="bg-muted/50 rounded-lg p-4">
+                        <p className="text-sm text-muted-foreground mb-2">📊 Query Results:</p>
+                        <div className="font-mono text-sm bg-background rounded border p-3">
+                          <p>Status: {result.isCorrect ? '✅ Correct' : '⚠️ Review needed'}</p>
+                          <p>Execution Time: {result.executionTime || 0}ms</p>
+                          <p className="text-muted-foreground mt-2">
+                            [Table data would be displayed here]
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-2">📊 Query Result Preview:</p>
-                  <div className="font-mono text-sm bg-background rounded border p-3">
-                    <p>Status: {result.isCorrect ? '✅ Perfect Execution' : '⚠️ Needs Improvement'}</p>
-                    <p>Performance: {result.executionTime || 0}ms</p>
-                    <p className="text-muted-foreground mt-2">
-                      [Table data would be displayed here in production]
-                    </p>
-                  </div>
-                </div>
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
-      {/* Gym Controls */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <Button
-          onClick={handleRunQuery}
-          disabled={isRunning || !query.trim()}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
-          data-testid="button-run-query"
-        >
-          <Dumbbell className="mr-2 h-4 w-4" />
-          {isRunning ? 'Pumping...' : 'Pump It!'}
-        </Button>
-        
-        <Button 
-          onClick={handleSave} 
-          variant="outline"
-          data-testid="button-save"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Log Workout
-        </Button>
-        
-        <Button 
-          onClick={handleReset} 
-          variant="outline"
-          data-testid="button-reset"
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Cool Down
-        </Button>
-
-        {hints.length > 0 && (
-          <Button 
-            onClick={handleShowHint} 
-            variant="outline"
-            className="text-primary hover:bg-primary/10"
-            data-testid="button-show-hint"
-          >
-            <Lightbulb className="mr-2 h-4 w-4" />
-            Trainer Tips
-          </Button>
-        )}
-      </div>
-
-      {/* Trainer Tips */}
+      
+      {/* Trainer Tips - Fixed Position Below Layout */}
       {showHint && hints.length > 0 && (
-        <Alert className="border-primary/20 bg-primary/10 mb-6">
+        <Alert className="border-primary/20 bg-primary/10 mt-4">
           <Lightbulb className="h-4 w-4 text-primary" />
           <AlertDescription className="text-foreground">
-            <strong>💡 Trainer Tip {hintIndex + 1}:</strong> {hints[hintIndex]}
+            <strong>💡 Hint {hintIndex + 1}:</strong> {hints[hintIndex]}
             {hintIndex < hints.length - 1 && (
               <Button 
                 onClick={handleNextHint}
@@ -330,7 +368,7 @@ export default function SQLEditor({
                 className="p-0 ml-2 text-primary"
                 data-testid="button-next-hint"
               >
-                Next tip →
+                Next hint →
               </Button>
             )}
           </AlertDescription>
