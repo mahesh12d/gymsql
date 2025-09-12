@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Play, Save, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { autocompletion } from '@codemirror/autocomplete';
@@ -153,8 +154,9 @@ export default function SQLEditor({
     ];
   }, [isDarkMode]);
 
-  return (
-    <div className={`h-full flex flex-col ${className}`}>
+  // Editor panel content
+  const editorPanel = (
+    <div className="h-full flex flex-col">
       {/* SQL Editor */}
       <div className="flex-1 flex flex-col min-h-0">
         <Card className="flex-1 flex flex-col overflow-hidden">
@@ -221,87 +223,108 @@ export default function SQLEditor({
           </Button>
         </div>
       </div>
-      
-      {/* Output Panel - Collapsible */}
-      {showOutput && (
-        <div className="flex-shrink-0 border-t border-border">
-          <Card className="rounded-none border-0">
-            <CardHeader className="bg-muted/50 px-6 py-3 border-b border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-foreground">Output</span>
-                </div>
-                <Button 
-                  onClick={() => setShowOutput(false)}
-                  variant="ghost"
-                  size="sm"
-                  data-testid="button-hide-output"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="p-6 max-h-80 overflow-auto">
-              {!result ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="text-4xl mb-4">⚡</div>
-                  <p className="text-muted-foreground">Ready to execute!</p>
-                  <p className="text-sm text-muted-foreground mt-2">Run your query to see results</p>
-                </div>
-              ) : result.error ? (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 text-red-600">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="font-medium">Query Failed</span>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Check your query and try again.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 text-green-600">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="font-medium">
-                        {result.isCorrect ? 'Perfect! 🏆' : 'Query Complete'}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Execution time: {result.executionTime || 0}.01604 seconds
-                    </div>
-                  </div>
-                  
-                  {result.isCorrect && (
-                    <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-2xl">🎉</span>
-                        <div>
-                          <p className="text-green-800 dark:text-green-200 font-medium">Excellent work!</p>
-                          <p className="text-green-700 dark:text-green-300 text-sm">Your solution is correct!</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-2">📊 Query Results:</p>
-                    <div className="font-mono text-sm bg-background rounded border p-3 overflow-x-auto">
-                      <p>Status: {result.isCorrect ? '✅ Correct' : '⚠️ Review needed'}</p>
-                      <p className="text-muted-foreground mt-2">
-                        [Table data would be displayed here]
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+    </div>
+  );
+
+  // Output panel content
+  const outputPanel = (
+    <Card className="h-full rounded-none border-0">
+      <CardHeader className="bg-muted/50 px-6 py-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-foreground">Output</span>
+          </div>
+          <Button 
+            onClick={() => setShowOutput(false)}
+            variant="ghost"
+            size="sm"
+            data-testid="button-hide-output"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
         </div>
-      )}
+      </CardHeader>
+      
+      <CardContent className="p-6 h-full overflow-auto">
+        {!result ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="text-4xl mb-4">⚡</div>
+            <p className="text-muted-foreground">Ready to execute!</p>
+            <p className="text-sm text-muted-foreground mt-2">Run your query to see results</p>
+          </div>
+        ) : result.error ? (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 text-red-600">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="font-medium">Query Failed</span>
+            </div>
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 text-sm font-mono">{result.message}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Check your query and try again.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-green-600">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="font-medium">
+                  {result.isCorrect ? 'Perfect! 🏆' : 'Query Complete'}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Execution time: {result.executionTime || 0}.01604 seconds
+              </div>
+            </div>
+            
+            {result.isCorrect && (
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">🎉</span>
+                  <div>
+                    <p className="text-green-800 dark:text-green-200 font-medium">Excellent work!</p>
+                    <p className="text-green-700 dark:text-green-300 text-sm">Your solution is correct!</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground mb-2">📊 Query Results:</p>
+              <div className="font-mono text-sm bg-background rounded border p-3 overflow-x-auto">
+                <p>Status: {result.isCorrect ? '✅ Correct' : '⚠️ Review needed'}</p>
+                <p className="text-muted-foreground mt-2">
+                  [Table data would be displayed here]
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Show resizable layout when output is visible, otherwise show just the editor
+  if (showOutput) {
+    return (
+      <div className={`h-full ${className}`}>
+        <VerticalResizableSplitter
+          topPanel={editorPanel}
+          bottomPanel={outputPanel}
+          defaultTopHeight={65}
+          minTopHeight={40}
+          minBottomHeight={25}
+          className="h-full"
+        />
+      </div>
+    );
+  }
+
+  // Show just the editor when no output
+  return (
+    <div className={`h-full ${className}`}>
+      {editorPanel}
     </div>
   );
 }
