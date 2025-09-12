@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2 } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -464,34 +464,20 @@ export default function ProblemDetail() {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      {/* Top Navigation Bar - Compact */}
-      <div className="flex-shrink-0 bg-background border-b border-border px-3 py-1.5">
-        <div className="flex items-center justify-between">
+      {/* Simplified Header with Logo and Back Button */}
+      <div className="flex-shrink-0 bg-background border-b border-border px-4 py-3">
+        <div className="flex items-center space-x-4">
+          <Link href="/" className="flex items-center space-x-2" data-testid="link-home">
+            <Dumbbell className="text-primary text-xl" />
+            <span className="text-xl font-bold text-foreground">SQLGym</span>
+          </Link>
+          
           <Link href="/problems">
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-back">
-              <ArrowLeft className="mr-1 h-3 w-3" />
+            <Button variant="ghost" size="sm" className="h-8 px-3 text-sm" data-testid="button-back">
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Questions
             </Button>
           </Link>
-          
-          {/* Question Navigation */}
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="button-previous">
-              <ChevronLeft className="h-3 w-3" />
-            </Button>
-            
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="text-muted-foreground">PostgreSQL</span>
-              <span className="text-muted-foreground">|</span>
-              <span className="font-medium text-foreground" data-testid="text-current-problem">
-                {problem?.title || 'Current Problem'}
-              </span>
-            </div>
-            
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="button-next">
-              <ChevronRight className="h-3 w-3" />
-            </Button>
-          </div>
         </div>
       </div>
 
