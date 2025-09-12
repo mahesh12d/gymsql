@@ -158,47 +158,46 @@ export default function ProblemDetail() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
+        {/* Back Button Only */}
+        <div className="mb-4">
           <Link href="/problems">
-            <Button variant="ghost" className="mb-4" data-testid="button-back">
+            <Button variant="ghost" data-testid="button-back">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Problems
             </Button>
           </Link>
-          
-          <div className="flex items-center space-x-4 mb-4">
-            <h1 className="text-3xl font-bold text-foreground" data-testid="text-problem-title">
-              {problem.title}
-            </h1>
-            <Badge className={getDifficultyColor(problem.difficulty)}>
-              {problem.difficulty}
-            </Badge>
-            {hasCorrectSubmission && (
-              <Badge className="bg-green-100 text-green-800">
-                ✓ Solved
-              </Badge>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-1">
-              <Users className="w-4 h-4" />
-              <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
-            </div>
-          </div>
         </div>
 
         <ResizableSplitter
           defaultLeftWidth={45}
-          className="h-[calc(100vh-200px)]" 
+          className="h-[calc(100vh-120px)]" 
           leftPanel={
             <div className="h-full flex flex-col p-6 overflow-auto">
               {/* Question Panel */}
               <div className="flex-1 space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Question</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <h1 className="text-2xl font-bold text-foreground" data-testid="text-problem-title">
+                          {problem.title}
+                        </h1>
+                        <Badge className={getDifficultyColor(problem.difficulty)}>
+                          {problem.difficulty}
+                        </Badge>
+                        {hasCorrectSubmission && (
+                          <Badge className="bg-green-100 text-green-800">
+                            ✓ Solved
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-6 text-sm text-muted-foreground mt-2">
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span data-testid="text-solved-count">{problem.solvedCount} solved</span>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {/* Problem Description */}
