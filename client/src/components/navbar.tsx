@@ -29,29 +29,29 @@ export default function Navbar() {
   return (
     <nav className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-4">
+        <div className="flex justify-between items-center h-12">
+          <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center space-x-2" data-testid="link-home">
-              <Dumbbell className="text-primary text-2xl" />
-              <span className="text-2xl font-bold text-foreground">SQLGym</span>
+              <Dumbbell className="text-primary text-xl" />
+              <span className="text-xl font-bold text-foreground">SQLGym</span>
             </Link>
-          </div>
-          
-          <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`font-medium transition-colors ${
-                  location === item.href
-                    ? 'text-primary'
-                    : 'text-foreground hover:text-primary'
-                }`}
-                data-testid={`link-${item.label.toLowerCase()}`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            
+            <div className="hidden md:flex items-center space-x-6">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`font-medium transition-colors text-sm ${
+                    location === item.href
+                      ? 'text-primary'
+                      : 'text-foreground hover:text-primary'
+                  }`}
+                  data-testid={`link-${item.label.toLowerCase()}`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </div>
           
           <div className="flex items-center space-x-3">
