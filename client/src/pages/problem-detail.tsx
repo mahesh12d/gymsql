@@ -168,10 +168,10 @@ function EditorOutputSplit({
   const editorPanel = (
     <div className="h-full flex flex-col">
       <div className="flex-1 flex flex-col min-h-0">
-        <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0 border-b">
-          <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border flex-shrink-0">
+        <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0">
+          <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
             <div className="flex items-center justify-end">
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>PostgreSQL 14</span>
               </div>
             </div>
@@ -181,7 +181,7 @@ function EditorOutputSplit({
             <CodeMirror
               value={query}
               onChange={(value) => setQuery(value)}
-              height="calc(100vh - 240px)"
+              height="calc(100vh - 200px)"
               theme={theme}
               extensions={extensions}
               basicSetup={{
@@ -205,12 +205,12 @@ function EditorOutputSplit({
       </div>
       
       {/* Action Buttons */}
-      <div className="flex-shrink-0 p-3 bg-muted/30 border-b border-border">
+      <div className="flex-shrink-0 p-2 bg-muted/30">
         <div className="flex justify-end gap-3">
           <Button
             onClick={handleRun}
             disabled={isRunning || !query.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-9"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-8"
             data-testid="button-run-query"
           >
             <Play className="mr-2 h-4 w-4" />
@@ -220,7 +220,7 @@ function EditorOutputSplit({
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !query.trim()}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9"
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-8"
             data-testid="button-submit"
           >
             <Save className="mr-2 h-4 w-4" />
