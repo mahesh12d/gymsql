@@ -170,10 +170,7 @@ function EditorOutputSplit({
       <div className="flex-1 flex flex-col min-h-0">
         <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0 border-b">
           <CardHeader className="bg-muted/50 px-6 py-4 border-b border-border flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <span className="text-lg font-semibold text-foreground">Code</span>
-              </div>
+            <div className="flex items-center justify-end">
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <span>PostgreSQL 14</span>
               </div>
