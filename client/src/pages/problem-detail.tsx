@@ -61,6 +61,7 @@ function EditorOutputSplit({
     }
   }, [problem]);
 
+
   // Detect dark mode with reactivity
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -365,6 +366,12 @@ export default function ProblemDetail() {
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
 
+  // Reset hint state when problem changes
+  useEffect(() => {
+    setShowHint(false);
+    setHintIndex(0);
+  }, [problemId]);
+
   const { data: problem, isLoading: problemLoading } = useQuery({
     queryKey: ['/api/problems', problemId],
     queryFn: () => problemsApi.getById(problemId),
@@ -483,12 +490,10 @@ export default function ProblemDetail() {
 
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
 
-  const handleShowHint = () => {
-    setShowHint(true);
-  };
-
-  const handleNextHint = () => {
-    if (problem?.hints && hintIndex < problem.hints.length - 1) {
+  const handleHintClick = () => {
+    if (!showHint) {
+      setShowHint(true);
+    } else if (problem?.hints && hintIndex < problem.hints.length - 1) {
       setHintIndex(hintIndex + 1);
     }
   };
@@ -609,39 +614,37 @@ export default function ProblemDetail() {
                         {/* Hints Section */}
                         {problem?.hints && problem.hints.length > 0 && (
                           <div className="space-y-3">
-                            <Button 
-                              onClick={handleShowHint}
-                              variant="outline"
-                              className="w-full text-primary hover:bg-primary/10"
-                              data-testid="button-show-hint"
-                            >
-                              <Lightbulb className="mr-2 h-4 w-4" />
-                              hint please
-                            </Button>
-                            
-                            {showHint && (
-                              <div className="space-y-3">
-                                {problem.hints.slice(0, hintIndex + 1).map((hint, index) => (
-                                  <Alert key={index} className="border-primary/20 bg-primary/10">
-                                    <Lightbulb className="h-4 w-4 text-primary" />
-                                    <AlertDescription className="text-foreground">
-                                      <strong>💡 Hint {index + 1}:</strong> {hint}
-                                    </AlertDescription>
-                                  </Alert>
-                                ))}
+                            {!showHint ? (
+                              <Button 
+                                onClick={handleHintClick}
+                                variant="outline"
+                                className="w-full text-primary hover:bg-primary/10"
+                                data-testid="button-hint"
+                              >
+                                <Lightbulb className="mr-2 h-4 w-4" />
+                                HINT 🙏
+                              </Button>
+                            ) : (
+                              <>
+                                <Alert className="border-primary/20 bg-primary/10">
+                                  <Lightbulb className="h-4 w-4 text-primary" />
+                                  <AlertDescription className="text-foreground">
+                                    <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
+                                  </AlertDescription>
+                                </Alert>
                                 
                                 {hintIndex < problem.hints.length - 1 && (
                                   <Button 
-                                    onClick={handleNextHint}
+                                    onClick={handleHintClick}
                                     variant="outline"
                                     className="w-full text-primary hover:bg-primary/10"
-                                    data-testid="button-next-hint"
+                                    data-testid="button-hint"
                                   >
                                     <Lightbulb className="mr-2 h-4 w-4" />
-                                    hint please
+                                    HINT 🙏
                                   </Button>
                                 )}
-                              </div>
+                              </>
                             )}
                           </div>
                         )}
