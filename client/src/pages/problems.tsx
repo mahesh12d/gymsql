@@ -46,7 +46,7 @@ interface Problem {
   };
   difficulty: string;
   tags: string[];
-  companies: string[];
+  company?: string | null;
   solvedCount: number;
   isUserSolved: boolean;
 }
@@ -75,7 +75,7 @@ export default function Problems() {
 
   // Get unique values for filter options
   const allCompanies = Array.from(
-    new Set(problems?.flatMap((p) => p.companies || []))
+    new Set(problems?.map((p) => p.company).filter(Boolean))
   ).sort();
   const allTags = Array.from(
     new Set(problems?.flatMap((p) => p.tags || []))
@@ -104,9 +104,7 @@ export default function Problems() {
       // Company filter
       const matchesCompany =
         filters.companies.length === 0 ||
-        filters.companies.some((company) =>
-          problem.companies?.includes(company)
-        );
+        (problem.company && filters.companies.includes(problem.company));
 
       // Tags filter - must have ALL selected tags (AND logic)
       const matchesTags =
@@ -557,30 +555,14 @@ export default function Problems() {
                       >
                         <TableCell className="py-4">
                           <div className="flex flex-wrap gap-1">
-                            {problem.companies &&
-                            problem.companies.length > 0 ? (
-                              <>
-                                {problem.companies
-                                  .slice(0, 2)
-                                  .map((company: string) => (
-                                    <Badge
-                                      key={company}
-                                      variant="outline"
-                                      className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
-                                    >
-                                      <Building2 className="w-3 h-3 mr-1" />
-                                      {company}
-                                    </Badge>
-                                  ))}
-                                {problem.companies.length > 2 && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
-                                  >
-                                    +{problem.companies.length - 2}
-                                  </Badge>
-                                )}
-                              </>
+                            {problem.company ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                              >
+                                <Building2 className="w-3 h-3 mr-1" />
+                                {problem.company}
+                              </Badge>
                             ) : (
                               <span className="text-gray-400 text-sm">-</span>
                             )}
