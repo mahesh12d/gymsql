@@ -275,17 +275,16 @@ function EditorOutputSplit({
                     ? 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700' 
                     : 'bg-muted text-muted-foreground border-border'
                 }`}>
-                  {/* Play/Resume button - LEFT of timer */}
+                  {/* Play/Pause Toggle button - LEFT of timer */}
                   <Button
-                    onClick={startTimer}
+                    onClick={isTimerRunning ? pauseTimer : startTimer}
                     variant="ghost"
                     size="sm"
                     className="h-5 w-5 p-0 hover:bg-transparent"
-                    disabled={isTimerRunning}
-                    data-testid="button-start-timer"
-                    aria-label="Start timer"
+                    data-testid={isTimerRunning ? "button-pause-timer" : "button-start-timer"}
+                    aria-label={isTimerRunning ? "Pause timer" : "Start timer"}
                   >
-                    <Play className="h-3 w-3" />
+                    {isTimerRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                   </Button>
                   
                   {/* Timer Display */}
@@ -294,20 +293,7 @@ function EditorOutputSplit({
                     <span className="font-mono text-xs" data-testid="text-timer">{formatTimer(timerSeconds)}</span>
                   </div>
                   
-                  {/* Pause/Stop button - RIGHT of timer */}
-                  <Button
-                    onClick={pauseTimer}
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0 hover:bg-transparent"
-                    disabled={!isTimerRunning}
-                    data-testid="button-pause-timer"
-                    aria-label="Pause timer"
-                  >
-                    <Pause className="h-3 w-3" />
-                  </Button>
-                  
-                  {/* Reset button - part of timer unit */}
+                  {/* Reset button - RIGHT of timer */}
                   <Button
                     onClick={resetTimerOnly}
                     variant="ghost"
