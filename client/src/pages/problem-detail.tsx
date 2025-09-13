@@ -270,17 +270,17 @@ function EditorOutputSplit({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {/* Timer Unit - grouped together */}
-                <div className={`flex items-center space-x-1 px-2 py-1 rounded border ${
-                  isTimerRunning 
-                    ? 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700' 
-                    : 'bg-muted text-muted-foreground border-border'
-                }`}>
+                <div className="flex items-center space-x-1 px-2 py-1 rounded border bg-muted text-muted-foreground border-border">
                   {/* Play/Pause Toggle button - LEFT of timer */}
                   <Button
                     onClick={isTimerRunning ? pauseTimer : startTimer}
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 hover:bg-transparent"
+                    className={`h-5 w-5 p-0 hover:bg-transparent ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`}
                     data-testid={isTimerRunning ? "button-pause-timer" : "button-start-timer"}
                     aria-label={isTimerRunning ? "Pause timer" : "Start timer"}
                   >
@@ -289,8 +289,16 @@ function EditorOutputSplit({
                   
                   {/* Timer Display */}
                   <div className="flex items-center space-x-1">
-                    <Timer className="h-3 w-3" />
-                    <span className="font-mono text-xs" data-testid="text-timer">{formatTimer(timerSeconds)}</span>
+                    <Timer className={`h-3 w-3 ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`} />
+                    <span className={`font-mono text-xs ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400 font-medium' 
+                        : 'text-muted-foreground'
+                    }`} data-testid="text-timer">{formatTimer(timerSeconds)}</span>
                   </div>
                   
                   {/* Reset button - RIGHT of timer */}
@@ -298,7 +306,11 @@ function EditorOutputSplit({
                     onClick={resetTimerOnly}
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 hover:bg-transparent"
+                    className={`h-5 w-5 p-0 hover:bg-transparent ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`}
                     data-testid="button-reset-timer"
                     aria-label="Reset timer"
                   >
