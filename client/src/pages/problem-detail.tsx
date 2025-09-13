@@ -44,7 +44,7 @@ function EditorOutputSplit({
   // Timer functionality
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
   
   // Use ref to avoid recreating extensions on every keystroke
   const handleRunRef = useRef<() => void>(() => {});
@@ -91,19 +91,19 @@ function EditorOutputSplit({
   // Timer effect
   useEffect(() => {
     if (isTimerRunning) {
-      timerRef.current = setInterval(() => {
+      timerRef.current = window.setInterval(() => {
         setTimerSeconds(prev => prev + 1);
       }, 1000);
     } else {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        window.clearInterval(timerRef.current);
         timerRef.current = null;
       }
     }
 
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current);
+        window.clearInterval(timerRef.current);
       }
     };
   }, [isTimerRunning]);
@@ -120,12 +120,7 @@ function EditorOutputSplit({
     setIsTimerRunning(!isTimerRunning);
   };
 
-  const resetTimer = () => {
-    setIsTimerRunning(false);
-    setTimerSeconds(0);
-  };
-
-  // Reset query to initial state
+  // Reset query and timer to initial state
   const resetQuery = () => {
     if (problem?.question?.starterQuery) {
       setQuery(problem.question.starterQuery);
@@ -138,6 +133,9 @@ function EditorOutputSplit({
     }
     setResult(null);
     setShowOutput(false);
+    // Also reset the timer
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
   };
 
   const handleRun = useCallback(async () => {
