@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { problemsApi, submissionsApi } from '@/lib/auth';
 import { useAuth } from '@/hooks/use-auth';
@@ -45,6 +46,9 @@ function EditorOutputSplit({
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const timerRef = useRef<number | null>(null);
+  
+  // Database selection state
+  const [selectedDatabase, setSelectedDatabase] = useState('PostgreSQL 14');
   
   // Use ref to avoid recreating extensions on every keystroke
   const handleRunRef = useRef<() => void>(() => {});
@@ -273,11 +277,7 @@ function EditorOutputSplit({
               </div>
               
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                  <span>PostgreSQL 14</span>
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-                {/* Timer Unit - grouped together and moved to right */}
+                {/* Timer Unit - now comes first */}
                 <div className="flex items-center space-x-1 px-2 py-1 rounded border bg-muted text-muted-foreground border-border">
                   {/* Play/Pause Toggle button - LEFT of timer */}
                   <Button
@@ -325,6 +325,53 @@ function EditorOutputSplit({
                     <Square className="h-3 w-3" />
                   </Button>
                 </div>
+                
+                {/* Reactive PostgreSQL Database Dropdown - now comes after timer */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground border border-border bg-muted"
+                      data-testid="button-db-selector"
+                    >
+                      <span>{selectedDatabase}</span>
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedDatabase('PostgreSQL 14')}
+                      className={selectedDatabase === 'PostgreSQL 14' ? 'bg-accent' : ''}
+                    >
+                      PostgreSQL 14
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedDatabase('PostgreSQL 15')}
+                      className={selectedDatabase === 'PostgreSQL 15' ? 'bg-accent' : ''}
+                    >
+                      PostgreSQL 15
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedDatabase('PostgreSQL 16')}
+                      className={selectedDatabase === 'PostgreSQL 16' ? 'bg-accent' : ''}
+                    >
+                      PostgreSQL 16
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedDatabase('MySQL 8.0')}
+                      className={selectedDatabase === 'MySQL 8.0' ? 'bg-accent' : ''}
+                    >
+                      MySQL 8.0
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedDatabase('SQLite')}
+                      className={selectedDatabase === 'SQLite' ? 'bg-accent' : ''}
+                    >
+                      SQLite
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
