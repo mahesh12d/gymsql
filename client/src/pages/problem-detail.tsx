@@ -366,6 +366,7 @@ export default function ProblemDetail() {
   const queryClient = useQueryClient();
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
+  const [isDeadlifting, setIsDeadlifting] = useState(false);
 
   // Reset hint state when problem changes
   useEffect(() => {
@@ -490,8 +491,6 @@ export default function ProblemDetail() {
   };
 
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
-
-  const [isDeadlifting, setIsDeadlifting] = useState(false);
 
   const handleHintClick = () => {
     // Trigger deadlift animation
@@ -664,7 +663,7 @@ export default function ProblemDetail() {
                             ) : (
                               <>
                                 <div className="space-y-2">
-                                  {problem.hints.slice(0, hintIndex + 1).map((hint, index) => (
+                                  {problem.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => (
                                     <div key={index} className="text-foreground">
                                       <strong>💡 Hint {index + 1}:</strong> {hint}
                                     </div>
