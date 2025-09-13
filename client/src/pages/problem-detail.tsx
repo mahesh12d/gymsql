@@ -268,63 +268,69 @@ function EditorOutputSplit({
         <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0">
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {/* Timer Display */}
-                <div className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-mono ${
+              <div className="flex items-center space-x-3">
+                {/* Timer Unit - grouped together */}
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded border ${
                   isTimerRunning 
-                    ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700' 
-                    : 'bg-muted text-muted-foreground border border-border'
+                    ? 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700' 
+                    : 'bg-muted text-muted-foreground border-border'
                 }`}>
-                  <Timer className="h-3 w-3" />
-                  <span>{formatTimer(timerSeconds)}</span>
-                </div>
-                
-                {/* Timer Controls */}
-                <div className="flex items-center space-x-1">
-                  {!isTimerRunning ? (
-                    <Button
-                      onClick={startTimer}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      data-testid="button-start-timer"
-                    >
-                      <Play className="h-3 w-3" />
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={pauseTimer}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      data-testid="button-pause-timer"
-                    >
-                      <Pause className="h-3 w-3" />
-                    </Button>
-                  )}
+                  {/* Play/Resume button - LEFT of timer */}
+                  <Button
+                    onClick={startTimer}
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 hover:bg-transparent"
+                    disabled={isTimerRunning}
+                    data-testid="button-start-timer"
+                    aria-label="Start timer"
+                  >
+                    <Play className="h-3 w-3" />
+                  </Button>
+                  
+                  {/* Timer Display */}
+                  <div className="flex items-center space-x-1">
+                    <Timer className="h-3 w-3" />
+                    <span className="font-mono text-xs" data-testid="text-timer">{formatTimer(timerSeconds)}</span>
+                  </div>
+                  
+                  {/* Pause/Stop button - RIGHT of timer */}
+                  <Button
+                    onClick={pauseTimer}
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 hover:bg-transparent"
+                    disabled={!isTimerRunning}
+                    data-testid="button-pause-timer"
+                    aria-label="Pause timer"
+                  >
+                    <Pause className="h-3 w-3" />
+                  </Button>
+                  
+                  {/* Reset button - part of timer unit */}
                   <Button
                     onClick={resetTimerOnly}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0"
+                    className="h-5 w-5 p-0 hover:bg-transparent"
                     data-testid="button-reset-timer"
+                    aria-label="Reset timer"
                   >
                     <Square className="h-3 w-3" />
                   </Button>
                 </div>
                 
-                {/* Query Reset Button */}
-                <div className="ml-2 border-l border-border pl-2">
-                  <Button
-                    onClick={resetQuery}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    data-testid="button-reset-query"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                  </Button>
-                </div>
+                {/* Query Reset Button - separate */}
+                <Button
+                  onClick={resetQuery}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="button-reset-query"
+                  aria-label="Reset query"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
               </div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>PostgreSQL 14</span>
