@@ -6,6 +6,7 @@ import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import CodeMirror from '@uiw/react-codemirror';
+import { motion } from 'framer-motion';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
@@ -490,13 +491,49 @@ export default function ProblemDetail() {
 
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
 
+  const [isDeadlifting, setIsDeadlifting] = useState(false);
+
   const handleHintClick = () => {
+    // Trigger deadlift animation
+    setIsDeadlifting(true);
+    setTimeout(() => setIsDeadlifting(false), 2000); // Animation duration
+    
     if (!showHint) {
       setShowHint(true);
     } else if (problem?.hints && hintIndex < problem.hints.length - 1) {
       setHintIndex(hintIndex + 1);
     }
   };
+
+  // Deadlift Animation Component
+  const DeadliftAnimation = () => (
+    <div className="flex flex-col items-center justify-center w-8 h-8 mr-2">
+      {/* Barbell */}
+      <motion.div
+        className="w-6 h-1 bg-primary rounded-full mb-1"
+        animate={{
+          y: isDeadlifting ? [0, -8, 0] : 0,
+          rotate: isDeadlifting ? [0, 5, -5, 0] : 0,
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut",
+          times: [0, 0.3, 0.7, 1]
+        }}
+      />
+      {/* Lifter (simplified) */}
+      <motion.div
+        className="w-4 h-4 bg-primary/60 rounded-full"
+        animate={{
+          scale: isDeadlifting ? [1, 0.9, 1.1, 1] : 1,
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut"
+        }}
+      />
+    </div>
+  );
 
   return (
     <div className="h-screen bg-background flex flex-col">
@@ -621,7 +658,7 @@ export default function ProblemDetail() {
                                 className="w-full text-primary hover:bg-primary/10"
                                 data-testid="button-hint"
                               >
-                                <Lightbulb className="mr-2 h-4 w-4" />
+                                <DeadliftAnimation />
                                 HINT 🙏
                               </Button>
                             ) : (
@@ -641,7 +678,7 @@ export default function ProblemDetail() {
                                     className="w-full text-primary hover:bg-primary/10 mt-3"
                                     data-testid="button-hint"
                                   >
-                                    <Lightbulb className="mr-2 h-4 w-4" />
+                                    <DeadliftAnimation />
                                     HINT 🙏
                                   </Button>
                                 )}
