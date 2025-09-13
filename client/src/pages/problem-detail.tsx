@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell, Timer, RotateCcw, Pause, Square } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -40,6 +40,11 @@ function EditorOutputSplit({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  
+  // Timer functionality
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const timerRef = useRef<number | null>(null);
   
   // Use ref to avoid recreating extensions on every keystroke
   const handleRunRef = useRef<() => void>(() => {});
@@ -82,6 +87,65 @@ function EditorOutputSplit({
     
     return () => observer.disconnect();
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning) {
+      timerRef.current = window.setInterval(() => {
+        setTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+      }
+    };
+  }, [isTimerRunning]);
+
+  // Format timer display (MM:SS)
+  const formatTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Timer controls
+  const startTimer = () => {
+    setIsTimerRunning(true);
+  };
+
+  const pauseTimer = () => {
+    setIsTimerRunning(false);
+  };
+
+  const resetTimerOnly = () => {
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
+  };
+
+  // Reset query and timer to initial state
+  const resetQuery = () => {
+    if (problem?.question?.starterQuery) {
+      setQuery(problem.question.starterQuery);
+    } else if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      setQuery(`SELECT * FROM "${tableName}";`);
+    } else {
+      setQuery('');
+    }
+    setResult(null);
+    setShowOutput(false);
+    // Also reset the timer
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
+  };
 
   const handleRun = useCallback(async () => {
     if (!query.trim()) return;
@@ -203,7 +267,69 @@ function EditorOutputSplit({
       <div className="flex-1 flex flex-col min-h-0">
         <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0">
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {/* Timer Unit - grouped together */}
+                <div className="flex items-center space-x-1 px-2 py-1 rounded border bg-muted text-muted-foreground border-border">
+                  {/* Play/Pause Toggle button - LEFT of timer */}
+                  <Button
+                    onClick={isTimerRunning ? pauseTimer : startTimer}
+                    variant="ghost"
+                    size="sm"
+                    className={`h-5 w-5 p-0 hover:bg-transparent ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`}
+                    data-testid={isTimerRunning ? "button-pause-timer" : "button-start-timer"}
+                    aria-label={isTimerRunning ? "Pause timer" : "Start timer"}
+                  >
+                    {isTimerRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                  </Button>
+                  
+                  {/* Timer Display */}
+                  <div className="flex items-center space-x-1">
+                    <Timer className={`h-3 w-3 ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`} />
+                    <span className={`font-mono text-xs ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400 font-medium' 
+                        : 'text-muted-foreground'
+                    }`} data-testid="text-timer">{formatTimer(timerSeconds)}</span>
+                  </div>
+                  
+                  {/* Reset button - RIGHT of timer */}
+                  <Button
+                    onClick={resetTimerOnly}
+                    variant="ghost"
+                    size="sm"
+                    className={`h-5 w-5 p-0 hover:bg-transparent ${
+                      isTimerRunning 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-muted-foreground'
+                    }`}
+                    data-testid="button-reset-timer"
+                    aria-label="Reset timer"
+                  >
+                    <Square className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                {/* Query Reset Button - separate */}
+                <Button
+                  onClick={resetQuery}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="button-reset-query"
+                  aria-label="Reset query"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+              </div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>PostgreSQL 14</span>
               </div>
