@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Play, Save, RotateCcw, Lightbulb, Dumbbell, TrendingUp, ChevronDown } from 'lucide-react';
+import { Play, Save, Lightbulb, Dumbbell, TrendingUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -94,10 +94,6 @@ export default function SQLEditor({
     console.log('Saving query:', query);
   };
 
-  const handleReset = () => {
-    setQuery(initialQuery);
-    setResult(null);
-  };
 
   const handleShowHint = () => {
     setShowHint(true);
@@ -248,14 +244,6 @@ export default function SQLEditor({
           Save Query
         </Button>
         
-        <Button 
-          onClick={handleReset} 
-          variant="outline"
-          className="flex items-center"
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reset
-        </Button>
 
         {hints.length > 0 && (
           <Button 

@@ -269,7 +269,25 @@ function EditorOutputSplit({
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {/* Timer Unit - grouped together */}
+                {/* Query Reset Button */}
+                <Button
+                  onClick={resetQuery}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="button-reset-query"
+                  aria-label="Reset query"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+                
+                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                  <span>PostgreSQL 14</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                {/* Timer Unit - grouped together and moved to right */}
                 <div className="flex items-center space-x-1 px-2 py-1 rounded border bg-muted text-muted-foreground border-border">
                   {/* Play/Pause Toggle button - LEFT of timer */}
                   <Button
@@ -317,21 +335,6 @@ function EditorOutputSplit({
                     <Square className="h-3 w-3" />
                   </Button>
                 </div>
-                
-                {/* Query Reset Button - separate */}
-                <Button
-                  onClick={resetQuery}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  data-testid="button-reset-query"
-                  aria-label="Reset query"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                <span>PostgreSQL 14</span>
               </div>
             </div>
           </CardHeader>
