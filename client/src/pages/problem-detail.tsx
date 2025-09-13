@@ -1,7 +1,7 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell } from 'lucide-react';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -40,6 +40,27 @@ function EditorOutputSplit({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  
+  // Use ref to avoid recreating extensions on every keystroke
+  const handleRunRef = useRef<() => void>(() => {});
+  
+  // Update ref on every render
+  useEffect(() => {
+    handleRunRef.current = handleRun;
+  });
+
+  // Initialize query when problem loads
+  useEffect(() => {
+    if (problem?.question?.starterQuery) {
+      setQuery(problem.question.starterQuery);
+    } else if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      // Use proper quoting for PostgreSQL
+      setQuery(`SELECT * FROM "${tableName}";`);
+    }
+  }, [problem]);
+
 
   // Detect dark mode with reactivity
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -99,6 +120,17 @@ function EditorOutputSplit({
     }
   }, [query, handleSubmitSolution]);
 
+  // Generate dynamic placeholder based on first table in problem
+  const generatePlaceholder = () => {
+    if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      // Use proper quoting for PostgreSQL
+      return `-- Write your SQL query here\nSELECT * FROM "${tableName}";`;
+    }
+    return '-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;';
+  };
+
   // Configure CodeMirror extensions and theme
   const extensions = useMemo(() => [
     sql({
@@ -113,19 +145,19 @@ function EditorOutputSplit({
     }),
     autocompletion(),
     EditorView.lineWrapping,
-    placeholder('-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;'),
+    placeholder(generatePlaceholder()),
     keymap.of([
       ...defaultKeymap,
       indentWithTab,
       {
         key: 'Mod-Enter',
         run: () => {
-          handleRun();
+          handleRunRef.current();
           return true;
         }
       }
     ])
-  ], [handleRun]);
+  ], [problem, isDarkMode]);
 
   const theme = useMemo(() => {
     if (isDarkMode) {
@@ -334,6 +366,12 @@ export default function ProblemDetail() {
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
 
+  // Reset hint state when problem changes
+  useEffect(() => {
+    setShowHint(false);
+    setHintIndex(0);
+  }, [problemId]);
+
   const { data: problem, isLoading: problemLoading } = useQuery({
     queryKey: ['/api/problems', problemId],
     queryFn: () => problemsApi.getById(problemId),
@@ -452,15 +490,14 @@ export default function ProblemDetail() {
 
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
 
-  const handleShowHint = () => {
-    setShowHint(true);
-  };
-
-  const handleNextHint = () => {
-    if (problem?.hints && hintIndex < problem.hints.length - 1) {
+  const handleHintClick = () => {
+    if (!showHint) {
+      setShowHint(true);
+    } else if (problem?.hints && hintIndex < problem.hints.length - 1) {
       setHintIndex(hintIndex + 1);
     }
   };
+
 
   return (
     <div className="h-screen bg-background flex flex-col">
@@ -578,33 +615,66 @@ export default function ProblemDetail() {
                         {/* Hints Section */}
                         {problem?.hints && problem.hints.length > 0 && (
                           <div className="space-y-3">
-                            <Button 
-                              onClick={handleShowHint}
-                              variant="outline"
-                              className="w-full text-primary hover:bg-primary/10"
-                              data-testid="button-show-hint"
-                            >
-                              <Lightbulb className="mr-2 h-4 w-4" />
-                              Show Hints
-                            </Button>
-                            
-                            {showHint && (
-                              <Alert className="border-primary/20 bg-primary/10">
-                                <Lightbulb className="h-4 w-4 text-primary" />
-                                <AlertDescription className="text-foreground">
-                                  <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
-                                  {hintIndex < problem.hints.length - 1 && (
-                                    <Button 
-                                      onClick={handleNextHint}
-                                      variant="link" 
-                                      className="p-0 ml-2 text-primary"
-                                      data-testid="button-next-hint"
-                                    >
-                                      Next hint →
-                                    </Button>
-                                  )}
-                                </AlertDescription>
-                              </Alert>
+                            {!showHint ? (
+                              <Button 
+                                onClick={handleHintClick}
+                                variant="outline"
+                                className="w-full text-primary hover:bg-primary/10"
+                                data-testid="button-hint"
+                              >
+                                <Lightbulb className="mr-2 h-4 w-4" />
+                                HINT
+                              </Button>
+                            ) : (
+                              <>
+                                <div className="space-y-4">
+                                  {problem.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => {
+                                    // Parse hint content and extract code blocks
+                                    const parseHintContent = (content: string) => {
+                                      const parts = content.split(/(\*\/\*[\s\S]*?\*\/\*)/);
+                                      return parts.map((part, partIndex) => {
+                                        if (part.startsWith('*/*') && part.endsWith('*/*')) {
+                                          // Extract code content between */* and */*
+                                          const codeContent = part.slice(3, -3);
+                                          return (
+                                            <code 
+                                              key={partIndex} 
+                                              className="block bg-gray-100 dark:bg-gray-800 p-3 rounded-md text-sm font-mono my-2 whitespace-pre-wrap"
+                                            >
+                                              {codeContent}
+                                            </code>
+                                          );
+                                        } else {
+                                          return part;
+                                        }
+                                      });
+                                    };
+
+                                    return (
+                                      <div key={index} className="text-foreground">
+                                        <h3 className="text-center font-bold text-lg mb-2 text-foreground">
+                                          HINT {index + 1}
+                                        </h3>
+                                        <p className="text-foreground leading-relaxed">
+                                          {parseHintContent(hint)}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                
+                                {hintIndex < problem.hints.length - 1 && (
+                                  <Button 
+                                    onClick={handleHintClick}
+                                    variant="outline"
+                                    className="w-full text-primary hover:bg-primary/10 mt-3"
+                                    data-testid="button-hint"
+                                  >
+                                    <Lightbulb className="mr-2 h-4 w-4" />
+                                    HINT
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         )}

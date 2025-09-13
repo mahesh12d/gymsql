@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, case, and_, desc, Boolean
+from sqlalchemy import func, case, and_, desc, Boolean, Integer
 from datetime import timedelta
 import random
 
@@ -175,7 +175,7 @@ def get_problems(
             ).label("is_user_solved")
         )
     else:
-        query = query.add_columns(func.cast(False, Boolean).label("is_user_solved"))
+        query = query.add_columns(func.cast(0, Integer).label("is_user_solved"))
     
     # Apply difficulty filter
     if difficulty:
@@ -236,8 +236,7 @@ def create_submission(
     
     # If correct, update user progress
     if is_correct:
-        current_user.problems_solved += 1
-        db.add(current_user)
+        current_user.problems_solved = (current_user.problems_solved or 0) + 1
     
     db.commit()
     db.refresh(submission)
@@ -331,8 +330,7 @@ def like_post(
     # Update post likes count
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if post:
-        post.likes += 1
-        db.add(post)
+        post.likes = (post.likes or 0) + 1
     
     db.commit()
     return {"message": "Post liked successfully"}
@@ -359,8 +357,7 @@ def unlike_post(
     # Update post likes count
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if post:
-        post.likes = max(0, post.likes - 1)
-        db.add(post)
+        post.likes = max(0, (post.likes or 0) - 1)
     
     db.commit()
     return {"message": "Post unliked successfully"}
@@ -391,8 +388,7 @@ def create_post_comment(
     # Update post comments count
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if post:
-        post.comments += 1
-        db.add(post)
+        post.comments = (post.comments or 0) + 1
     
     db.commit()
     db.refresh(comment)
