@@ -506,31 +506,50 @@ export default function ProblemDetail() {
 
   // Deadlift Animation Component
   const DeadliftAnimation = () => (
-    <div className="flex flex-col items-center justify-center w-8 h-8 mr-2">
-      {/* Barbell */}
+    <div className="flex items-center justify-center w-8 h-8 mr-2 relative">
+      {/* Barbell with plates */}
       <motion.div
-        className="w-6 h-1 bg-primary rounded-full mb-1"
+        className="relative"
         animate={{
-          y: isDeadlifting ? [0, -8, 0] : 0,
-          rotate: isDeadlifting ? [0, 5, -5, 0] : 0,
+          y: isDeadlifting ? [0, -12, 0] : 0,
         }}
         transition={{
           duration: 2,
           ease: "easeInOut",
-          times: [0, 0.3, 0.7, 1]
+          times: [0, 0.4, 1]
         }}
-      />
-      {/* Lifter (simplified) */}
+      >
+        {/* Left weight plate */}
+        <div className="absolute -left-1 top-0 w-1.5 h-1.5 bg-primary rounded-full"></div>
+        {/* Barbell bar */}
+        <div className="w-6 h-0.5 bg-primary rounded-full"></div>
+        {/* Right weight plate */}
+        <div className="absolute -right-1 top-0 w-1.5 h-1.5 bg-primary rounded-full"></div>
+      </motion.div>
+
+      {/* Lifter figure */}
       <motion.div
-        className="w-4 h-4 bg-primary/60 rounded-full"
+        className="absolute bottom-0 left-1/2 transform -translate-x-1/2"
         animate={{
-          scale: isDeadlifting ? [1, 0.9, 1.1, 1] : 1,
+          scaleY: isDeadlifting ? [0.7, 1, 0.7] : 0.7,
+          y: isDeadlifting ? [0, -2, 0] : 0,
         }}
         transition={{
           duration: 2,
-          ease: "easeInOut"
+          ease: "easeInOut",
+          times: [0, 0.4, 1]
         }}
-      />
+      >
+        {/* Head */}
+        <div className="w-1 h-1 bg-primary/80 rounded-full mx-auto mb-0.5"></div>
+        {/* Body */}
+        <div className="w-0.5 h-3 bg-primary/80 rounded-full mx-auto"></div>
+        {/* Legs */}
+        <div className="flex justify-center space-x-0.5">
+          <div className="w-0.5 h-2 bg-primary/80 rounded-full"></div>
+          <div className="w-0.5 h-2 bg-primary/80 rounded-full"></div>
+        </div>
+      </motion.div>
     </div>
   );
 
