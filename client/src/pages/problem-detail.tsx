@@ -6,7 +6,6 @@ import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import CodeMirror from '@uiw/react-codemirror';
-import { motion } from 'framer-motion';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { autocompletion } from '@codemirror/autocomplete';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
@@ -366,7 +365,6 @@ export default function ProblemDetail() {
   const queryClient = useQueryClient();
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
-  const [isDeadlifting, setIsDeadlifting] = useState(false);
 
   // Reset hint state when problem changes
   useEffect(() => {
@@ -493,10 +491,6 @@ export default function ProblemDetail() {
   const hasCorrectSubmission = userSubmissions?.some(s => s.isCorrect) || false;
 
   const handleHintClick = () => {
-    // Trigger deadlift animation
-    setIsDeadlifting(true);
-    setTimeout(() => setIsDeadlifting(false), 2000); // Animation duration
-    
     if (!showHint) {
       setShowHint(true);
     } else if (problem?.hints && hintIndex < problem.hints.length - 1) {
@@ -504,54 +498,6 @@ export default function ProblemDetail() {
     }
   };
 
-  // Deadlift Animation Component
-  const DeadliftAnimation = () => (
-    <div className="flex items-center justify-center w-8 h-8 mr-2 relative">
-      {/* Barbell with plates */}
-      <motion.div
-        className="relative"
-        animate={{
-          y: isDeadlifting ? [0, -12, 0] : 0,
-        }}
-        transition={{
-          duration: 2,
-          ease: "easeInOut",
-          times: [0, 0.4, 1]
-        }}
-      >
-        {/* Left weight plate */}
-        <div className="absolute -left-1 top-0 w-1.5 h-1.5 bg-primary rounded-full"></div>
-        {/* Barbell bar */}
-        <div className="w-6 h-0.5 bg-primary rounded-full"></div>
-        {/* Right weight plate */}
-        <div className="absolute -right-1 top-0 w-1.5 h-1.5 bg-primary rounded-full"></div>
-      </motion.div>
-
-      {/* Lifter figure */}
-      <motion.div
-        className="absolute bottom-0 left-1/2 transform -translate-x-1/2"
-        animate={{
-          scaleY: isDeadlifting ? [0.7, 1, 0.7] : 0.7,
-          y: isDeadlifting ? [0, -2, 0] : 0,
-        }}
-        transition={{
-          duration: 2,
-          ease: "easeInOut",
-          times: [0, 0.4, 1]
-        }}
-      >
-        {/* Head */}
-        <div className="w-1 h-1 bg-primary/80 rounded-full mx-auto mb-0.5"></div>
-        {/* Body */}
-        <div className="w-0.5 h-3 bg-primary/80 rounded-full mx-auto"></div>
-        {/* Legs */}
-        <div className="flex justify-center space-x-0.5">
-          <div className="w-0.5 h-2 bg-primary/80 rounded-full"></div>
-          <div className="w-0.5 h-2 bg-primary/80 rounded-full"></div>
-        </div>
-      </motion.div>
-    </div>
-  );
 
   return (
     <div className="h-screen bg-background flex flex-col">
@@ -676,8 +622,8 @@ export default function ProblemDetail() {
                                 className="w-full text-primary hover:bg-primary/10"
                                 data-testid="button-hint"
                               >
-                                <DeadliftAnimation />
-                                HINT 🙏
+                                <Lightbulb className="mr-2 h-4 w-4" />
+                                HINT
                               </Button>
                             ) : (
                               <>
@@ -696,8 +642,8 @@ export default function ProblemDetail() {
                                     className="w-full text-primary hover:bg-primary/10 mt-3"
                                     data-testid="button-hint"
                                   >
-                                    <DeadliftAnimation />
-                                    HINT 🙏
+                                    <Lightbulb className="mr-2 h-4 w-4" />
+                                    HINT
                                   </Button>
                                 )}
                               </>
