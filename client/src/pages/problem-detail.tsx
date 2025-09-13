@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell, Timer, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell, Timer, RotateCcw, Pause, Square } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -116,8 +116,17 @@ function EditorOutputSplit({
   };
 
   // Timer controls
-  const toggleTimer = () => {
-    setIsTimerRunning(!isTimerRunning);
+  const startTimer = () => {
+    setIsTimerRunning(true);
+  };
+
+  const pauseTimer = () => {
+    setIsTimerRunning(false);
+  };
+
+  const resetTimerOnly = () => {
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
   };
 
   // Reset query and timer to initial state
@@ -259,26 +268,63 @@ function EditorOutputSplit({
         <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0">
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Button
-                  onClick={toggleTimer}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  data-testid="button-toggle-timer"
-                >
-                  <Timer className="h-3 w-3 mr-1" />
-                  {formatTimer(timerSeconds)}
-                </Button>
-                <Button
-                  onClick={resetQuery}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  data-testid="button-reset-query"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </Button>
+              <div className="flex items-center space-x-2">
+                {/* Timer Display */}
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-mono ${
+                  isTimerRunning 
+                    ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-700' 
+                    : 'bg-muted text-muted-foreground border border-border'
+                }`}>
+                  <Timer className="h-3 w-3" />
+                  <span>{formatTimer(timerSeconds)}</span>
+                </div>
+                
+                {/* Timer Controls */}
+                <div className="flex items-center space-x-1">
+                  {!isTimerRunning ? (
+                    <Button
+                      onClick={startTimer}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      data-testid="button-start-timer"
+                    >
+                      <Play className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={pauseTimer}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      data-testid="button-pause-timer"
+                    >
+                      <Pause className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button
+                    onClick={resetTimerOnly}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    data-testid="button-reset-timer"
+                  >
+                    <Square className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                {/* Query Reset Button */}
+                <div className="ml-2 border-l border-border pl-2">
+                  <Button
+                    onClick={resetQuery}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    data-testid="button-reset-query"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>PostgreSQL 14</span>
