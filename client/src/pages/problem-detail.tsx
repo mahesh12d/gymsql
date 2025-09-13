@@ -626,18 +626,19 @@ export default function ProblemDetail() {
                               </Button>
                             ) : (
                               <>
-                                <Alert className="border-primary/20 bg-primary/10">
-                                  <Lightbulb className="h-4 w-4 text-primary" />
-                                  <AlertDescription className="text-foreground">
-                                    <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
-                                  </AlertDescription>
-                                </Alert>
+                                <div className="space-y-2">
+                                  {problem.hints.slice(0, hintIndex + 1).map((hint, index) => (
+                                    <div key={index} className="text-foreground">
+                                      <strong>💡 Hint {index + 1}:</strong> {hint}
+                                    </div>
+                                  ))}
+                                </div>
                                 
                                 {hintIndex < problem.hints.length - 1 && (
                                   <Button 
                                     onClick={handleHintClick}
                                     variant="outline"
-                                    className="w-full text-primary hover:bg-primary/10"
+                                    className="w-full text-primary hover:bg-primary/10 mt-3"
                                     data-testid="button-hint"
                                   >
                                     <Lightbulb className="mr-2 h-4 w-4" />
