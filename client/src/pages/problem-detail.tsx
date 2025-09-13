@@ -616,26 +616,32 @@ export default function ProblemDetail() {
                               data-testid="button-show-hint"
                             >
                               <Lightbulb className="mr-2 h-4 w-4" />
-                              Show Hints
+                              hint please
                             </Button>
                             
                             {showHint && (
-                              <Alert className="border-primary/20 bg-primary/10">
-                                <Lightbulb className="h-4 w-4 text-primary" />
-                                <AlertDescription className="text-foreground">
-                                  <strong>💡 Hint {hintIndex + 1}:</strong> {problem.hints[hintIndex]}
-                                  {hintIndex < problem.hints.length - 1 && (
-                                    <Button 
-                                      onClick={handleNextHint}
-                                      variant="link" 
-                                      className="p-0 ml-2 text-primary"
-                                      data-testid="button-next-hint"
-                                    >
-                                      Next hint →
-                                    </Button>
-                                  )}
-                                </AlertDescription>
-                              </Alert>
+                              <div className="space-y-3">
+                                {problem.hints.slice(0, hintIndex + 1).map((hint, index) => (
+                                  <Alert key={index} className="border-primary/20 bg-primary/10">
+                                    <Lightbulb className="h-4 w-4 text-primary" />
+                                    <AlertDescription className="text-foreground">
+                                      <strong>💡 Hint {index + 1}:</strong> {hint}
+                                    </AlertDescription>
+                                  </Alert>
+                                ))}
+                                
+                                {hintIndex < problem.hints.length - 1 && (
+                                  <Button 
+                                    onClick={handleNextHint}
+                                    variant="outline"
+                                    className="w-full text-primary hover:bg-primary/10"
+                                    data-testid="button-next-hint"
+                                  >
+                                    <Lightbulb className="mr-2 h-4 w-4" />
+                                    hint please
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
