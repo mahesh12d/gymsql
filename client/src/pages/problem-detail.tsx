@@ -1,7 +1,7 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell } from 'lucide-react';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -40,6 +40,26 @@ function EditorOutputSplit({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  
+  // Use ref to avoid recreating extensions on every keystroke
+  const handleRunRef = useRef<() => void>(() => {});
+  
+  // Update ref on every render
+  useEffect(() => {
+    handleRunRef.current = handleRun;
+  });
+
+  // Initialize query when problem loads
+  useEffect(() => {
+    if (problem?.question?.starterQuery) {
+      setQuery(problem.question.starterQuery);
+    } else if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      // Use proper quoting for PostgreSQL
+      setQuery(`SELECT * FROM "${tableName}";`);
+    }
+  }, [problem]);
 
   // Detect dark mode with reactivity
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -99,6 +119,17 @@ function EditorOutputSplit({
     }
   }, [query, handleSubmitSolution]);
 
+  // Generate dynamic placeholder based on first table in problem
+  const generatePlaceholder = () => {
+    if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      // Use proper quoting for PostgreSQL
+      return `-- Write your SQL query here\nSELECT * FROM "${tableName}";`;
+    }
+    return '-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;';
+  };
+
   // Configure CodeMirror extensions and theme
   const extensions = useMemo(() => [
     sql({
@@ -113,19 +144,19 @@ function EditorOutputSplit({
     }),
     autocompletion(),
     EditorView.lineWrapping,
-    placeholder('-- Write your SQL query here\nSELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition;'),
+    placeholder(generatePlaceholder()),
     keymap.of([
       ...defaultKeymap,
       indentWithTab,
       {
         key: 'Mod-Enter',
         run: () => {
-          handleRun();
+          handleRunRef.current();
           return true;
         }
       }
     ])
-  ], [handleRun]);
+  ], [problem, isDarkMode]);
 
   const theme = useMemo(() => {
     if (isDarkMode) {
