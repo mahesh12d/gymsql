@@ -627,12 +627,40 @@ export default function ProblemDetail() {
                               </Button>
                             ) : (
                               <>
-                                <div className="space-y-2">
-                                  {problem.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => (
-                                    <div key={index} className="text-foreground">
-                                      <strong>💡 Hint {index + 1}:</strong> {hint}
-                                    </div>
-                                  ))}
+                                <div className="space-y-4">
+                                  {problem.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => {
+                                    // Parse hint content and extract code blocks
+                                    const parseHintContent = (content: string) => {
+                                      const parts = content.split(/(\*\/\*[\s\S]*?\*\/\*)/);
+                                      return parts.map((part, partIndex) => {
+                                        if (part.startsWith('*/*') && part.endsWith('*/*')) {
+                                          // Extract code content between */* and */*
+                                          const codeContent = part.slice(3, -3);
+                                          return (
+                                            <code 
+                                              key={partIndex} 
+                                              className="block bg-gray-100 dark:bg-gray-800 p-3 rounded-md text-sm font-mono my-2 whitespace-pre-wrap"
+                                            >
+                                              {codeContent}
+                                            </code>
+                                          );
+                                        } else {
+                                          return part;
+                                        }
+                                      });
+                                    };
+
+                                    return (
+                                      <div key={index} className="text-foreground">
+                                        <h3 className="text-center font-bold text-lg mb-2 text-foreground">
+                                          HINT {index + 1}
+                                        </h3>
+                                        <p className="text-foreground leading-relaxed">
+                                          {parseHintContent(hint)}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                                 
                                 {hintIndex < problem.hints.length - 1 && (
