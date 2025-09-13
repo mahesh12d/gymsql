@@ -1,6 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell } from 'lucide-react';
+import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell, Timer, RotateCcw } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import ReactMarkdown from 'react-markdown';
@@ -40,6 +40,11 @@ function EditorOutputSplit({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  
+  // Timer functionality
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use ref to avoid recreating extensions on every keystroke
   const handleRunRef = useRef<() => void>(() => {});
@@ -82,6 +87,58 @@ function EditorOutputSplit({
     
     return () => observer.disconnect();
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning) {
+      timerRef.current = setInterval(() => {
+        setTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isTimerRunning]);
+
+  // Format timer display (MM:SS)
+  const formatTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Timer controls
+  const toggleTimer = () => {
+    setIsTimerRunning(!isTimerRunning);
+  };
+
+  const resetTimer = () => {
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
+  };
+
+  // Reset query to initial state
+  const resetQuery = () => {
+    if (problem?.question?.starterQuery) {
+      setQuery(problem.question.starterQuery);
+    } else if (problem?.question?.tables && problem.question.tables.length > 0) {
+      const firstTable = problem.question.tables[0];
+      const tableName = firstTable.name;
+      setQuery(`SELECT * FROM "${tableName}";`);
+    } else {
+      setQuery('');
+    }
+    setResult(null);
+    setShowOutput(false);
+  };
 
   const handleRun = useCallback(async () => {
     if (!query.trim()) return;
@@ -203,7 +260,28 @@ function EditorOutputSplit({
       <div className="flex-1 flex flex-col min-h-0">
         <Card className="flex-1 flex flex-col overflow-hidden rounded-none border-0">
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Button
+                  onClick={toggleTimer}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="button-toggle-timer"
+                >
+                  <Timer className="h-3 w-3 mr-1" />
+                  {formatTimer(timerSeconds)}
+                </Button>
+                <Button
+                  onClick={resetQuery}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="button-reset-query"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+              </div>
               <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                 <span>PostgreSQL 14</span>
               </div>
