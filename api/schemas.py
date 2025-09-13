@@ -70,7 +70,7 @@ class ProblemBase(CamelCaseModel):
     question: QuestionData  # JSONB field containing description, schema, expectedOutput
     difficulty: str
     tags: List[str] = []
-    companies: List[str] = []
+    company: Optional[str] = None
     hints: List[str] = []
 
 class ProblemCreate(ProblemBase):

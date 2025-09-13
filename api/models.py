@@ -42,7 +42,7 @@ class Problem(Base):
 
     # Match DB schema: json (not jsonb)
     tags = Column(JSON, default=list, nullable=False)
-    companies = Column(JSON, default=list, nullable=False)
+    company = Column(String(100), nullable=True)
     hints = Column(JSON, default=list, nullable=False)
 
     # Match DB schema: jsonb
