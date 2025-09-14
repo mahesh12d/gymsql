@@ -50,6 +50,8 @@ import SQLEditor from "@/components/sql-editor";
 import TableDisplay from "@/components/table-display";
 import ResizableSplitter from "@/components/resizable-splitter";
 import VerticalResizableSplitter from "@/components/vertical-resizable-splitter";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { DifficultyBadge } from "@/components/DifficultyBadge";
 import "../components/AnimatedFields.css";
 
 // Editor and Output Split Component
@@ -314,46 +316,22 @@ function EditorOutputSplit({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {/* Company field */}
-                                <div
-                  className={`company-field ${
-                    selectedCompany ? "selected" : ""
-                  }`}
+                <CompanyLogo
+                  companyName={selectedCompany}
+                  variant="full"
+                  size="md"
                   data-testid="company-selector"
-                >
-                  <span className="company-icon">
-                    <img
-                      src={`/logos/${selectedCompany
-                        .toLowerCase()
-                        .replace(/\s/g, "-")}.png`}
-                      alt={selectedCompany}
-                      className="company-logo"
-                    />
-                  </span>
-                  <span className="company-name">{selectedCompany}</span>
-                  <span
-                    className={`selected-dot ${
-                      selectedCompany ? "visible" : ""
-                    }`}
-                  />
-                </div>
+                />
 
                 {/* Difficulty field */}
-                                <div
-                  className={`difficulty-field ${selectedDifficulty.toLowerCase()} ${
-                    selectedDifficulty ? "selected" : ""
-                  }`}
+                <DifficultyBadge
+                  difficulty={selectedDifficulty}
+                  variant="full"
+                  size="md"
+                  showIcon={true}
+                  showBars={true}
                   data-testid="difficulty-selector"
-                >
-                  <span className="difficulty-icon">🎯</span>
-                  <span className="difficulty-name">{selectedDifficulty}</span>
-
-                  {/* Skill bars */}
-                  <div className="skill-bars">
-                    <div className="skill-bar" />
-                    <div className="skill-bar" />
-                    <div className="skill-bar" />
-                  </div>
-                </div>
+                />
               </div>
 
               <div className="flex items-center space-x-3">
