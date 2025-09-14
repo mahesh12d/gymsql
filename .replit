@@ -82,7 +82,10 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_database==1.0.0", "javascript_log_in_with_replit==1.0.0"]
+integrations = [
+  "javascript_database==1.0.0",
+  "javascript_log_in_with_replit==1.0.0",
+]
 expertMode = true
 
 
@@ -95,6 +98,3 @@ requiredFiles = [".replit", "package.json", "requirements.txt"]
 
 [build]
 run = "npm install && pip install -r requirements.txt"
-[deployment]
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
