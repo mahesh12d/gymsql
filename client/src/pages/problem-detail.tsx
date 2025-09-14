@@ -25,6 +25,7 @@ import SQLEditor from '@/components/sql-editor';
 import TableDisplay from '@/components/table-display';
 import ResizableSplitter from '@/components/resizable-splitter';
 import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
+import { CompanyField, DifficultyField } from '@/components/AnimatedFields';
 
 
 
@@ -43,6 +44,10 @@ function EditorOutputSplit({
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  
+  // Company and Difficulty selection state
+  const [selectedCompany, setSelectedCompany] = useState<string>('NY Times');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
   
   // Timer functionality
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -275,7 +280,30 @@ function EditorOutputSplit({
           <CardHeader className="bg-muted/50 px-4 py-2 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {/* Code Editor label or other left-side content can go here */}
+                {/* Company and Difficulty animated fields */}
+                <CompanyField 
+                  company={selectedCompany}
+                  isSelected={true}
+                  onClick={() => {
+                    const companies = ['NY Times', 'Google', 'Meta', 'Apple', 'Netflix'];
+                    const currentIndex = companies.indexOf(selectedCompany);
+                    const nextIndex = (currentIndex + 1) % companies.length;
+                    setSelectedCompany(companies[nextIndex]);
+                  }}
+                  data-testid="company-selector"
+                />
+                
+                <DifficultyField 
+                  difficulty={selectedDifficulty}
+                  isSelected={true}
+                  onClick={() => {
+                    const difficulties: ('Easy' | 'Medium' | 'Hard')[] = ['Easy', 'Medium', 'Hard'];
+                    const currentIndex = difficulties.indexOf(selectedDifficulty);
+                    const nextIndex = (currentIndex + 1) % difficulties.length;
+                    setSelectedDifficulty(difficulties[nextIndex]);
+                  }}
+                  data-testid="difficulty-selector"
+                />
               </div>
               
               <div className="flex items-center space-x-3">
