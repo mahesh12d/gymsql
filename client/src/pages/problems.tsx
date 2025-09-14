@@ -570,7 +570,7 @@ export default function Problems() {
                         }
                         data-testid={`row-problem-${problem.id}`}
                       >
-                        <TableCell className="py-4">
+                        <TableCell className="py-4 w-32">
                           <div className="flex flex-wrap gap-1">
                             <CompanyLogo
                               companyName={problem.company}
@@ -582,8 +582,8 @@ export default function Problems() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="py-4">
-                          <h3 className="font-medium text-gray-900 hover:text-orange-600 transition-colors">
+                        <TableCell className="py-4 max-w-xs">
+                          <h3 className="font-medium text-gray-900 hover:text-orange-600 transition-colors truncate">
                             {problem.title}
                           </h3>
                         </TableCell>
