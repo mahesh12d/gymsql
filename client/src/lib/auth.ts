@@ -84,6 +84,18 @@ export const problemsApi = {
     return apiRequest(`/problems${query}`);
   },
 
+  async getFiltered(filters?: { difficulty?: string; company?: string }): Promise<any[]> {
+    const queryParams = new URLSearchParams();
+    if (filters?.difficulty) {
+      queryParams.append('difficulty', filters.difficulty);
+    }
+    if (filters?.company) {
+      queryParams.append('company', filters.company);
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : "";
+    return apiRequest(`/problems${query}`);
+  },
+
   async getById(id: string): Promise<any> {
     return apiRequest(`/problems/${id}`);
   },

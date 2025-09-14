@@ -146,6 +146,7 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 @app.get("/api/problems", response_model=List[ProblemResponse], response_model_by_alias=True)
 def get_problems(
     difficulty: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
     current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
@@ -180,6 +181,10 @@ def get_problems(
     # Apply difficulty filter
     if difficulty:
         query = query.filter(Problem.difficulty == difficulty)
+    
+    # Apply company filter
+    if company:
+        query = query.filter(Problem.company == company)
     
     # Group by problem and order by title
     results = query.group_by(Problem.id).order_by(Problem.title).all()

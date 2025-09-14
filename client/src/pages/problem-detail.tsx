@@ -1,4 +1,4 @@
-import { useParams } from 'wouter';
+import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Users, Star, Lightbulb, Play, Save, TrendingUp, ChevronLeft, ChevronRight, MessageSquare, CheckCircle, FileText, Code2, Dumbbell, Timer, RotateCcw, Pause, Square, ChevronDown } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
@@ -181,7 +181,9 @@ function EditorOutputSplit({
   selectedCompany,
   selectedDifficulty,
   onCompanyChange,
-  onDifficultyChange
+  onDifficultyChange,
+  isSwitchingProblem,
+  availableCompanies
 }: {
   problem: any;
   handleRunQuery: (query: string) => Promise<any>;
@@ -190,6 +192,8 @@ function EditorOutputSplit({
   selectedDifficulty?: string;
   onCompanyChange?: (company: string) => void;
   onDifficultyChange?: (difficulty: string) => void;
+  isSwitchingProblem?: boolean;
+  availableCompanies?: string[];
 }) {
   const [query, setQuery] = useState(problem?.question?.starterQuery || '');
   const [result, setResult] = useState<any>(null);
@@ -484,14 +488,25 @@ function EditorOutputSplit({
                 {/* Company and Difficulty Buttons */}
                 {problem && (
                   <>
-                    <CompanyNavigation 
-                      company={selectedCompany}
-                      onCompanyChange={onCompanyChange}
-                    />
-                    <DifficultySelector 
-                      difficulty={selectedDifficulty}
-                      onDifficultyChange={onDifficultyChange}
-                    />
+                    <div className={`${isSwitchingProblem ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <CompanyNavigation 
+                        company={selectedCompany}
+                        companies={availableCompanies}
+                        onCompanyChange={onCompanyChange}
+                      />
+                    </div>
+                    <div className={`${isSwitchingProblem ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <DifficultySelector 
+                        difficulty={selectedDifficulty}
+                        onDifficultyChange={onDifficultyChange}
+                      />
+                    </div>
+                    {isSwitchingProblem && (
+                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                        <div className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full"></div>
+                        <span>Switching...</span>
+                      </div>
+                    )}
                   </>
                 )}
                 
@@ -695,6 +710,7 @@ function EditorOutputSplit({
 export default function ProblemDetail() {
   const params = useParams();
   const problemId = params.id as string;
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -702,6 +718,8 @@ export default function ProblemDetail() {
   const [hintIndex, setHintIndex] = useState(0);
   const [selectedCompany, setSelectedCompany] = useState<string>();
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>();
+  const [isSwitchingProblem, setIsSwitchingProblem] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Reset hint state when problem changes
   useEffect(() => {
@@ -715,13 +733,98 @@ export default function ProblemDetail() {
     enabled: !!problemId,
   });
 
+  // Fetch all problems to get dynamic companies list
+  const { data: allProblems } = useQuery({
+    queryKey: ['/api/problems'],
+    queryFn: () => problemsApi.getAll(),
+  });
+
+  // Extract unique companies from all problems
+  const availableCompanies = useMemo(() => {
+    if (!allProblems) return problem?.company ? [problem.company] : ['Microsoft'];
+    const companies = Array.from(
+      new Set(allProblems.map((p: any) => p.company).filter(Boolean))
+    ).sort();
+    return companies.length > 0 ? companies : (problem?.company ? [problem.company] : ['Microsoft']);
+  }, [allProblems, problem?.company]);
+
   // Initialize company and difficulty from problem data
   useEffect(() => {
     if (problem) {
       setSelectedCompany(problem.company);
       setSelectedDifficulty(problem.difficulty);
+      setInitialLoad(false);
     }
   }, [problem]);
+
+  // Problem switching logic - when company or difficulty changes
+  useEffect(() => {
+    // Don't switch on initial load or if we're already switching
+    if (initialLoad || isSwitchingProblem || !selectedCompany || !selectedDifficulty) {
+      return;
+    }
+
+    // Only switch if the selected values differ from the current problem
+    const shouldSwitch = problem && (
+      selectedCompany !== problem.company || 
+      selectedDifficulty !== problem.difficulty
+    );
+
+    if (shouldSwitch) {
+      const switchToProblem = async () => {
+        setIsSwitchingProblem(true);
+        try {
+          // Fetch problems matching the selected filters
+          const filteredProblems = await problemsApi.getFiltered({
+            company: selectedCompany,
+            difficulty: selectedDifficulty
+          });
+
+          // Filter out current problem and get available options
+          const availableProblems = filteredProblems.filter(p => p.id !== problemId);
+
+          if (availableProblems.length === 0) {
+            toast({
+              title: 'No problems found',
+              description: `No other problems found for ${selectedCompany} with ${selectedDifficulty} difficulty.`,
+              variant: 'destructive',
+            });
+            // Reset to current problem's values
+            setSelectedCompany(problem.company);
+            setSelectedDifficulty(problem.difficulty);
+            return;
+          }
+
+          // Randomly select a problem from the available options
+          const randomIndex = Math.floor(Math.random() * availableProblems.length);
+          const newProblem = availableProblems[randomIndex];
+
+          // Navigate to the new problem
+          setLocation(`/problems/${newProblem.id}`);
+
+          toast({
+            title: 'Problem switched!',
+            description: `Switched to: ${newProblem.title}`,
+          });
+
+        } catch (error) {
+          console.error('Error switching problem:', error);
+          toast({
+            title: 'Failed to switch problem',
+            description: 'Please try again.',
+            variant: 'destructive',
+          });
+          // Reset to current problem's values
+          setSelectedCompany(problem.company);
+          setSelectedDifficulty(problem.difficulty);
+        } finally {
+          setIsSwitchingProblem(false);
+        }
+      };
+
+      switchToProblem();
+    }
+  }, [selectedCompany, selectedDifficulty, problem, problemId, initialLoad, isSwitchingProblem, setLocation, toast]);
 
   const { data: userSubmissions } = useQuery({
     queryKey: ['/api/submissions/user', user?.id, problemId],
@@ -1147,6 +1250,8 @@ export default function ProblemDetail() {
               selectedDifficulty={selectedDifficulty}
               onCompanyChange={setSelectedCompany}
               onDifficultyChange={setSelectedDifficulty}
+              isSwitchingProblem={isSwitchingProblem}
+              availableCompanies={availableCompanies}
             />
           }
         />
