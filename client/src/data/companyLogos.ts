@@ -4,6 +4,15 @@
  * Only includes companies with actual SVG assets
  */
 
+// Import all logos
+import amazonLogo from '@assets/logos/amazon.svg';
+import appleLogo from '@assets/logos/apple.svg';
+import googleLogo from '@assets/logos/google.svg';
+import metaLogo from '@assets/logos/meta.svg';
+import microsoftLogo from '@assets/logos/microsoft.svg';
+import netflixLogo from '@assets/logos/netflix.svg';
+import stripeLogo from '@assets/logos/stripe.svg';
+
 export interface CompanyInfo {
   id: string;
   name: string;
@@ -19,7 +28,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'microsoft',
     name: 'Microsoft',
     displayName: 'Microsoft',
-    logoPath: '/attached_assets/logos/microsoft.svg',
+    logoPath: microsoftLogo,
     primaryColor: '#00BCF2',
     secondaryColor: '#0078D4',
   },
@@ -27,7 +36,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'google',
     name: 'Google',
     displayName: 'Google',
-    logoPath: '/attached_assets/logos/google.svg',
+    logoPath: googleLogo,
     primaryColor: '#4285F4',
     secondaryColor: '#DB4437',
   },
@@ -35,7 +44,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'apple',
     name: 'Apple',
     displayName: 'Apple',
-    logoPath: '/attached_assets/logos/apple.svg',
+    logoPath: appleLogo,
     primaryColor: '#000000',
     secondaryColor: '#A8A8A8',
   },
@@ -43,7 +52,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'amazon',
     name: 'Amazon',
     displayName: 'Amazon',
-    logoPath: '/attached_assets/logos/amazon.svg',
+    logoPath: amazonLogo,
     primaryColor: '#FF9900',
     secondaryColor: '#232F3E',
   },
@@ -51,7 +60,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'meta',
     name: 'Meta',
     displayName: 'Meta',
-    logoPath: '/attached_assets/logos/meta.svg',
+    logoPath: metaLogo,
     primaryColor: '#1877F2',
     secondaryColor: '#42B883',
   },
@@ -59,7 +68,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'netflix',
     name: 'Netflix',
     displayName: 'Netflix',
-    logoPath: '/attached_assets/logos/netflix.svg',
+    logoPath: netflixLogo,
     primaryColor: '#E50914',
     secondaryColor: '#221F1F',
   },
@@ -67,7 +76,7 @@ export const COMPANY_LOGOS: Record<string, CompanyInfo> = {
     id: 'stripe',
     name: 'Stripe',
     displayName: 'Stripe',
-    logoPath: '/attached_assets/logos/stripe.svg',
+    logoPath: stripeLogo,
     primaryColor: '#635BFF',
     secondaryColor: '#0A2540',
   },
