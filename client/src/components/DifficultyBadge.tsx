@@ -12,7 +12,7 @@ interface DifficultyBadgeProps {
   "data-testid"?: string;
 }
 
-type DifficultyLevel = "Easy" | "Medium" | "Hard" | "Expert";
+type DifficultyLevel = "Easy" | "Medium" | "Hard" | "Expert" | (string & {});
 
 interface DifficultyConfig {
   level: DifficultyLevel;
@@ -122,7 +122,7 @@ function generateDynamicDifficultyConfig(difficulty: string): DifficultyConfig {
   }
   
   return {
-    level: normalizedDifficulty as DifficultyLevel,
+    level: normalizedDifficulty,
     colors: {
       bg: `bg-gray-50`, // Use neutral background for better control
       text: `text-gray-700`, // Use neutral text for better control  
@@ -243,11 +243,20 @@ export function DifficultyBadge({
       );
 
     case "full":
+      // Check if this is a custom (dynamic) configuration
+      const isCustomConfigFull = !DIFFICULTY_CONFIG[difficultyKey];
+      
       return (
         <div
           className={`difficulty-field ${difficultyKey} selected ${className}`}
           onClick={onClick}
           data-testid={testId}
+          style={{
+            ...(isCustomConfigFull && {
+              backgroundColor: config.colors.primary + '15', // 15% opacity
+              borderColor: config.colors.primary + '40', // 40% opacity
+            })
+          }}
         >
           <span className="difficulty-icon">
             {showIcon ? (
@@ -256,7 +265,16 @@ export function DifficultyBadge({
               "🎯"
             )}
           </span>
-          <span className="difficulty-name">{config.label}</span>
+          <span 
+            className="difficulty-name"
+            style={{
+              ...(isCustomConfigFull && {
+                color: config.colors.primary
+              })
+            }}
+          >
+            {config.label}
+          </span>
           {showBars && (
             <div className="skill-bars">
               {Array.from({ length: 3 }, (_, i) => (
@@ -315,11 +333,18 @@ export function DifficultyBadge({
 
 /**
  * Get difficulty color classes for legacy compatibility
- * Now supports dynamic difficulties
+ * Now supports dynamic difficulties with custom colors
  */
 export function getDifficultyColor(difficulty: string): string {
   const difficultyKey = difficulty?.toLowerCase() || "easy";
   const config = DIFFICULTY_CONFIG[difficultyKey] || generateDynamicDifficultyConfig(difficulty || "easy");
+  
+  // For custom configurations, return inline styles via CSS classes
+  const isCustomConfig = !DIFFICULTY_CONFIG[difficultyKey];
+  if (isCustomConfig) {
+    return `text-gray-700 bg-gray-50 border-gray-200`; // Neutral classes for custom colors
+  }
+  
   return `${config.colors.text} ${config.colors.bg} ${config.colors.border}`;
 }
 

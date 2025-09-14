@@ -94,12 +94,20 @@ export default function Problems() {
 
   // Get unique values for filter options
   const allCompanies = Array.from(
-    new Set(problems?.map((p) => p.company).filter(Boolean))
+    new Set((problems ?? []).map((p) => p.company).filter(Boolean))
   ).sort();
   const allTags = Array.from(
-    new Set(problems?.flatMap((p) => p.tags || []))
+    new Set((problems ?? []).flatMap((p) => p.tags || []))
   ).sort();
-  const difficulties = ["Easy", "Medium", "Hard"];
+  // Normalize difficulties to handle case/whitespace differences
+  const difficulties = Array.from(
+    new Map(
+      (problems ?? [])
+        .map((p) => p.difficulty)
+        .filter(Boolean)
+        .map((d) => [d.trim().toLowerCase(), d.trim()])
+    ).values()
+  ).sort();
 
   // Get tag counts for display
   const getTagCount = (tag: string) => {
@@ -115,10 +123,12 @@ export default function Problems() {
         problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         problem.question.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Difficulty filter
+      // Difficulty filter (case-insensitive comparison)
       const matchesDifficulty =
         filters.difficulties.length === 0 ||
-        filters.difficulties.includes(problem.difficulty);
+        filters.difficulties.some(filterDiff => 
+          filterDiff.trim().toLowerCase() === problem.difficulty?.trim().toLowerCase()
+        );
 
       // Company filter
       const matchesCompany =
