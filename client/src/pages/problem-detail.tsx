@@ -26,6 +26,153 @@ import TableDisplay from '@/components/table-display';
 import ResizableSplitter from '@/components/resizable-splitter';
 import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
 
+// Company Navigation Component
+function CompanyNavigation({ 
+  company, 
+  companies = ['Tesla', 'Google', 'Amazon', 'Microsoft', 'Meta', 'Apple', 'Netflix', 'Uber'], 
+  onCompanyChange 
+}: {
+  company?: string;
+  companies?: string[];
+  onCompanyChange?: (company: string) => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  
+  // Guard against empty companies array
+  const safeCompanies = companies.length > 0 ? companies : ['Unknown'];
+  const currentCompany = company || safeCompanies[currentIndex] || 'Unknown';
+  const canNavigate = safeCompanies.length > 1;
+  
+  // Find current company index
+  useEffect(() => {
+    if (company && safeCompanies.length > 0) {
+      const index = safeCompanies.findIndex(c => c === company);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
+    }
+  }, [company, safeCompanies]);
+
+  const navigatePrevious = () => {
+    if (!canNavigate) return;
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : safeCompanies.length - 1;
+    setCurrentIndex(newIndex);
+    onCompanyChange?.(safeCompanies[newIndex]);
+  };
+
+  const navigateNext = () => {
+    if (!canNavigate) return;
+    const newIndex = currentIndex < safeCompanies.length - 1 ? currentIndex + 1 : 0;
+    setCurrentIndex(newIndex);
+    onCompanyChange?.(safeCompanies[newIndex]);
+  };
+
+  return (
+    <div 
+      className="relative inline-flex items-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md px-3 py-1.5 group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      data-testid="company-navigation"
+    >
+      {/* Left navigation arrow */}
+      {canNavigate && (
+        <button
+          onClick={navigatePrevious}
+          disabled={!canNavigate}
+          className={`absolute left-1 p-1 rounded-sm bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 focus:bg-red-200 dark:focus:bg-red-800 transition-all duration-200 z-10 ${
+            isHovered || isFocused ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none md:pointer-events-auto md:opacity-30'
+          }`}
+          data-testid="button-company-previous"
+          aria-label="Previous company"
+          tabIndex={0}
+        >
+          <ChevronLeft className="h-3 w-3" />
+        </button>
+      )}
+
+      {/* Company content */}
+      <div className="flex items-center space-x-2 mx-6">
+        <div className="w-4 h-4 bg-red-600 text-white rounded-sm flex items-center justify-center text-xs font-bold">
+          {currentCompany?.[0] || '?'}
+        </div>
+        <span className="text-red-700 dark:text-red-300 font-medium text-sm">
+          {currentCompany}
+        </span>
+      </div>
+
+      {/* Right navigation arrow */}
+      {canNavigate && (
+        <button
+          onClick={navigateNext}
+          disabled={!canNavigate}
+          className={`absolute right-1 p-1 rounded-sm bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 focus:bg-red-200 dark:focus:bg-red-800 transition-all duration-200 z-10 ${
+            isHovered || isFocused ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none md:pointer-events-auto md:opacity-30'
+          }`}
+          data-testid="button-company-next"
+          aria-label="Next company"
+          tabIndex={0}
+        >
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Difficulty Dropdown Component
+function DifficultySelector({ 
+  difficulty, 
+  onDifficultyChange 
+}: {
+  difficulty?: string;
+  onDifficultyChange?: (difficulty: string) => void;
+}) {
+  const difficultyOptions = [
+    { value: 'Easy', color: 'text-green-700 dark:text-green-300', bgColor: 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' },
+    { value: 'Medium', color: 'text-yellow-700 dark:text-yellow-300', bgColor: 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800' },
+    { value: 'Hard', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800' }
+  ];
+
+  const currentDifficulty = difficultyOptions.find(opt => opt.value === difficulty) || difficultyOptions[0];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button 
+          className={`inline-flex items-center space-x-2 ${currentDifficulty.bgColor} border rounded-md px-3 py-1.5 hover:opacity-80 transition-opacity`}
+          data-testid="button-difficulty-selector"
+        >
+          <span className={`${currentDifficulty.color} font-medium text-sm`}>
+            Difficulty
+          </span>
+          <span className={`${currentDifficulty.color} font-medium text-sm`}>
+            {currentDifficulty.value}
+          </span>
+          <ChevronDown className={`h-3 w-3 ${currentDifficulty.color}`} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-32">
+        {difficultyOptions.map((option) => (
+          <DropdownMenuItem 
+            key={option.value}
+            onClick={() => onDifficultyChange?.(option.value)}
+            className={`${option.color} hover:bg-muted focus:bg-muted ${
+              option.value === difficulty ? 'bg-accent' : ''
+            }`}
+            data-testid={`option-difficulty-${option.value.toLowerCase()}`}
+          >
+            {option.value}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // Editor and Output Split Component
 function EditorOutputSplit({ 
   problem, 
@@ -531,6 +678,8 @@ export default function ProblemDetail() {
   const queryClient = useQueryClient();
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
+  const [selectedCompany, setSelectedCompany] = useState<string>();
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>();
 
   // Reset hint state when problem changes
   useEffect(() => {
@@ -543,6 +692,14 @@ export default function ProblemDetail() {
     queryFn: () => problemsApi.getById(problemId),
     enabled: !!problemId,
   });
+
+  // Initialize company and difficulty from problem data
+  useEffect(() => {
+    if (problem) {
+      setSelectedCompany(problem.company);
+      setSelectedDifficulty(problem.difficulty);
+    }
+  }, [problem]);
 
   const { data: userSubmissions } = useQuery({
     queryKey: ['/api/submissions/user', user?.id, problemId],
@@ -721,11 +878,8 @@ export default function ProblemDetail() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                               <h1 className="text-lg font-bold text-foreground" data-testid="text-problem-title">
-                                {problem.title}
+                                {problem?.title}
                               </h1>
-                              <Badge className={`${getDifficultyColor(problem.difficulty)} text-xs px-2 py-1`}>
-                                {problem.difficulty}
-                              </Badge>
                               {hasCorrectSubmission && (
                                 <Badge className="bg-green-100 text-green-800 text-xs px-2 py-1">
                                   ✓ Solved
@@ -733,6 +887,20 @@ export default function ProblemDetail() {
                               )}
                             </div>
                           </div>
+                          
+                          {/* Company and Difficulty Row */}
+                          {problem && (
+                            <div className="flex items-center justify-start space-x-4 mt-3">
+                              <CompanyNavigation 
+                                company={selectedCompany}
+                                onCompanyChange={setSelectedCompany}
+                              />
+                              <DifficultySelector 
+                                difficulty={selectedDifficulty}
+                                onDifficultyChange={setSelectedDifficulty}
+                              />
+                            </div>
+                          )}
                         </div>
                         
                         {/* Problem Description */}
@@ -794,7 +962,7 @@ export default function ProblemDetail() {
                             ) : (
                               <>
                                 <div className="space-y-4">
-                                  {problem.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => {
+                                  {problem?.hints.slice(0, hintIndex + 1).map((hint: string, index: number) => {
                                     // Parse hint content and extract code blocks
                                     const parseHintContent = (content: string) => {
                                       const parts = content.split(/(\*\/\*[\s\S]*?\*\/\*)/);
@@ -829,7 +997,7 @@ export default function ProblemDetail() {
                                   })}
                                 </div>
                                 
-                                {hintIndex < problem.hints.length - 1 && (
+                                {hintIndex < (problem?.hints?.length || 0) - 1 && (
                                   <Button 
                                     onClick={handleHintClick}
                                     variant="outline"
@@ -846,11 +1014,11 @@ export default function ProblemDetail() {
                         )}
 
                         {/* Tags */}
-                        {problem.tags && problem.tags.length > 0 && (
+                        {problem?.tags && problem.tags.length > 0 && (
                           <div>
                             <h4 className="text-sm font-medium text-foreground mb-2">Tags</h4>
                             <div className="flex flex-wrap gap-2">
-                              {problem.tags.map((tag: string, index: number) => (
+                              {problem?.tags.map((tag: string, index: number) => (
                                 <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
                                   {tag}
                                 </Badge>
