@@ -89,7 +89,57 @@ const DIFFICULTY_CONFIG: Record<string, DifficultyConfig> = {
 };
 
 /**
+ * Generate dynamic difficulty configuration for unknown difficulty levels
+ * Creates appropriate colors and styling based on difficulty name
+ */
+function generateDynamicDifficultyConfig(difficulty: string): DifficultyConfig {
+  const normalizedDifficulty = difficulty.trim();
+  const hash = normalizedDifficulty.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  // Generate colors based on hash for consistency
+  const hue = Math.abs(hash) % 360;
+  const saturation = 70;
+  const lightness = 60;
+  
+  const primaryColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  const secondaryColor = `hsl(${hue}, ${saturation - 10}%, ${lightness + 10}%)`;
+  const bgColor = `hsl(${hue}, ${saturation - 50}%, 97%)`;
+  const textColor = `hsl(${hue}, ${saturation}%, 30%)`;
+  const borderColor = `hsl(${hue}, ${saturation - 30}%, 85%)`;
+  
+  // Determine bars based on common difficulty patterns
+  let bars = 2; // default
+  const lowerDifficulty = normalizedDifficulty.toLowerCase();
+  if (lowerDifficulty.includes('easy') || lowerDifficulty.includes('beginner') || lowerDifficulty.includes('basic')) {
+    bars = 1;
+  } else if (lowerDifficulty.includes('expert') || lowerDifficulty.includes('master') || lowerDifficulty.includes('advanced')) {
+    bars = 4;
+  } else if (lowerDifficulty.includes('hard') || lowerDifficulty.includes('difficult') || lowerDifficulty.includes('complex')) {
+    bars = 3;
+  }
+  
+  return {
+    level: normalizedDifficulty as DifficultyLevel,
+    colors: {
+      bg: `bg-gray-50`, // Use neutral background for better control
+      text: `text-gray-700`, // Use neutral text for better control  
+      border: `border-gray-200`, // Use neutral border for better control
+      primary: primaryColor,
+      secondary: secondaryColor,
+    },
+    icon: Target, // Default icon for unknown difficulties
+    bars,
+    label: normalizedDifficulty,
+    description: `${normalizedDifficulty} level challenge`,
+  };
+}
+
+/**
  * Enhanced difficulty badge component with multiple variants and improved styling
+ * Now supports dynamic difficulty levels from the database with automatic color generation
  */
 export function DifficultyBadge({
   difficulty,
@@ -102,7 +152,9 @@ export function DifficultyBadge({
   "data-testid": testId,
 }: DifficultyBadgeProps) {
   const difficultyKey = difficulty?.toLowerCase() || "easy";
-  const config = DIFFICULTY_CONFIG[difficultyKey] || DIFFICULTY_CONFIG.easy;
+  
+  // Get config from predefined list or generate dynamic config for unknown difficulties
+  const config = DIFFICULTY_CONFIG[difficultyKey] || generateDynamicDifficultyConfig(difficulty || "easy");
   const IconComponent = config.icon;
 
   // Size configurations
@@ -223,12 +275,23 @@ export function DifficultyBadge({
 
     case "badge":
     default:
+      // Check if this is a custom (dynamic) configuration
+      const isCustomConfig = !DIFFICULTY_CONFIG[difficultyKey];
+      
       return (
         <Badge
           className={`${config.colors.bg} ${config.colors.text} ${config.colors.border} border font-medium inline-flex items-center ${sizeConf.gap} ${sizeConf.badge} ${className}`}
           onClick={onClick}
           data-testid={testId}
-          style={{ cursor: onClick ? "pointer" : "default" }}
+          style={{ 
+            cursor: onClick ? "pointer" : "default",
+            // Apply custom colors for dynamic configurations
+            ...(isCustomConfig && {
+              backgroundColor: config.colors.primary + '20', // 20% opacity
+              borderColor: config.colors.primary + '50', // 50% opacity
+              color: config.colors.primary,
+            })
+          }}
         >
           {showIcon && <IconComponent className={sizeConf.icon} />}
           {config.label}
@@ -252,19 +315,21 @@ export function DifficultyBadge({
 
 /**
  * Get difficulty color classes for legacy compatibility
+ * Now supports dynamic difficulties
  */
 export function getDifficultyColor(difficulty: string): string {
   const difficultyKey = difficulty?.toLowerCase() || "easy";
-  const config = DIFFICULTY_CONFIG[difficultyKey] || DIFFICULTY_CONFIG.easy;
+  const config = DIFFICULTY_CONFIG[difficultyKey] || generateDynamicDifficultyConfig(difficulty || "easy");
   return `${config.colors.text} ${config.colors.bg} ${config.colors.border}`;
 }
 
 /**
  * Get difficulty configuration
+ * Now supports dynamic difficulties
  */
 export function getDifficultyConfig(difficulty: string): DifficultyConfig {
   const difficultyKey = difficulty?.toLowerCase() || "easy";
-  return DIFFICULTY_CONFIG[difficultyKey] || DIFFICULTY_CONFIG.easy;
+  return DIFFICULTY_CONFIG[difficultyKey] || generateDynamicDifficultyConfig(difficulty || "easy");
 }
 
 /**
