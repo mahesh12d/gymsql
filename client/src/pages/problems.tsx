@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -62,6 +63,7 @@ interface FilterState {
 
 export default function Problems() {
   const { user } = useAuth();
+  const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>({
     difficulties: [],
@@ -69,6 +71,21 @@ export default function Problems() {
     tags: [],
     status: "all",
   });
+
+  // Handle URL search parameters for filtering
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const difficultyParam = urlParams.get('difficulty');
+    const companyParam = urlParams.get('company');
+    
+    if (difficultyParam || companyParam) {
+      setFilters(prev => ({
+        ...prev,
+        difficulties: difficultyParam ? [difficultyParam] : prev.difficulties,
+        companies: companyParam ? [companyParam] : prev.companies,
+      }));
+    }
+  }, [location]);
 
   const { data: problems, isLoading } = useQuery<Problem[]>({
     queryKey: ["/api/problems"],

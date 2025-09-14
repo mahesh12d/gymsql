@@ -59,10 +59,14 @@ function EditorOutputSplit({
   problem,
   handleRunQuery,
   handleSubmitSolution,
+  onDifficultyClick,
+  onCompanyClick,
 }: {
   problem: any;
   handleRunQuery: (query: string) => Promise<any>;
   handleSubmitSolution: (query: string) => Promise<any>;
+  onDifficultyClick: (difficulty: string) => void;
+  onCompanyClick: (company: string) => void;
 }) {
   const [query, setQuery] = useState(problem?.question?.starterQuery || "");
   const [result, setResult] = useState<any>(null);
@@ -320,6 +324,7 @@ function EditorOutputSplit({
                   companyName={selectedCompany}
                   variant="full"
                   size="md"
+                  onClick={() => onCompanyClick(selectedCompany)}
                   data-testid="company-selector"
                 />
 
@@ -330,6 +335,7 @@ function EditorOutputSplit({
                   size="md"
                   showIcon={true}
                   showBars={true}
+                  onClick={() => onDifficultyClick(selectedDifficulty)}
                   data-testid="difficulty-selector"
                 />
               </div>
@@ -634,6 +640,15 @@ export default function ProblemDetail() {
     setShowHint(false);
     setHintIndex(0);
   }, [problemId]);
+
+  // Navigation handlers for filtering
+  const handleDifficultyClick = useCallback((difficulty: string) => {
+    setLocation(`/problems?difficulty=${encodeURIComponent(difficulty)}`);
+  }, [setLocation]);
+
+  const handleCompanyClick = useCallback((company: string) => {
+    setLocation(`/problems?company=${encodeURIComponent(company)}`);
+  }, [setLocation]);
 
   const { data: problem, isLoading: problemLoading } = useQuery({
     queryKey: ["/api/problems", problemId],
@@ -1236,6 +1251,8 @@ export default function ProblemDetail() {
               problem={problem}
               handleRunQuery={handleRunQuery}
               handleSubmitSolution={handleSubmitSolution}
+              onDifficultyClick={handleDifficultyClick}
+              onCompanyClick={handleCompanyClick}
             />
           }
         />
