@@ -12,6 +12,8 @@ import {
   Dumbbell,
   CheckCircle,
 } from "lucide-react";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Link } from "wouter";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -126,18 +128,6 @@ export default function Problems() {
       );
     }) || [];
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "Easy":
-        return "text-green-600 bg-green-50 border-green-200";
-      case "Medium":
-        return "text-orange-600 bg-orange-50 border-orange-200";
-      case "Hard":
-        return "text-red-600 bg-red-50 border-red-200";
-      default:
-        return "text-gray-600 bg-gray-50 border-gray-200";
-    }
-  };
 
   const updateFilter = (key: keyof FilterState, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -555,17 +545,13 @@ export default function Problems() {
                       >
                         <TableCell className="py-4">
                           <div className="flex flex-wrap gap-1">
-                            {problem.company ? (
-                              <Badge
-                                variant="outline"
-                                className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
-                              >
-                                <Building2 className="w-3 h-3 mr-1" />
-                                {problem.company}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-sm">-</span>
-                            )}
+                            <CompanyLogo
+                              companyName={problem.company}
+                              variant="badge"
+                              size="sm"
+                              showFallback={true}
+                              data-testid={`company-badge-${problem.id}`}
+                            />
                           </div>
                         </TableCell>
 
@@ -611,13 +597,13 @@ export default function Problems() {
                         </TableCell>
 
                         <TableCell className="py-4">
-                          <Badge
-                            className={`${getDifficultyColor(
-                              problem.difficulty
-                            )} border font-medium`}
-                          >
-                            {problem.difficulty}
-                          </Badge>
+                          <DifficultyBadge
+                            difficulty={problem.difficulty}
+                            variant="badge"
+                            size="sm"
+                            showIcon={true}
+                            data-testid={`difficulty-badge-${problem.id}`}
+                          />
                         </TableCell>
 
                         <TableCell className="py-4">
