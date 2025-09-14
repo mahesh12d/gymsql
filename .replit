@@ -85,3 +85,17 @@ waitForPort = 5000
 [agent]
 integrations = ["javascript_database==1.0.0", "javascript_log_in_with_replit==1.0.0"]
 expertMode = true
+
+
+[packager.features]
+guessImports = false
+
+[gitHubImport]
+requiredFiles = [".replit", "package.json", "requirements.txt"]
+
+
+[build]
+run = "npm install && pip install -r requirements.txt"
+[deployment]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
