@@ -68,11 +68,8 @@ function EditorOutputSplit({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
 
-  // Company and Difficulty selection state
-  const [selectedCompany, setSelectedCompany] = useState<string>("NY Times");
-  const [selectedDifficulty, setSelectedDifficulty] = useState<
-    "Easy" | "Medium" | "Hard"
-  >("Medium");
+  const selectedCompany = problem?.company || "NY Times";
+  const selectedDifficulty = problem?.difficulty || "Medium";
 
   // Timer functionality
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -317,22 +314,10 @@ function EditorOutputSplit({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 {/* Company field */}
-                <button
+                                <div
                   className={`company-field ${
                     selectedCompany ? "selected" : ""
                   }`}
-                  onClick={() => {
-                    const companies = [
-                      "NY Times",
-                      "Google",
-                      "Meta",
-                      "Apple",
-                      "Netflix",
-                    ];
-                    const currentIndex = companies.indexOf(selectedCompany);
-                    const nextIndex = (currentIndex + 1) % companies.length;
-                    setSelectedCompany(companies[nextIndex]);
-                  }}
                   data-testid="company-selector"
                 >
                   <span className="company-icon">
@@ -350,24 +335,13 @@ function EditorOutputSplit({
                       selectedCompany ? "visible" : ""
                     }`}
                   />
-                </button>
+                </div>
 
                 {/* Difficulty field */}
-                <button
+                                <div
                   className={`difficulty-field ${selectedDifficulty.toLowerCase()} ${
                     selectedDifficulty ? "selected" : ""
                   }`}
-                  onClick={() => {
-                    const difficulties: ("Easy" | "Medium" | "Hard")[] = [
-                      "Easy",
-                      "Medium",
-                      "Hard",
-                    ];
-                    const currentIndex =
-                      difficulties.indexOf(selectedDifficulty);
-                    const nextIndex = (currentIndex + 1) % difficulties.length;
-                    setSelectedDifficulty(difficulties[nextIndex]);
-                  }}
                   data-testid="difficulty-selector"
                 >
                   <span className="difficulty-icon">🎯</span>
@@ -379,7 +353,7 @@ function EditorOutputSplit({
                     <div className="skill-bar" />
                     <div className="skill-bar" />
                   </div>
-                </button>
+                </div>
               </div>
 
               <div className="flex items-center space-x-3">
