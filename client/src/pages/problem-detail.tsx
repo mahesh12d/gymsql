@@ -26,174 +26,17 @@ import TableDisplay from '@/components/table-display';
 import ResizableSplitter from '@/components/resizable-splitter';
 import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
 
-// Company Navigation Component
-function CompanyNavigation({ 
-  company, 
-  companies = ['Tesla', 'Google', 'Amazon', 'Microsoft', 'Meta', 'Apple', 'Netflix', 'Uber'], 
-  onCompanyChange 
-}: {
-  company?: string;
-  companies?: string[];
-  onCompanyChange?: (company: string) => void;
-}) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  
-  // Guard against empty companies array
-  const safeCompanies = companies.length > 0 ? companies : ['Unknown'];
-  const currentCompany = company || safeCompanies[currentIndex] || 'Unknown';
-  const canNavigate = safeCompanies.length > 1;
-  
-  // Find current company index
-  useEffect(() => {
-    if (company && safeCompanies.length > 0) {
-      const index = safeCompanies.findIndex(c => c === company);
-      if (index !== -1) {
-        setCurrentIndex(index);
-      }
-    }
-  }, [company, safeCompanies]);
 
-  const navigatePrevious = () => {
-    if (!canNavigate) return;
-    const newIndex = currentIndex > 0 ? currentIndex - 1 : safeCompanies.length - 1;
-    setCurrentIndex(newIndex);
-    onCompanyChange?.(safeCompanies[newIndex]);
-  };
-
-  const navigateNext = () => {
-    if (!canNavigate) return;
-    const newIndex = currentIndex < safeCompanies.length - 1 ? currentIndex + 1 : 0;
-    setCurrentIndex(newIndex);
-    onCompanyChange?.(safeCompanies[newIndex]);
-  };
-
-  return (
-    <div 
-      className="relative inline-flex items-center bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md px-3 py-1.5 group"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      data-testid="company-navigation"
-    >
-      {/* Left navigation arrow */}
-      {canNavigate && (
-        <button
-          onClick={navigatePrevious}
-          disabled={!canNavigate}
-          className={`absolute left-1 p-1 rounded-sm bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 focus:bg-red-200 dark:focus:bg-red-800 transition-all duration-200 z-10 ${
-            isHovered || isFocused ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none md:pointer-events-auto md:opacity-30'
-          }`}
-          data-testid="button-company-previous"
-          aria-label="Previous company"
-          tabIndex={0}
-        >
-          <ChevronLeft className="h-3 w-3" />
-        </button>
-      )}
-
-      {/* Company content */}
-      <div className="flex items-center space-x-2 mx-6">
-        <div className="w-4 h-4 bg-red-600 text-white rounded-sm flex items-center justify-center text-xs font-bold">
-          {currentCompany?.[0] || '?'}
-        </div>
-        <span className="text-red-700 dark:text-red-300 font-medium text-sm">
-          {currentCompany}
-        </span>
-      </div>
-
-      {/* Right navigation arrow */}
-      {canNavigate && (
-        <button
-          onClick={navigateNext}
-          disabled={!canNavigate}
-          className={`absolute right-1 p-1 rounded-sm bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 focus:bg-red-200 dark:focus:bg-red-800 transition-all duration-200 z-10 ${
-            isHovered || isFocused ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none md:pointer-events-auto md:opacity-30'
-          }`}
-          data-testid="button-company-next"
-          aria-label="Next company"
-          tabIndex={0}
-        >
-          <ChevronRight className="h-3 w-3" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-// Difficulty Dropdown Component
-function DifficultySelector({ 
-  difficulty, 
-  onDifficultyChange 
-}: {
-  difficulty?: string;
-  onDifficultyChange?: (difficulty: string) => void;
-}) {
-  const difficultyOptions = [
-    { value: 'Easy', color: 'text-green-700 dark:text-green-300', bgColor: 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' },
-    { value: 'Medium', color: 'text-yellow-700 dark:text-yellow-300', bgColor: 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800' },
-    { value: 'Hard', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800' }
-  ];
-
-  const currentDifficulty = difficultyOptions.find(opt => opt.value === difficulty) || difficultyOptions[0];
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button 
-          className={`inline-flex items-center space-x-2 ${currentDifficulty.bgColor} border rounded-md px-3 py-1.5 hover:opacity-80 transition-opacity`}
-          data-testid="button-difficulty-selector"
-        >
-          <span className={`${currentDifficulty.color} font-medium text-sm`}>
-            Difficulty
-          </span>
-          <span className={`${currentDifficulty.color} font-medium text-sm`}>
-            {currentDifficulty.value}
-          </span>
-          <ChevronDown className={`h-3 w-3 ${currentDifficulty.color}`} />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-32">
-        {difficultyOptions.map((option) => (
-          <DropdownMenuItem 
-            key={option.value}
-            onClick={() => onDifficultyChange?.(option.value)}
-            className={`${option.color} hover:bg-muted focus:bg-muted ${
-              option.value === difficulty ? 'bg-accent' : ''
-            }`}
-            data-testid={`option-difficulty-${option.value.toLowerCase()}`}
-          >
-            {option.value}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 // Editor and Output Split Component
 function EditorOutputSplit({ 
   problem, 
   handleRunQuery, 
-  handleSubmitSolution,
-  selectedCompany,
-  selectedDifficulty,
-  onCompanyChange,
-  onDifficultyChange,
-  isSwitchingProblem,
-  availableCompanies
+  handleSubmitSolution
 }: {
   problem: any;
   handleRunQuery: (query: string) => Promise<any>;
   handleSubmitSolution: (query: string) => Promise<any>;
-  selectedCompany?: string;
-  selectedDifficulty?: string;
-  onCompanyChange?: (company: string) => void;
-  onDifficultyChange?: (difficulty: string) => void;
-  isSwitchingProblem?: boolean;
-  availableCompanies?: string[];
 }) {
   const [query, setQuery] = useState(problem?.question?.starterQuery || '');
   const [result, setResult] = useState<any>(null);
@@ -485,31 +328,6 @@ function EditorOutputSplit({
                   </Button>
                 </div>
                 
-                {/* Company and Difficulty Buttons */}
-                {problem && (
-                  <>
-                    <div className={`${isSwitchingProblem ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <CompanyNavigation 
-                        company={selectedCompany}
-                        companies={availableCompanies}
-                        onCompanyChange={onCompanyChange}
-                      />
-                    </div>
-                    <div className={`${isSwitchingProblem ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <DifficultySelector 
-                        difficulty={selectedDifficulty}
-                        onDifficultyChange={onDifficultyChange}
-                      />
-                    </div>
-                    {isSwitchingProblem && (
-                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <div className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full"></div>
-                        <span>Switching...</span>
-                      </div>
-                    )}
-                  </>
-                )}
-                
                 {/* Reactive PostgreSQL Database Dropdown - now comes after company/difficulty */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -716,10 +534,6 @@ export default function ProblemDetail() {
   const queryClient = useQueryClient();
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
-  const [selectedCompany, setSelectedCompany] = useState<string>();
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>();
-  const [isSwitchingProblem, setIsSwitchingProblem] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
 
   // Reset hint state when problem changes
   useEffect(() => {
@@ -733,98 +547,8 @@ export default function ProblemDetail() {
     enabled: !!problemId,
   });
 
-  // Fetch all problems to get dynamic companies list
-  const { data: allProblems } = useQuery({
-    queryKey: ['/api/problems'],
-    queryFn: () => problemsApi.getAll(),
-  });
 
-  // Extract unique companies from all problems
-  const availableCompanies = useMemo(() => {
-    if (!allProblems) return problem?.company ? [problem.company] : ['Microsoft'];
-    const companies = Array.from(
-      new Set(allProblems.map((p: any) => p.company).filter(Boolean))
-    ).sort();
-    return companies.length > 0 ? companies : (problem?.company ? [problem.company] : ['Microsoft']);
-  }, [allProblems, problem?.company]);
 
-  // Initialize company and difficulty from problem data
-  useEffect(() => {
-    if (problem) {
-      setSelectedCompany(problem.company);
-      setSelectedDifficulty(problem.difficulty);
-      setInitialLoad(false);
-    }
-  }, [problem]);
-
-  // Problem switching logic - when company or difficulty changes
-  useEffect(() => {
-    // Don't switch on initial load or if we're already switching
-    if (initialLoad || isSwitchingProblem || !selectedCompany || !selectedDifficulty) {
-      return;
-    }
-
-    // Only switch if the selected values differ from the current problem
-    const shouldSwitch = problem && (
-      selectedCompany !== problem.company || 
-      selectedDifficulty !== problem.difficulty
-    );
-
-    if (shouldSwitch) {
-      const switchToProblem = async () => {
-        setIsSwitchingProblem(true);
-        try {
-          // Fetch problems matching the selected filters
-          const filteredProblems = await problemsApi.getFiltered({
-            company: selectedCompany,
-            difficulty: selectedDifficulty
-          });
-
-          // Filter out current problem and get available options
-          const availableProblems = filteredProblems.filter(p => p.id !== problemId);
-
-          if (availableProblems.length === 0) {
-            toast({
-              title: 'No problems found',
-              description: `No other problems found for ${selectedCompany} with ${selectedDifficulty} difficulty.`,
-              variant: 'destructive',
-            });
-            // Reset to current problem's values
-            setSelectedCompany(problem.company);
-            setSelectedDifficulty(problem.difficulty);
-            return;
-          }
-
-          // Randomly select a problem from the available options
-          const randomIndex = Math.floor(Math.random() * availableProblems.length);
-          const newProblem = availableProblems[randomIndex];
-
-          // Navigate to the new problem
-          setLocation(`/problems/${newProblem.id}`);
-
-          toast({
-            title: 'Problem switched!',
-            description: `Switched to: ${newProblem.title}`,
-          });
-
-        } catch (error) {
-          console.error('Error switching problem:', error);
-          toast({
-            title: 'Failed to switch problem',
-            description: 'Please try again.',
-            variant: 'destructive',
-          });
-          // Reset to current problem's values
-          setSelectedCompany(problem.company);
-          setSelectedDifficulty(problem.difficulty);
-        } finally {
-          setIsSwitchingProblem(false);
-        }
-      };
-
-      switchToProblem();
-    }
-  }, [selectedCompany, selectedDifficulty, problem, problemId, initialLoad, isSwitchingProblem, setLocation, toast]);
 
   const { data: userSubmissions } = useQuery({
     queryKey: ['/api/submissions/user', user?.id, problemId],
@@ -1246,12 +970,6 @@ export default function ProblemDetail() {
               problem={problem}
               handleRunQuery={handleRunQuery}
               handleSubmitSolution={handleSubmitSolution}
-              selectedCompany={selectedCompany}
-              selectedDifficulty={selectedDifficulty}
-              onCompanyChange={setSelectedCompany}
-              onDifficultyChange={setSelectedDifficulty}
-              isSwitchingProblem={isSwitchingProblem}
-              availableCompanies={availableCompanies}
             />
           }
         />
