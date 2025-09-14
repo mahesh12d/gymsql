@@ -177,11 +177,19 @@ function DifficultySelector({
 function EditorOutputSplit({ 
   problem, 
   handleRunQuery, 
-  handleSubmitSolution 
+  handleSubmitSolution,
+  selectedCompany,
+  selectedDifficulty,
+  onCompanyChange,
+  onDifficultyChange
 }: {
   problem: any;
   handleRunQuery: (query: string) => Promise<any>;
   handleSubmitSolution: (query: string) => Promise<any>;
+  selectedCompany?: string;
+  selectedDifficulty?: string;
+  onCompanyChange?: (company: string) => void;
+  onDifficultyChange?: (difficulty: string) => void;
 }) {
   const [query, setQuery] = useState(problem?.question?.starterQuery || '');
   const [result, setResult] = useState<any>(null);
@@ -473,7 +481,21 @@ function EditorOutputSplit({
                   </Button>
                 </div>
                 
-                {/* Reactive PostgreSQL Database Dropdown - now comes after timer */}
+                {/* Company and Difficulty Buttons */}
+                {problem && (
+                  <>
+                    <CompanyNavigation 
+                      company={selectedCompany}
+                      onCompanyChange={onCompanyChange}
+                    />
+                    <DifficultySelector 
+                      difficulty={selectedDifficulty}
+                      onDifficultyChange={onDifficultyChange}
+                    />
+                  </>
+                )}
+                
+                {/* Reactive PostgreSQL Database Dropdown - now comes after company/difficulty */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
@@ -887,20 +909,6 @@ export default function ProblemDetail() {
                               )}
                             </div>
                           </div>
-                          
-                          {/* Company and Difficulty Row */}
-                          {problem && (
-                            <div className="flex items-center justify-start space-x-4 mt-3">
-                              <CompanyNavigation 
-                                company={selectedCompany}
-                                onCompanyChange={setSelectedCompany}
-                              />
-                              <DifficultySelector 
-                                difficulty={selectedDifficulty}
-                                onDifficultyChange={setSelectedDifficulty}
-                              />
-                            </div>
-                          )}
                         </div>
                         
                         {/* Problem Description */}
@@ -1135,6 +1143,10 @@ export default function ProblemDetail() {
               problem={problem}
               handleRunQuery={handleRunQuery}
               handleSubmitSolution={handleSubmitSolution}
+              selectedCompany={selectedCompany}
+              selectedDifficulty={selectedDifficulty}
+              onCompanyChange={setSelectedCompany}
+              onDifficultyChange={setSelectedDifficulty}
             />
           }
         />
