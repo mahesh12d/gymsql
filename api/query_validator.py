@@ -234,18 +234,15 @@ class SecureSQLValidator:
                 
             # Validate that first meaningful keyword is allowed  
             first_token = None
-            # Look at the first token of the statement, not flattened tokens
-            for token in parsed[0].tokens:
-                if token.ttype is tokens.Keyword:
-                    first_token = token.value.upper()
-                    break
-                elif hasattr(token, 'tokens') and token.tokens:
-                    # Look inside token groups for the first keyword
-                    for sub_token in token.tokens:
-                        if sub_token.ttype is tokens.Keyword:
-                            first_token = sub_token.value.upper()
-                            break
-                    if first_token:
+            # Use flattened tokens to ensure we get the very first keyword in order
+            for token in parsed[0].flatten():
+                # Check for any keyword type (including DML, DDL, etc.)
+                if (token.ttype is tokens.Keyword or 
+                    token.ttype is tokens.Keyword.DML or
+                    token.ttype is tokens.Keyword.DDL):
+                    potential_token = token.value.upper()
+                    if potential_token in self.allowed_statements:
+                        first_token = potential_token
                         break
                     
             if not first_token:
