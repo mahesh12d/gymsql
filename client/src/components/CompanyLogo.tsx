@@ -40,31 +40,26 @@ export function CompanyLogo({
       return;
     }
 
-    // Async function to load company info
-    const loadCompanyInfo = async () => {
-      setIsLoading(true);
-      setLogoError(false);
-      
-      try {
-        const info = await getCompanyInfo(companyName);
-        setCompanyInfo(info);
+    setIsLoading(true);
+    setLogoError(false);
+    
+    try {
+      const info = getCompanyInfo(companyName);
+      setCompanyInfo(info);
 
-        if (info) {
-          setLogoSrc(info.logoPath);
-        } else {
-          setLogoSrc(null);
-        }
-      } catch (error) {
-        console.error('Error loading company info:', error);
-        setCompanyInfo(null);
+      if (info) {
+        setLogoSrc(info.logoPath);
+      } else {
         setLogoSrc(null);
-        setLogoError(true);
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    loadCompanyInfo();
+    } catch (error) {
+      console.error('Error loading company info:', error);
+      setCompanyInfo(null);
+      setLogoSrc(null);
+      setLogoError(true);
+    } finally {
+      setIsLoading(false);
+    }
   }, [companyName]);
 
   // Size configurations

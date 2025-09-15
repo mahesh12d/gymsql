@@ -1,8 +1,18 @@
 /**
- * Dynamic Company Logo System
+ * Hybrid Company Logo System
  * Automatically loads company logos based on SVG filename matching company name
  * Just add {companyname}.svg to attached_assets/logos/ and it will work automatically
  */
+
+// Import all available logos using Vite's static import
+import amazonLogo from '@assets/logos/amazon.svg';
+import appleLogo from '@assets/logos/apple.svg';
+import googleLogo from '@assets/logos/google.svg';
+import metaLogo from '@assets/logos/meta.svg';
+import microsoftLogo from '@assets/logos/microsoft.svg';
+import netflixLogo from '@assets/logos/netflix.svg';
+import stripeLogo from '@assets/logos/stripe.svg';
+import airbnbLogo from '@assets/logos/airbnb.svg';
 
 export interface CompanyInfo {
   id: string;
@@ -13,8 +23,19 @@ export interface CompanyInfo {
   secondaryColor?: string;
 }
 
+// Static logo registry - automatically populated
+const LOGO_REGISTRY: Record<string, string> = {
+  amazon: amazonLogo,
+  apple: appleLogo,
+  google: googleLogo,
+  meta: metaLogo,
+  microsoft: microsoftLogo,
+  netflix: netflixLogo,
+  stripe: stripeLogo,
+  airbnb: airbnbLogo,
+};
+
 // Default color configurations for known companies
-// These are optional - if not defined, fallback colors will be used
 const COMPANY_COLORS: Record<string, Pick<CompanyInfo, 'primaryColor' | 'secondaryColor'>> = {
   microsoft: {
     primaryColor: '#00BCF2',
@@ -50,36 +71,6 @@ const COMPANY_COLORS: Record<string, Pick<CompanyInfo, 'primaryColor' | 'seconda
   },
 };
 
-// Cache for loaded logos to avoid repeated dynamic imports
-const logoCache = new Map<string, string>();
-
-/**
- * Dynamically loads a company logo based on company name
- * Expects logo file to be named {companyname}.svg in attached_assets/logos/
- */
-async function loadCompanyLogo(companyName: string): Promise<string | null> {
-  const normalizedName = normalizeCompanyName(companyName);
-  
-  // Check cache first
-  if (logoCache.has(normalizedName)) {
-    return logoCache.get(normalizedName)!;
-  }
-  
-  try {
-    // Try to dynamically import the logo
-    const logoModule = await import(`@assets/logos/${normalizedName}.svg`);
-    const logoPath = logoModule.default;
-    
-    // Cache the result
-    logoCache.set(normalizedName, logoPath);
-    return logoPath;
-  } catch (error) {
-    // Logo doesn't exist, cache null to avoid repeated attempts
-    logoCache.set(normalizedName, '');
-    return null;
-  }
-}
-
 /**
  * Normalizes company name to match expected filename format
  */
@@ -91,13 +82,13 @@ function normalizeCompanyName(companyName: string): string {
 }
 
 /**
- * Gets company info by name, dynamically loading logo if available
+ * Gets company info by name using static logo registry
  */
-export async function getCompanyInfo(companyName: string): Promise<CompanyInfo | null> {
+export function getCompanyInfo(companyName: string): CompanyInfo | null {
   if (!companyName) return null;
   
   const normalizedName = normalizeCompanyName(companyName);
-  const logoPath = await loadCompanyLogo(companyName);
+  const logoPath = LOGO_REGISTRY[normalizedName];
   
   // If no logo found, return null
   if (!logoPath) return null;
@@ -126,45 +117,10 @@ export async function getCompanyInfo(companyName: string): Promise<CompanyInfo |
 }
 
 /**
- * Synchronous version for cases where logo path is already cached
- */
-export function getCompanyInfoSync(companyName: string): CompanyInfo | null {
-  if (!companyName) return null;
-  
-  const normalizedName = normalizeCompanyName(companyName);
-  const cachedLogo = logoCache.get(normalizedName);
-  
-  // If not in cache or cached as empty, return null
-  if (!cachedLogo) return null;
-  
-  // Get colors from config or use defaults
-  const colors = COMPANY_COLORS[normalizedName] || {
-    primaryColor: '#6366F1', // Default indigo
-    secondaryColor: '#4F46E5',
-  };
-  
-  // Create display name
-  const displayName = companyName
-    .toLowerCase()
-    .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-  
-  return {
-    id: normalizedName,
-    name: displayName,
-    displayName: displayName,
-    logoPath: cachedLogo,
-    primaryColor: colors.primaryColor,
-    secondaryColor: colors.secondaryColor,
-  };
-}
-
-/**
  * Gets company info by ID
  */
-export async function getCompanyById(id: string): Promise<CompanyInfo | null> {
-  return await getCompanyInfo(id);
+export function getCompanyById(id: string): CompanyInfo | null {
+  return getCompanyInfo(id);
 }
 
 /**
@@ -175,38 +131,36 @@ export function generateCompanyId(companyName: string): string {
 }
 
 /**
- * Gets all available companies (only those with cached logos)
+ * Gets all available companies (those in the logo registry)
  */
 export function getAllCompanies(): CompanyInfo[] {
   const companies: CompanyInfo[] = [];
   
-  for (const [normalizedName, logoPath] of logoCache.entries()) {
-    if (logoPath) { // Only include companies with valid logos
-      const colors = COMPANY_COLORS[normalizedName] || {
-        primaryColor: '#6366F1',
-        secondaryColor: '#4F46E5',
-      };
-      
-      const displayName = normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
-      
-      companies.push({
-        id: normalizedName,
-        name: displayName,
-        displayName: displayName,
-        logoPath: logoPath,
-        primaryColor: colors.primaryColor,
-        secondaryColor: colors.secondaryColor,
-      });
-    }
+  for (const [normalizedName, logoPath] of Object.entries(LOGO_REGISTRY)) {
+    const colors = COMPANY_COLORS[normalizedName] || {
+      primaryColor: '#6366F1',
+      secondaryColor: '#4F46E5',
+    };
+    
+    const displayName = normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
+    
+    companies.push({
+      id: normalizedName,
+      name: displayName,
+      displayName: displayName,
+      logoPath: logoPath,
+      primaryColor: colors.primaryColor,
+      secondaryColor: colors.secondaryColor,
+    });
   }
   
   return companies;
 }
 
 /**
- * Checks if a company logo exists (async version)
+ * Checks if a company logo exists
  */
-export async function hasCompanyLogo(companyName: string): Promise<boolean> {
-  const info = await getCompanyInfo(companyName);
+export function hasCompanyLogo(companyName: string): boolean {
+  const info = getCompanyInfo(companyName);
   return info !== null;
 }
