@@ -222,4 +222,35 @@ const ProblemDescriptionTab = memo(function ProblemDescriptionTab({
   );
 });
 
+const executeQuery = async (query: string) => {
+  setIsLoading(true);
+
+  try {
+    const response = await fetch(`/api/problems/${problemId}/test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ query })
+    });
+
+    const data = await response.json();
+
+    // Set the result - OutputPanel will handle console display
+    setQueryResult(data);
+
+  } catch (error) {
+    console.error('Query execution failed:', error);
+    setQueryResult({
+      success: false,
+      console_output: `ERROR: ${error.message}`,
+      error: error.message
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 export default ProblemDescriptionTab;

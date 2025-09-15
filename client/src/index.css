@@ -101,8 +101,13 @@
 }
 
 @keyframes fillProgress {
-  from { width: 0%; }
-  to { width: var(--progress-width); }
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: var(--progress-width);
+  }
 }
 
 .weight-plate {
@@ -131,15 +136,21 @@
   padding: 1rem;
   border-radius: 6px;
   border-left: 4px solid var(--primary);
-  overflow-x: auto;  /* Adds horizontal scroll for very long content */
-  max-width: 100%;   /* Ensures it doesn't break container */
+  overflow-x: auto;
+  /* Adds horizontal scroll for very long content */
+  max-width: 100%;
+  /* Ensures it doesn't break container */
 }
 
 .syntax-highlight pre {
-  white-space: pre-wrap;      /* Allows wrapping while preserving formatting */
-  overflow-wrap: break-word;  /* Breaks long words if needed */
-  word-break: break-all;      /* Breaks long SQL statements at any character */
-  margin: 0;                  /* Remove default pre margin */
+  white-space: pre-wrap;
+  /* Allows wrapping while preserving formatting */
+  overflow-wrap: break-word;
+  /* Breaks long words if needed */
+  word-break: break-all;
+  /* Breaks long SQL statements at any character */
+  margin: 0;
+  /* Remove default pre margin */
 }
 
 .code-editor {
@@ -169,4 +180,34 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* Console output styling */
+.console-output {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 16px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  border: 1px solid #333;
+}
+
+.console-output.error {
+  color: #ff6b6b;
+  background: #2d1b1b;
+  border-color: #8b0000;
+}
+
+.console-output.success {
+  border-left: 4px solid #28ca42;
+}
+
+/* Make sure pre elements don't have conflicting styles */
+pre.console-output {
+  margin: 0;
+  font-family: inherit;
 }

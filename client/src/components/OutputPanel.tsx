@@ -1,6 +1,7 @@
-import { memo } from 'react';
-import { TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { memo } from "react";
+import { TrendingUp } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import React from "react";
 
 interface QueryResult {
   error?: boolean;
@@ -21,125 +22,61 @@ interface OutputPanelProps {
   className?: string;
 }
 
-const OutputPanel = memo(function OutputPanel({ result, className }: OutputPanelProps) {
+interface OutputPanelProps {
+  result: {
+    success: boolean;
+    console_output?: string;
+    results?: any[];
+    execution_time_ms?: number;
+    error?: string;
+    feedback?: string[];
+    test_results?: any[];
+  };
+  isLoading: boolean;
+}
+
+export default function OutputPanel({ result, isLoading }: OutputPanelProps) {
+  if (isLoading) {
+    return (
+      <div className="p-4 bg-gray-900 text-gray-400 font-mono text-sm">
+        Executing query...
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="p-4 bg-gray-900 text-gray-400 font-mono text-sm">
+        Ready to execute queries...
+      </div>
+    );
+  }
+
   return (
-    <Card className={`h-full rounded-none border-0 ${className || ''}`}>
-      <CardHeader className="bg-muted/50 px-5 py-2.5 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
-            <span className="font-semibold text-sm text-foreground">
-              Output
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {result?.executionTime &&
-              `Execution time: ${result.executionTime || 0.01604} seconds`}
-          </div>
+    <div className="bg-gray-900 text-gray-100 font-mono text-sm overflow-auto">
+      <pre
+        className={`p-4 whitespace-pre-wrap ${
+          result.success ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        {result.console_output ||
+          (result.error ? `ERROR: ${result.error}` : "No output")}
+      </pre>
+
+      {/* Optional: Show test results separately if they exist */}
+      {result.test_results && result.test_results.length > 0 && (
+        <div className="border-t border-gray-700 p-4">
+          <h3 className="text-blue-400 mb-2">Test Results:</h3>
+          {result.test_results.map((test, index) => (
+            <div
+              key={index}
+              className={`mb-1 ${test.passed ? "text-green-400" : "text-red-400"}`}
+            >
+              {test.passed ? "✓" : "✗"} {test.name}
+            </div>
+          ))}
         </div>
-      </CardHeader>
-
-      <CardContent className="p-5 h-full overflow-auto">
-        {!result ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-3xl mb-3">⚡</div>
-            <p className="text-sm text-muted-foreground">Ready to execute!</p>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Use Alt + Enter to run query
-            </p>
-          </div>
-        ) : result.error ? (
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2.5 text-red-600">
-              <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-              <span className="font-medium text-sm">Query Failed</span>
-            </div>
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
-              <p className="text-red-800 dark:text-red-200 text-xs font-mono">
-                {result.message}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Check your query and try again.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5 text-green-600">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
-                <span className="font-medium text-sm">
-                  {result.isCorrect ? "Perfect! 🏆" : "Query Complete"}
-                </span>
-              </div>
-            </div>
-
-            {result.isCorrect && (
-              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                <div className="flex items-center space-x-1.5">
-                  <span className="text-lg">🎉</span>
-                  <div>
-                    <p className="text-green-800 dark:text-green-200 font-medium text-sm">
-                      Excellent work!
-                    </p>
-                    <p className="text-green-700 dark:text-green-300 text-xs">
-                      Your solution is correct!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-1.5">
-                📊 Query Results:
-              </p>
-              <div className="font-mono text-xs bg-background rounded border p-2 overflow-x-auto">
-                <p className="mb-2">
-                  Status: {result.isCorrect ? "✅ Correct" : "⚠️ Review needed"}
-                </p>
-                {result.query_result?.result && result.query_result.result.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
-                      <thead>
-                        <tr>
-                          {Object.keys(result.query_result.result[0]).map((column) => (
-                            <th key={column} className="border border-border px-2 py-1 bg-muted font-semibold text-left">
-                              {column}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {result.query_result.result.slice(0, 10).map((row, index) => (
-                          <tr key={index}>
-                            {Object.values(row).map((value, colIndex) => (
-                              <td key={colIndex} className="border border-border px-2 py-1">
-                                {String(value)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {result.query_result.result.length > 10 && (
-                      <p className="text-muted-foreground mt-2 text-xs">
-                        Showing first 10 of {result.query_result.rows_affected} rows
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground mt-1.5">
-                    No data returned
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
-});
-
-export default OutputPanel;
+}

@@ -1,8 +1,8 @@
-import { memo, useState, useCallback } from 'react';
-import EditorHeader from '@/components/EditorHeader';
-import CodeEditor from '@/components/CodeEditor';
-import OutputPanel from '@/components/OutputPanel';
-import VerticalResizableSplitter from '@/components/vertical-resizable-splitter';
+import { memo, useState, useCallback } from "react";
+import EditorHeader from "@/components/EditorHeader";
+import CodeEditor from "@/components/CodeEditor";
+import OutputPanel from "@/components/OutputPanel";
+import VerticalResizableSplitter from "@/components/vertical-resizable-splitter";
 
 interface Problem {
   company?: string;
@@ -46,44 +46,51 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   const selectedDifficulty = problem?.difficulty || "Medium";
 
   // Optimized run query handler
-  const optimizedRunQuery = useCallback(async (query: string) => {
-    setIsRunning(true);
-    setShowOutput(true);
-    try {
-      const runResult = await handleRunQuery(query);
-      setResult(runResult);
-      return runResult;
-    } catch (error) {
-      const errorResult = {
-        error: true,
-        message: error instanceof Error ? error.message : "Query execution failed",
-      };
-      setResult(errorResult);
-      return errorResult;
-    } finally {
-      setIsRunning(false);
-    }
-  }, [handleRunQuery]);
+  const optimizedRunQuery = useCallback(
+    async (query: string) => {
+      setIsRunning(true);
+      setShowOutput(true);
+      try {
+        const runResult = await handleRunQuery(query);
+        setResult(runResult);
+        return runResult;
+      } catch (error) {
+        const errorResult = {
+          error: true,
+          message:
+            error instanceof Error ? error.message : "Query execution failed",
+        };
+        setResult(errorResult);
+        return errorResult;
+      } finally {
+        setIsRunning(false);
+      }
+    },
+    [handleRunQuery],
+  );
 
   // Optimized submit solution handler
-  const optimizedSubmitSolution = useCallback(async (query: string) => {
-    setIsSubmitting(true);
-    setShowOutput(true);
-    try {
-      const submitResult = await handleSubmitSolution(query);
-      setResult(submitResult);
-      return submitResult;
-    } catch (error) {
-      const errorResult = {
-        error: true,
-        message: error instanceof Error ? error.message : "Submission failed",
-      };
-      setResult(errorResult);
-      return errorResult;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [handleSubmitSolution]);
+  const optimizedSubmitSolution = useCallback(
+    async (query: string) => {
+      setIsSubmitting(true);
+      setShowOutput(true);
+      try {
+        const submitResult = await handleSubmitSolution(query);
+        setResult(submitResult);
+        return submitResult;
+      } catch (error) {
+        const errorResult = {
+          error: true,
+          message: error instanceof Error ? error.message : "Submission failed",
+        };
+        setResult(errorResult);
+        return errorResult;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [handleSubmitSolution],
+  );
 
   // Editor panel with header
   const editorPanel = (
@@ -107,7 +114,9 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   );
 
   // Output panel
-  const outputPanel = <OutputPanel result={result} />;
+  const outputPanel = (
+    <OutputPanel result={result} isLoading={isRunning || isSubmitting} />
+  );
 
   // Show resizable layout when output is visible, otherwise show just the editor
   if (showOutput) {
@@ -118,13 +127,13 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
         defaultTopHeight={60}
         minTopHeight={35}
         minBottomHeight={25}
-        className={`h-full ${className || ''}`}
+        className={`h-full ${className || ""}`}
       />
     );
   }
 
   // Show just the editor when no output
-  return <div className={`h-full ${className || ''}`}>{editorPanel}</div>;
+  return <div className={`h-full ${className || ""}`}>{editorPanel}</div>;
 });
 
 export default OptimizedEditorOutputSplit;
