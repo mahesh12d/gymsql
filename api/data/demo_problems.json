@@ -1,0 +1,26 @@
+[
+  {
+    "id": "uuid-or-unique-string",
+    "title": "Calculate Total Sales",
+    "difficulty": "Easy",
+    "question": {
+      "description": "Write a SQL query to calculate the total sales...",
+      "schema": {
+        "tables": [
+          {
+            "name": "orders",
+            "columns": [
+              { "name": "id", "type": "INTEGER" },
+              { "name": "amount", "type": "DECIMAL" },
+              { "name": "date", "type": "DATE" }
+            ]
+          }
+        ]
+      },
+      "expectedOutput": [{ "total_sales": 15000.0 }]
+    },
+    "tags": ["aggregation", "sum"],
+    "company": "Tech Corp",
+    "hints": ["Use SUM() function", "GROUP BY if needed"]
+  }
+]
