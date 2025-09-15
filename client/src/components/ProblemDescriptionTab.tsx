@@ -1,10 +1,10 @@
-import { memo, useState, useCallback } from 'react';
-import { Lightbulb } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import TableDisplay from '@/components/table-display';
+import { memo, useState, useCallback } from "react";
+import { Lightbulb } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import TableDisplay from "@/components/table-display";
 
 interface Problem {
   question?: {
@@ -57,7 +57,7 @@ const ProblemDescriptionTab = memo(function ProblemDescriptionTab({
   }, []);
 
   return (
-    <div className={`space-y-6 ${className || ''}`}>
+    <div className={`space-y-6 ${className || ""}`}>
       {/* Problem Description */}
       <div className="space-y-4">
         <div className="text-foreground prose prose-sm max-w-none dark:prose-invert">
@@ -207,11 +207,7 @@ const ProblemDescriptionTab = memo(function ProblemDescriptionTab({
           <h4 className="text-sm font-medium text-foreground mb-2">Tags</h4>
           <div className="flex flex-wrap gap-2">
             {problem.tags.map((tag: string, index: number) => (
-              <Badge
-                key={index}
-                variant="outline"
-                data-testid={`tag-${tag}`}
-              >
+              <Badge key={index} variant="outline" data-testid={`tag-${tag}`}>
                 {tag}
               </Badge>
             ))}
@@ -227,30 +223,28 @@ const executeQuery = async (query: string) => {
 
   try {
     const response = await fetch(`/api/problems/${problemId}/test`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query }),
     });
 
     const data = await response.json();
 
     // Set the result - OutputPanel will handle console display
     setQueryResult(data);
-
   } catch (error) {
-    console.error('Query execution failed:', error);
+    console.error("Query execution failed:", error);
     setQueryResult({
       success: false,
       console_output: `ERROR: ${error.message}`,
-      error: error.message
+      error: error.message,
     });
   } finally {
     setIsLoading(false);
   }
 };
-
 
 export default ProblemDescriptionTab;
