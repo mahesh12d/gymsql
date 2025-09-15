@@ -62,7 +62,10 @@ def format_console_output(execution_result):
         error_msg = execution_result.get('error', 'Unknown error')
         return f"ERROR: {error_msg}\n\nQuery failed to execute."
 
-    results = execution_result.get('results', [])
+    # Extract results from query_result structure returned by secure_executor
+    query_result = execution_result.get('query_result', {})
+    results = query_result.get('result', []) if query_result else []
+    
     output_lines = []
 
     if not results:
@@ -95,8 +98,8 @@ def format_console_output(execution_result):
 
         output_lines.append(f"\n({len(results)} rows)")
 
-    # Add performance info
-    exec_time = execution_result.get('execution_time_ms', 0)
+    # Add performance info from query_result
+    exec_time = query_result.get('execution_time_ms', 0) if query_result else 0
     output_lines.append(f"Execution time: {exec_time}ms")
 
     return "\n".join(output_lines)
