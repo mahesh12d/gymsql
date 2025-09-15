@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "npm run generate:logos && npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "python -m uvicorn api.main:app --host localhost --port 8000 --reload --reload-dir api",
     "dev:frontend": "vite --host 0.0.0.0 --port 5000",
     "generate:logos": "node scripts/generate-logos.js",
