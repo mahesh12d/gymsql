@@ -171,7 +171,128 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create all tables
 def create_tables():
+    """Create all tables including new enhanced schema tables"""
     Base.metadata.create_all(bind=engine)
+    print("✅ All database tables created successfully")
+    
+    # Initialize enhanced schema with sample data
+    initialize_enhanced_schema()
+
+def initialize_enhanced_schema():
+    """Initialize the enhanced schema with sample data - handles topics and badges independently"""
+    from .models import Topic, Badge, DifficultyLevel
+    
+    # Create a database session
+    db = SessionLocal()
+    
+    try:
+        topics_created = 0
+        badges_created = 0
+        
+        # Initialize Topics independently
+        try:
+            if db.query(Topic).count() == 0:
+                print("Initializing sample topics...")
+                
+                topics = [
+                    Topic(
+                        name="Basic SELECT Queries",
+                        description="Learn fundamental SELECT statements, filtering, and sorting",
+                        difficulty_level=DifficultyLevel.BEGINNER,
+                        order_index=1
+                    ),
+                    Topic(
+                        name="Joins and Relationships",
+                        description="Master INNER, LEFT, RIGHT, and FULL joins",
+                        difficulty_level=DifficultyLevel.EASY,
+                        order_index=2
+                    ),
+                    Topic(
+                        name="Aggregate Functions",
+                        description="COUNT, SUM, AVG, MIN, MAX and GROUP BY clauses",
+                        difficulty_level=DifficultyLevel.MEDIUM,
+                        order_index=3
+                    ),
+                    Topic(
+                        name="Subqueries and CTEs",
+                        description="Complex nested queries and Common Table Expressions",
+                        difficulty_level=DifficultyLevel.HARD,
+                        order_index=4
+                    ),
+                    Topic(
+                        name="Advanced Performance",
+                        description="Query optimization, indexing, and window functions",
+                        difficulty_level=DifficultyLevel.EXPERT,
+                        order_index=5
+                    )
+                ]
+                
+                db.add_all(topics)
+                db.commit()
+                topics_created = len(topics)
+                print(f"✅ Created {topics_created} topics")
+            else:
+                print("Topics already exist, skipping topic initialization")
+        except Exception as e:
+            print(f"❌ Error initializing topics: {e}")
+            db.rollback()
+        
+        # Initialize Badges independently
+        try:
+            if db.query(Badge).count() == 0:
+                print("Initializing sample badges...")
+                
+                badges = [
+                    Badge(
+                        name="First Steps",
+                        description="Complete your first SQL query",
+                        criteria={"first_successful_submission": True},
+                        points_reward=10,
+                        rarity="common"
+                    ),
+                    Badge(
+                        name="Problem Solver",
+                        description="Solve 10 problems",
+                        criteria={"problems_solved": 10},
+                        points_reward=50,
+                        rarity="common"
+                    ),
+                    Badge(
+                        name="Speed Demon",
+                        description="Execute a query in under 100ms",
+                        criteria={"execution_time_ms": {"<": 100}},
+                        points_reward=25,
+                        rarity="rare"
+                    ),
+                    Badge(
+                        name="Master",
+                        description="Solve 5 Expert level problems",
+                        criteria={"expert_problems_solved": 5},
+                        points_reward=200,
+                        rarity="legendary"
+                    )
+                ]
+                
+                db.add_all(badges)
+                db.commit()
+                badges_created = len(badges)
+                print(f"✅ Created {badges_created} badges")
+            else:
+                print("Badges already exist, skipping badge initialization")
+        except Exception as e:
+            print(f"❌ Error initializing badges: {e}")
+            db.rollback()
+        
+        if topics_created == 0 and badges_created == 0:
+            print("Enhanced schema already fully initialized")
+        else:
+            print(f"Enhanced schema initialization complete: {topics_created} topics, {badges_created} badges")
+        
+    except Exception as e:
+        print(f"❌ Error in enhanced schema initialization: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 # Dependency to get database session
 def get_db():
