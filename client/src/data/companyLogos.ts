@@ -8,6 +8,7 @@ import airbnbLogo from '@assets/logos/airbnb.svg';
 import amazonLogo from '@assets/logos/amazon.svg';
 import appleLogo from '@assets/logos/apple.svg';
 import googleLogo from '@assets/logos/google.svg';
+import mcdonaldLogo from '@assets/logos/mcdonald.svg';
 import metaLogo from '@assets/logos/meta.svg';
 import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
@@ -29,6 +30,7 @@ const LOGO_REGISTRY: Record<string, string> = {
   amazon: amazonLogo,
   apple: appleLogo,
   google: googleLogo,
+  mcdonald: mcdonaldLogo,
   meta: metaLogo,
   microsoft: microsoftLogo,
   netflix: netflixLogo,
