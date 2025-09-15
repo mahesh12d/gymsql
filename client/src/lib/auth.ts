@@ -112,6 +112,16 @@ export const submissionsApi = {
   async getUserSubmissions(userId: string): Promise<any[]> {
     return apiRequest(`/submissions/user/${userId}`);
   },
+
+  async testQuery(problemId: string, query: string, includeHidden: boolean = false): Promise<any> {
+    return apiRequest(`/problems/${problemId}/test`, {
+      method: "POST",
+      body: JSON.stringify({ 
+        query: query.trim(),
+        include_hidden: includeHidden 
+      }),
+    });
+  },
 };
 
 export const leaderboardApi = {
