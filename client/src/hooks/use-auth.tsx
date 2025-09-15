@@ -42,27 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false); // Set to false to skip loading
 
   useEffect(() => {
-    // TEMPORARY: Skip auth check for development
-    // Uncomment below for normal auth behavior
-    /*
-    // Check for stored token on app start
-    const storedToken = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('auth_user');
+    // TEMPORARY: Set up mock authentication for development
+    const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4ODBiZTNjMy1lMDkzLTQyNzQtOTI5NC1kMjBjNWYwOGM1ODMiLCJ1c2VybmFtZSI6ImRlbW8xMnMiLCJleHAiOjE3NTgwMzgzNDV9.xFadvOmd5EoIF40JSWTG87pJVv3XwRPYamXf69iL_DM';
+    const mockUserData = JSON.stringify(mockUser);
     
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
-      }
-    }
-    */
+    // Set the valid token and user in localStorage for API requests
+    localStorage.setItem('auth_token', validToken);
+    localStorage.setItem('auth_user', mockUserData);
     
     setIsLoading(false);
-  }, []);
+  }, [mockUser]);
 
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
