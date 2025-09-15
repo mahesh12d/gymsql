@@ -7,6 +7,13 @@ interface QueryResult {
   message?: string;
   isCorrect?: boolean;
   executionTime?: number;
+  query_result?: {
+    status: string;
+    execution_time_ms: number;
+    result: Array<Record<string, any>>;
+    rows_affected: number;
+    columns: string[];
+  };
 }
 
 interface OutputPanelProps {
@@ -88,12 +95,44 @@ const OutputPanel = memo(function OutputPanel({ result, className }: OutputPanel
                 📊 Query Results:
               </p>
               <div className="font-mono text-xs bg-background rounded border p-2 overflow-x-auto">
-                <p>
+                <p className="mb-2">
                   Status: {result.isCorrect ? "✅ Correct" : "⚠️ Review needed"}
                 </p>
-                <p className="text-muted-foreground mt-1.5">
-                  [Table data would be displayed here]
-                </p>
+                {result.query_result?.result && result.query_result.result.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr>
+                          {Object.keys(result.query_result.result[0]).map((column) => (
+                            <th key={column} className="border border-border px-2 py-1 bg-muted font-semibold text-left">
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.query_result.result.slice(0, 10).map((row, index) => (
+                          <tr key={index}>
+                            {Object.values(row).map((value, colIndex) => (
+                              <td key={colIndex} className="border border-border px-2 py-1">
+                                {String(value)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {result.query_result.result.length > 10 && (
+                      <p className="text-muted-foreground mt-2 text-xs">
+                        Showing first 10 of {result.query_result.rows_affected} rows
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground mt-1.5">
+                    No data returned
+                  </p>
+                )}
               </div>
             </div>
           </div>

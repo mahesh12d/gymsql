@@ -165,12 +165,17 @@ class SecureQueryExecutor:
                     'test_results': []
                 }
             
-            # Step 3: Execute against visible test cases only (unless admin)
+            # Step 3: Execute the query to get actual results
+            query_result, execution_status = await execute_sandbox_query(
+                sandbox.id, query, 30
+            )
+            
+            # Step 4: Execute against visible test cases only (unless admin)
             test_results = await self._execute_test_cases(
                 sandbox.id, problem_id, query, db, include_hidden_tests
             )
             
-            # Step 4: Provide feedback without final scoring
+            # Step 5: Provide feedback without final scoring
             feedback = self._generate_test_feedback(test_results)
             
             return {
@@ -178,7 +183,9 @@ class SecureQueryExecutor:
                 'feedback': feedback,
                 'test_results': test_results,
                 'security_warnings': validation_result.get('warnings', []),
-                'query_analysis': validation_result['parsed_query']
+                'query_analysis': validation_result['parsed_query'],
+                'query_result': query_result,  # Include actual query execution results
+                'execution_status': execution_status.value if execution_status else 'SUCCESS'
             }
             
         except Exception as e:
