@@ -172,11 +172,47 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create all tables
 def create_tables():
     """Create all tables including new enhanced schema tables"""
+    # First create enum types if they don't exist
+    create_enum_types()
+    
+    # Then create all tables
     Base.metadata.create_all(bind=engine)
     print("✅ All database tables created successfully")
     
     # Initialize enhanced schema with sample data
     initialize_enhanced_schema()
+
+def create_enum_types():
+    """Create PostgreSQL enum types if they don't exist"""
+    with engine.begin() as conn:
+        # Create difficulty_level enum
+        conn.execute(text("""
+            DO $$ BEGIN
+                CREATE TYPE difficulty_level AS ENUM ('Beginner', 'Easy', 'Medium', 'Hard', 'Expert');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        
+        # Create execution_status enum
+        conn.execute(text("""
+            DO $$ BEGIN
+                CREATE TYPE execution_status AS ENUM ('SUCCESS', 'ERROR', 'TIMEOUT', 'MEMORY_LIMIT');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        
+        # Create sandbox_status enum
+        conn.execute(text("""
+            DO $$ BEGIN
+                CREATE TYPE sandbox_status AS ENUM ('ACTIVE', 'EXPIRED', 'CLEANUP_PENDING');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        
+        print("✅ PostgreSQL enum types created successfully")
 
 def initialize_enhanced_schema():
     """Initialize the enhanced schema with sample data - handles topics and badges independently"""
