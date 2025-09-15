@@ -20,6 +20,11 @@ const disableUv = process.env.DISABLE_UV === '1' || true; // Always disable uv i
 async function startBackend() {
   const useUv = forceUv && !disableUv && hasUv();
   
+  // Set environment variables to prevent Unicode encoding issues
+  process.env.PYTHONIOENCODING = 'utf-8';
+  process.env.LC_ALL = 'C.UTF-8';
+  process.env.LANG = 'C.UTF-8';
+  
   console.log(`🐍 Using ${useUv ? 'uv' : 'pip'} for Python dependency management`);
   
   if (useUv) {
