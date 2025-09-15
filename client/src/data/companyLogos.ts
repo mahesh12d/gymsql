@@ -4,7 +4,6 @@
  * Run 'npm run generate:logos' to regenerate
  */
 
-import airbnbtestLogo from '@assets/logos/airbnb-test.svg';
 import airbnbLogo from '@assets/logos/airbnb.svg';
 import amazonLogo from '@assets/logos/amazon.svg';
 import appleLogo from '@assets/logos/apple.svg';
@@ -25,7 +24,6 @@ export interface CompanyInfo {
 
 // Auto-generated logo registry
 const LOGO_REGISTRY: Record<string, string> = {
-  airbnbtest: airbnbtestLogo,
   airbnb: airbnbLogo,
   amazon: amazonLogo,
   apple: appleLogo,
