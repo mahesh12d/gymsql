@@ -34,12 +34,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware  
+frontend_origins = [
+    "http://localhost:5000",
+    "https://*.replit.dev",
+    "https://*.replit.app",
+    "https://*.replit.co"
+]
+
+# In production, use environment variable or specific domain
+if os.getenv("REPL_ID"):
+    repl_id = os.getenv("REPL_ID")
+    username = os.getenv("REPL_OWNER", "user")
+    frontend_origins.extend([
+        f"https://{repl_id}--{username}.replit.app",
+        f"https://{repl_id}.{username}.replit.dev"
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with actual frontend URL
+    allow_origins=frontend_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -54,6 +70,11 @@ def startup_event():
     create_tables()  # Then create any missing tables
 
 # Development/fallback root endpoint
+# Health check endpoint
+@app.get("/api/health")
+def health_check():
+    return {"status": "healthy", "service": "SQLGym API", "version": "1.0.0"}
+
 # Development/fallback root endpoint  
 @app.get("/")
 def read_root():
