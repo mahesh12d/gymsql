@@ -24,6 +24,8 @@ from .auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user, get_current_user_optional
 )
+from .secure_execution import secure_executor
+from .sandbox_routes import sandbox_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -40,6 +42,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(sandbox_router)
 
 # Create tables on startup
 @app.on_event("startup")
@@ -208,6 +213,133 @@ def get_problem(problem_id: str, db: Session = Depends(get_db)):
             detail="Problem not found"
         )
     return ProblemResponse.from_orm(problem)
+
+# New secure execution endpoints
+@app.post("/api/problems/{problem_id}/submit")
+async def submit_solution(
+    problem_id: str,
+    query_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Submit and execute SQL query for final evaluation"""
+    query = query_data.get("query", "").strip()
+    
+    if not query:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query is required"
+        )
+    
+    result = await secure_executor.submit_solution(
+        current_user.id, problem_id, query, db
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get('feedback', ['Submission failed'])[0]
+        )
+    
+    return result
+
+@app.get("/api/problems/{problem_id}/sandbox")
+async def get_or_create_sandbox(
+    problem_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get or create user sandbox for a problem"""
+    from .sandbox_manager import create_user_sandbox
+    from .models import UserSandbox, SandboxStatus
+    
+    # Check for existing active sandbox
+    existing_sandbox = db.query(UserSandbox).filter(
+        UserSandbox.user_id == current_user.id,
+        UserSandbox.problem_id == problem_id,
+        UserSandbox.status == SandboxStatus.ACTIVE.value
+    ).first()
+    
+    if existing_sandbox:
+        return {
+            "sandbox_id": existing_sandbox.id,
+            "status": existing_sandbox.status,
+            "expires_at": existing_sandbox.expires_at.isoformat(),
+            "created_at": existing_sandbox.created_at.isoformat()
+        }
+    
+    # Create new sandbox
+    try:
+        sandbox = await create_user_sandbox(current_user.id, problem_id)
+        return {
+            "sandbox_id": sandbox.id,
+            "status": sandbox.status,
+            "expires_at": sandbox.expires_at.isoformat(),
+            "created_at": sandbox.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create sandbox: {str(e)}"
+        )
+
+@app.post("/api/problems/{problem_id}/test")
+async def test_query(
+    problem_id: str,
+    query_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Test query without submitting (practice mode)"""
+    query = query_data.get("query", "").strip()
+    include_hidden = query_data.get("include_hidden", False)
+    
+    if not query:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query is required"
+        )
+    
+    result = await secure_executor.test_query(
+        current_user.id, problem_id, query, db, include_hidden
+    )
+    
+    return result
+
+@app.get("/api/problems/{problem_id}/schema")
+async def get_problem_schema(
+    problem_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get database schema information for a problem"""
+    result = await secure_executor.get_problem_schema(
+        current_user.id, problem_id, db
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get('error', 'Schema not found')
+        )
+    
+    return result
+
+@app.get("/api/user/progress")
+async def get_user_progress(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive user progress statistics"""
+    result = await secure_executor.get_user_progress(current_user.id, db)
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get('error', 'Progress data not found')
+        )
+    
+    return result
 
 # Submission endpoints
 @app.post("/api/submissions", response_model=SubmissionResponse, response_model_by_alias=True)
