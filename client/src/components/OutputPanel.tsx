@@ -3,25 +3,6 @@ import { TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import React from "react";
 
-interface QueryResult {
-  error?: boolean;
-  message?: string;
-  isCorrect?: boolean;
-  executionTime?: number;
-  query_result?: {
-    status: string;
-    execution_time_ms: number;
-    result: Array<Record<string, any>>;
-    rows_affected: number;
-    columns: string[];
-  };
-}
-
-interface OutputPanelProps {
-  result: QueryResult | null;
-  className?: string;
-}
-
 interface OutputPanelProps {
   result: {
     success: boolean;
@@ -31,7 +12,7 @@ interface OutputPanelProps {
     error?: string;
     feedback?: string[];
     test_results?: any[];
-  };
+  } | null;
   isLoading: boolean;
 }
 

@@ -370,35 +370,6 @@ async def test_query(problem_id: str,
     }
 
 
-@app.post("/api/problems/{problem_id}/test")
-async def test_query(problem_id: str,
-                     query_data: dict,
-                     current_user: User = Depends(get_current_user),
-                     db: Session = Depends(get_db)):
-    """Test query without submitting (practice mode)"""
-    query = query_data.get("query", "").strip()
-    include_hidden = query_data.get("include_hidden", False)
-
-    if not query:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Query is required")
-
-    result = await secure_executor.test_query(current_user.id, problem_id,
-                                              query, db, include_hidden)
-
-    # Return both console output AND structured data
-    return {
-        "success": result['success'],
-        "console_output":
-        format_console_output(result),  # NEW: For fast display
-        "results": result.get('results', []),  # Keep for validation
-        "execution_time_ms": result.get('execution_time_ms'),
-        "feedback": result.get('feedback', []),
-        "test_results": result.get('test_results', []),
-        "error": result.get('error')
-    }
-
-
 @app.get("/api/user/progress")
 async def get_user_progress(current_user: User = Depends(get_current_user),
                             db: Session = Depends(get_db)):
