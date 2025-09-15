@@ -100,10 +100,10 @@ async def execute_query(
                 detail="Sandbox not found or access denied"
             )
         
-        if sandbox.status != SandboxStatus.ACTIVE:
+        if sandbox.status != SandboxStatus.ACTIVE.value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Sandbox is {sandbox.status.value}, not active"
+                detail=f"Sandbox is {sandbox.status}, not active"
             )
         
         # Execute query with timeout
@@ -226,11 +226,11 @@ async def cleanup_sandbox(
                 detail="Sandbox not found or access denied"
             )
         
-        if sandbox.status == SandboxStatus.EXPIRED:
+        if sandbox.status == SandboxStatus.EXPIRED.value:
             return {"message": "Sandbox already expired"}
         
         # Mark sandbox as cleanup pending
-        sandbox.status = SandboxStatus.CLEANUP_PENDING
+        sandbox.status = SandboxStatus.CLEANUP_PENDING.value
         sandbox.cleanup_scheduled_at = sandbox.last_accessed_at
         db.commit()
         

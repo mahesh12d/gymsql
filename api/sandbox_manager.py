@@ -19,6 +19,7 @@ import asyncpg
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
+from sqlalchemy.engine.url import make_url
 
 from .database import DATABASE_URL, SessionLocal
 from .models import UserSandbox, TestCase, ProblemSchema, SandboxStatus, ExecutionStatus
@@ -85,35 +86,22 @@ class SandboxManager:
         self._parse_database_url()
     
     def _parse_database_url(self):
-        """Parse the main database URL to extract connection details"""
-        # Extract connection details from DATABASE_URL
-        # Format: postgresql://user:password@host:port/database
-        url_parts = self.base_db_url.replace('postgresql://', '').replace('postgres://', '')
-        
-        if '@' in url_parts:
-            auth_part, host_part = url_parts.split('@', 1)
-            if ':' in auth_part:
-                self.db_user, self.db_password = auth_part.split(':', 1)
-            else:
-                self.db_user = auth_part
-                self.db_password = ''
-        else:
-            host_part = url_parts
+        """Parse the main database URL to extract connection details using sqlalchemy"""
+        try:
+            url = make_url(self.base_db_url)
+            self.db_user = url.username or 'postgres'
+            self.db_password = url.password or ''
+            self.db_host = url.host or 'localhost'
+            self.db_port = url.port or 5432
+            self.db_name = url.database or 'postgres'
+        except Exception as e:
+            logger.error(f"Failed to parse DATABASE_URL: {e}")
+            # Fallback to defaults
             self.db_user = 'postgres'
             self.db_password = ''
-        
-        if '/' in host_part:
-            host_port, self.db_name = host_part.split('/', 1)
-        else:
-            host_port = host_part
-            self.db_name = 'postgres'
-        
-        if ':' in host_port:
-            self.db_host, port_str = host_port.split(':', 1)
-            self.db_port = int(port_str)
-        else:
-            self.db_host = host_port
+            self.db_host = 'localhost'
             self.db_port = 5432
+            self.db_name = 'postgres'
     
     def _generate_sandbox_name(self, user_id: str, problem_id: str) -> str:
         """Generate a unique sandbox database name"""
@@ -136,7 +124,7 @@ class SandboxManager:
             existing_sandbox = db.query(UserSandbox).filter(
                 UserSandbox.user_id == user_id,
                 UserSandbox.problem_id == problem_id,
-                UserSandbox.status == SandboxStatus.ACTIVE
+                UserSandbox.status == SandboxStatus.ACTIVE.value
             ).first()
             
             if existing_sandbox:
@@ -158,7 +146,7 @@ class SandboxManager:
                 user_id=user_id,
                 problem_id=problem_id,
                 database_name=sandbox_db_name,
-                status=SandboxStatus.ACTIVE,
+                status=SandboxStatus.ACTIVE.value,
                 expires_at=datetime.utcnow() + timedelta(hours=expires_in_hours),
                 last_accessed_at=datetime.utcnow()
             )
@@ -275,7 +263,8 @@ class SandboxManager:
                     values = list(row.values())
                     placeholders = [f'${i+1}' for i in range(len(values))]
                     
-                    insert_sql = f'INSERT INTO "{table_name}" ({", ".join(f\'"{col}"\' for col in columns)}) VALUES ({", ".join(placeholders)})'
+                    quoted_columns = [f'"{col}"' for col in columns]
+                    insert_sql = f'INSERT INTO "{table_name}" ({", ".join(quoted_columns)}) VALUES ({", ".join(placeholders)})'
                     await conn.execute(insert_sql, *values)
             
             logger.info(f"Inserted {len(sample_data)} rows into {table_name}")
@@ -293,7 +282,8 @@ class SandboxManager:
                 unique = 'UNIQUE' if index.get('unique', False) else ''
                 
                 if columns:
-                    create_index_sql = f'CREATE {unique} INDEX "{index_name}" ON "{table_name}" ({", ".join(f\'"{col}"\' for col in columns)})'
+                    quoted_columns = [f'"{col}"' for col in columns]
+                    create_index_sql = f'CREATE {unique} INDEX "{index_name}" ON "{table_name}" ({", ".join(quoted_columns)})'
                     await conn.execute(create_index_sql)
                     logger.info(f"Created index: {index_name}")
             
@@ -335,7 +325,7 @@ class SandboxManager:
             if not sandbox:
                 raise ValueError(f"Sandbox {sandbox_id} not found")
             
-            if sandbox.status != SandboxStatus.ACTIVE:
+            if sandbox.status != SandboxStatus.ACTIVE.value:
                 raise ValueError(f"Sandbox {sandbox_id} is not active")
             
             # Update last accessed time
@@ -415,7 +405,7 @@ class SandboxManager:
         try:
             # Find expired sandboxes
             expired_sandboxes = db.query(UserSandbox).filter(
-                UserSandbox.status == SandboxStatus.ACTIVE,
+                UserSandbox.status == SandboxStatus.ACTIVE.value,
                 UserSandbox.expires_at < datetime.utcnow()
             ).all()
             
@@ -424,7 +414,7 @@ class SandboxManager:
             for sandbox in expired_sandboxes:
                 try:
                     # Mark as cleanup pending
-                    sandbox.status = SandboxStatus.CLEANUP_PENDING
+                    sandbox.status = SandboxStatus.CLEANUP_PENDING.value
                     sandbox.cleanup_scheduled_at = datetime.utcnow()
                     db.commit()
                     
@@ -436,7 +426,7 @@ class SandboxManager:
                     await self._drop_database(sandbox.database_name)
                     
                     # Mark as expired
-                    sandbox.status = SandboxStatus.EXPIRED
+                    sandbox.status = SandboxStatus.EXPIRED.value
                     db.commit()
                     
                     logger.info(f"Cleaned up sandbox: {sandbox.database_name}")
