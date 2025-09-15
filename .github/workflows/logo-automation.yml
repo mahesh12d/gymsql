@@ -1,5 +1,4 @@
 name: Logo Automation
-
 on:
   push:
     paths:
@@ -8,7 +7,6 @@ on:
     paths:
       - 'attached_assets/logos/*.svg'
     
-
 jobs:
   generate-logos:
     runs-on: ubuntu-latest
@@ -17,7 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+        with:
+          token: ${{ secrets.PAT_TOKEN }}  # Add this line
+          
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
