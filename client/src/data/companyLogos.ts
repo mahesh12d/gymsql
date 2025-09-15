@@ -11,6 +11,7 @@ import googleLogo from '@assets/logos/google.svg';
 import metaLogo from '@assets/logos/meta.svg';
 import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
+import snapchatLogo from '@assets/logos/snapchat.svg';
 import stripeLogo from '@assets/logos/stripe.svg';
 
 export interface CompanyInfo {
@@ -31,6 +32,7 @@ const LOGO_REGISTRY: Record<string, string> = {
   meta: metaLogo,
   microsoft: microsoftLogo,
   netflix: netflixLogo,
+  snapchat: snapchatLogo,
   stripe: stripeLogo,
 };
 
