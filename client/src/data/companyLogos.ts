@@ -4,15 +4,14 @@
  * Run 'npm run generate:logos' to regenerate
  */
 
-import airbnbtestLogo from '@assets/logos/airbnb-test.svg';
-import airbnbLogo from '@assets/logos/airbnb.svg';
-import amazonLogo from '@assets/logos/amazon.svg';
-import appleLogo from '@assets/logos/apple.svg';
-import googleLogo from '@assets/logos/google.svg';
-import metaLogo from '@assets/logos/meta.svg';
-import microsoftLogo from '@assets/logos/microsoft.svg';
-import netflixLogo from '@assets/logos/netflix.svg';
-import stripeLogo from '@assets/logos/stripe.svg';
+import airbnbLogo from "@assets/logos/airbnb.svg";
+import amazonLogo from "@assets/logos/amazon.svg";
+import appleLogo from "@assets/logos/apple.svg";
+import googleLogo from "@assets/logos/google.svg";
+import metaLogo from "@assets/logos/meta.svg";
+import microsoftLogo from "@assets/logos/microsoft.svg";
+import netflixLogo from "@assets/logos/netflix.svg";
+import stripeLogo from "@assets/logos/stripe.svg";
 
 export interface CompanyInfo {
   id: string;
@@ -25,7 +24,6 @@ export interface CompanyInfo {
 
 // Auto-generated logo registry
 const LOGO_REGISTRY: Record<string, string> = {
-  airbnbtest: airbnbtestLogo,
   airbnb: airbnbLogo,
   amazon: amazonLogo,
   apple: appleLogo,
@@ -37,58 +35,61 @@ const LOGO_REGISTRY: Record<string, string> = {
 };
 
 // Default color configurations for known companies
-const COMPANY_COLORS: Record<string, Pick<CompanyInfo, 'primaryColor' | 'secondaryColor'>> = {
+const COMPANY_COLORS: Record<
+  string,
+  Pick<CompanyInfo, "primaryColor" | "secondaryColor">
+> = {
   microsoft: {
-    primaryColor: '#00BCF2',
-    secondaryColor: '#0078D4',
+    primaryColor: "#00BCF2",
+    secondaryColor: "#0078D4",
   },
   google: {
-    primaryColor: '#4285F4',
-    secondaryColor: '#DB4437',
+    primaryColor: "#4285F4",
+    secondaryColor: "#DB4437",
   },
   apple: {
-    primaryColor: '#000000',
-    secondaryColor: '#A8A8A8',
+    primaryColor: "#000000",
+    secondaryColor: "#A8A8A8",
   },
   amazon: {
-    primaryColor: '#FF9900',
-    secondaryColor: '#232F3E',
+    primaryColor: "#FF9900",
+    secondaryColor: "#232F3E",
   },
   meta: {
-    primaryColor: '#1877F2',
-    secondaryColor: '#42B883',
+    primaryColor: "#1877F2",
+    secondaryColor: "#42B883",
   },
   netflix: {
-    primaryColor: '#E50914',
-    secondaryColor: '#221F1F',
+    primaryColor: "#E50914",
+    secondaryColor: "#221F1F",
   },
   stripe: {
-    primaryColor: '#635BFF',
-    secondaryColor: '#0A2540',
+    primaryColor: "#635BFF",
+    secondaryColor: "#0A2540",
   },
   airbnb: {
-    primaryColor: '#FF5A5F',
-    secondaryColor: '#FF385C',
+    primaryColor: "#FF5A5F",
+    secondaryColor: "#FF385C",
   },
   tesla: {
-    primaryColor: '#CC0000',
-    secondaryColor: '#000000',
+    primaryColor: "#CC0000",
+    secondaryColor: "#000000",
   },
   uber: {
-    primaryColor: '#000000',
-    secondaryColor: '#1FBAD6',
+    primaryColor: "#000000",
+    secondaryColor: "#1FBAD6",
   },
   shopify: {
-    primaryColor: '#7AB55C',
-    secondaryColor: '#95BF47',
+    primaryColor: "#7AB55C",
+    secondaryColor: "#95BF47",
   },
   discord: {
-    primaryColor: '#5865F2',
-    secondaryColor: '#7289DA',
+    primaryColor: "#5865F2",
+    secondaryColor: "#7289DA",
   },
   slack: {
-    primaryColor: '#4A154B',
-    secondaryColor: '#36C5F0',
+    primaryColor: "#4A154B",
+    secondaryColor: "#36C5F0",
   },
 };
 
@@ -96,10 +97,11 @@ const COMPANY_COLORS: Record<string, Pick<CompanyInfo, 'primaryColor' | 'seconda
  * Normalizes company name to match expected filename format
  */
 function normalizeCompanyName(companyName: string): string {
-  return companyName.toLowerCase()
+  return companyName
+    .toLowerCase()
     .trim()
-    .replace(/\s+/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 /**
@@ -107,26 +109,26 @@ function normalizeCompanyName(companyName: string): string {
  */
 export function getCompanyInfo(companyName: string): CompanyInfo | null {
   if (!companyName) return null;
-  
+
   const normalizedName = normalizeCompanyName(companyName);
   const logoPath = LOGO_REGISTRY[normalizedName];
-  
+
   // If no logo found, return null
   if (!logoPath) return null;
-  
+
   // Get colors from config or use defaults
   const colors = COMPANY_COLORS[normalizedName] || {
-    primaryColor: '#6366F1', // Default indigo
-    secondaryColor: '#4F46E5',
+    primaryColor: "#6366F1", // Default indigo
+    secondaryColor: "#4F46E5",
   };
-  
+
   // Create display name (capitalize first letter of each word)
   const displayName = companyName
     .toLowerCase()
     .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-  
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
   return {
     id: normalizedName,
     name: displayName,
@@ -156,15 +158,16 @@ export function generateCompanyId(companyName: string): string {
  */
 export function getAllCompanies(): CompanyInfo[] {
   const companies: CompanyInfo[] = [];
-  
+
   for (const [normalizedName, logoPath] of Object.entries(LOGO_REGISTRY)) {
     const colors = COMPANY_COLORS[normalizedName] || {
-      primaryColor: '#6366F1',
-      secondaryColor: '#4F46E5',
+      primaryColor: "#6366F1",
+      secondaryColor: "#4F46E5",
     };
-    
-    const displayName = normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
-    
+
+    const displayName =
+      normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
+
     companies.push({
       id: normalizedName,
       name: displayName,
@@ -174,7 +177,7 @@ export function getAllCompanies(): CompanyInfo[] {
       secondaryColor: colors.secondaryColor,
     });
   }
-  
+
   return companies;
 }
 
