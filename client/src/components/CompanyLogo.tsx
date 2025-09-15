@@ -29,23 +29,36 @@ export function CompanyLogo({
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!companyName) {
       setCompanyInfo(null);
       setLogoSrc(null);
       setLogoError(false);
+      setIsLoading(false);
       return;
     }
 
-    const info = getCompanyInfo(companyName);
-    setCompanyInfo(info);
+    setIsLoading(true);
     setLogoError(false);
+    
+    try {
+      const info = getCompanyInfo(companyName);
+      setCompanyInfo(info);
 
-    if (info) {
-      setLogoSrc(info.logoPath);
-    } else {
+      if (info) {
+        setLogoSrc(info.logoPath);
+      } else {
+        setLogoSrc(null);
+      }
+    } catch (error) {
+      console.error('Error loading company info:', error);
+      setCompanyInfo(null);
       setLogoSrc(null);
+      setLogoError(true);
+    } finally {
+      setIsLoading(false);
     }
   }, [companyName]);
 
