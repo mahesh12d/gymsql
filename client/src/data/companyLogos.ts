@@ -12,7 +12,7 @@ import metaLogo from '@assets/logos/meta.svg';
 import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
 import stripeLogo from '@assets/logos/stripe.svg';
-import airbnbLogo from '@assets/logos/airbnb.svg';
+import airbnbLogo from '@assets/logos/airbnb-test.svg';
 
 export interface CompanyInfo {
   id: string;
