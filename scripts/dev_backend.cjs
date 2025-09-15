@@ -13,11 +13,12 @@ function hasUv() {
   }
 }
 
-// Check for USE_UV environment variable
+// Check for USE_UV environment variable - force disabled for Replit compatibility
 const forceUv = process.env.USE_UV === '1';
+const disableUv = process.env.DISABLE_UV === '1' || true; // Always disable uv in Replit environment
 
 async function startBackend() {
-  const useUv = forceUv || hasUv();
+  const useUv = forceUv && !disableUv && hasUv();
   
   console.log(`🐍 Using ${useUv ? 'uv' : 'pip'} for Python dependency management`);
   
