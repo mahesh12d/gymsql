@@ -29,24 +29,42 @@ export function CompanyLogo({
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!companyName) {
       setCompanyInfo(null);
       setLogoSrc(null);
       setLogoError(false);
+      setIsLoading(false);
       return;
     }
 
-    const info = getCompanyInfo(companyName);
-    setCompanyInfo(info);
-    setLogoError(false);
+    // Async function to load company info
+    const loadCompanyInfo = async () => {
+      setIsLoading(true);
+      setLogoError(false);
+      
+      try {
+        const info = await getCompanyInfo(companyName);
+        setCompanyInfo(info);
 
-    if (info) {
-      setLogoSrc(info.logoPath);
-    } else {
-      setLogoSrc(null);
-    }
+        if (info) {
+          setLogoSrc(info.logoPath);
+        } else {
+          setLogoSrc(null);
+        }
+      } catch (error) {
+        console.error('Error loading company info:', error);
+        setCompanyInfo(null);
+        setLogoSrc(null);
+        setLogoError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCompanyInfo();
   }, [companyName]);
 
   // Size configurations
