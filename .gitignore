@@ -33,6 +33,9 @@ sdist/
 var/
 wheels/
 
+# uv lock file - Replit uses pip exclusively due to Nix environment compatibility
+uv.lock
+
 # Additional Python and linting caches
 .mypy_cache/
 .ruff_cache/

@@ -31,3 +31,19 @@ Instead of asking agent to "set up the project", simply say:
 This will complete the entire setup in under 2 minutes with minimal agent utilization.
 
 This automation setup saves ~80% of typical import analysis time
+
+## Python Package Management on Replit
+
+**Important**: This project uses **pip exclusively** on Replit due to Nix environment compatibility. The `uv` package manager is not compatible with Replit's read-only filesystem structure.
+
+- **Primary dependency file**: `requirements.txt` (pinned with cryptographic hashes)
+- **Development dependencies**: Use `pyproject.toml` for configuration, but `requirements.txt` for installation
+- **Lock file**: `uv.lock` is ignored and excluded from the repository
+
+### Updating Dependencies
+
+To update Python dependencies:
+1. Modify `pyproject.toml` as needed
+2. Run `uv export --format requirements-txt > requirements.txt` locally (if using uv)
+3. Or manually update `requirements.txt` with pinned versions
+4. Commit the updated `requirements.txt`
