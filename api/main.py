@@ -62,8 +62,10 @@ def format_console_output(execution_result):
         error_msg = execution_result.get('error', 'Unknown error')
         return f"ERROR: {error_msg}"
     
-    results = execution_result.get('results', [])
-    exec_time = execution_result.get('execution_time_ms', 0)
+    # Extract results from query_result structure returned by secure_executor
+    query_result = execution_result.get('query_result', {})
+    results = query_result.get('result', []) if query_result else []
+    exec_time = query_result.get('execution_time_ms', 0) if query_result else 0
     
     if not results:
         return f"Query executed successfully.\n0 rows returned.\nExecution time: {exec_time}ms"
@@ -326,11 +328,16 @@ async def test_query(problem_id: str,
     result = await secure_executor.test_query(current_user.id, problem_id,
                                               query, db, include_hidden)
 
+    # Extract results from nested query_result structure
+    query_result = result.get('query_result', {})
+    results_data = query_result.get('result', []) if query_result else []
+    execution_time = query_result.get('execution_time_ms', 0) if query_result else 0
+    
     return {
         "success": result['success'],
-        "results": result.get('results', []),  # Raw data for table
-        "execution_time_ms": result.get('execution_time_ms'),
-        "rows_affected": len(result.get('results', [])),
+        "results": results_data,  # Raw data for table
+        "execution_time_ms": execution_time,
+        "rows_affected": len(results_data),
         "console_info": format_console_output(result),  # Just metadata
         "feedback": result.get('feedback', []),
         "test_results": result.get('test_results', []),
