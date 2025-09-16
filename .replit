@@ -8,7 +8,7 @@ packages = ["cargo", "libiconv", "libxcrypt", "pgadmin4", "postgresql", "rustc"]
 
 [deployment]
 build = ["npm", "run", "build"]
-run = ["bash", "-c", "python -m uvicorn api.main:app --host 0.0.0.0 --port 5000"]
+run = ["npm", "run", "start"]
 deploymentTarget = "autoscale"
 
 [[ports]]
@@ -16,8 +16,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 5003
-externalPort = 6000
+localPort = 8000
+externalPort = 5173
 
 [[ports]]
 localPort = 34261
@@ -62,6 +62,10 @@ externalPort = 3000
 [[ports]]
 localPort = 45097
 externalPort = 8000
+
+[[ports]]
+localPort = 45629
+externalPort = 6000
 
 [[ports]]
 localPort = 45749
