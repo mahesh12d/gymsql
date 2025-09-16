@@ -34,11 +34,20 @@ This automation setup saves ~80% of typical import analysis time
 
 ## Python Package Management on Replit
 
-**Important**: This project uses **pip exclusively** on Replit due to Nix environment compatibility. The `uv` package manager is not compatible with Replit's read-only filesystem structure.
+**Important**: This project uses **Python 3.11** and **pip exclusively** on Replit due to compatibility requirements. The setup includes fixes for common Replit environment issues:
 
+- **Python version**: Fixed to use `python3.11` consistently to avoid pydantic compatibility issues
+- **Package installation**: Uses `--break-system-packages` flag to work with NixOS externally-managed environment
 - **Primary dependency file**: `requirements.txt` (pinned with cryptographic hashes)
-- **Development dependencies**: Use `pyproject.toml` for configuration, but `requirements.txt` for installation
-- **Lock file**: `uv.lock` is ignored and excluded from the repository
+- **Development script**: `scripts/dev_backend.cjs` handles Python setup and backend startup
+
+### Environment Fixes Applied
+
+✅ **Pydantic Compatibility**: Fixed ModuleNotFoundError by using consistent Python 3.11 version  
+✅ **NixOS Compatibility**: Added `--break-system-packages` flag for pip installations  
+✅ **Port Configuration**: Frontend on 5000 (proxy-ready), backend on 8000  
+✅ **Database Setup**: PostgreSQL initialization with proper schema migration  
+✅ **Deployment Ready**: Production start script uses python3.11 on correct ports
 
 ### Updating Dependencies
 
@@ -47,3 +56,8 @@ To update Python dependencies:
 2. Run `uv export --format requirements-txt > requirements.txt` locally (if using uv)
 3. Or manually update `requirements.txt` with pinned versions
 4. Commit the updated `requirements.txt`
+
+### Development vs Production
+
+- **Development**: Backend on port 8000, frontend dev server on 5000 with API proxy
+- **Production**: Build frontend assets, serve backend on appropriate port using `python3.11`
