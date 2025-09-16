@@ -263,8 +263,15 @@ def get_problem(problem_id: str,
     
     # Check if problem is premium and user doesn't have premium access
     if problem.premium is True and (not current_user or not current_user.premium):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Premium subscription required to access this problem")
+        # Return problem with premium message instead of throwing error
+        problem_data = ProblemResponse.from_orm(problem)
+        premium_question = {
+            "description": "Want to lift try Premium 🏋️‍♂️",
+            "tables": [],
+            "expectedOutput": []
+        }
+        problem_data.question = premium_question
+        return problem_data
     
     return ProblemResponse.from_orm(problem)
 
