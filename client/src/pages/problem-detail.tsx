@@ -70,6 +70,8 @@ export default function ProblemDetail() {
       queryClient.invalidateQueries({
         queryKey: ["/api/submissions", problemId],
       });
+      // Auto-navigate to submissions page after successful submission
+      setLocation('/submissions');
     },
   });
 
