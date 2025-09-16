@@ -19,6 +19,7 @@ export default function ProblemDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [latestSubmissionResult, setLatestSubmissionResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>("problem");
 
   // Memoized navigation handlers to prevent recreation
   const handleDifficultyClick = useCallback((difficulty: string) => {
@@ -70,8 +71,8 @@ export default function ProblemDetail() {
       queryClient.invalidateQueries({
         queryKey: ["/api/submissions", problemId],
       });
-      // Auto-navigate to submissions page after successful submission
-      setLocation('/submissions');
+      // Auto-open submissions tab after successful submission
+      setActiveTab('submission');
     },
   });
 
@@ -153,6 +154,8 @@ export default function ProblemDetail() {
               problem={problem}
               userSubmissions={userSubmissions}
               latestSubmissionResult={latestSubmissionResult}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
             />
           }
           rightPanel={

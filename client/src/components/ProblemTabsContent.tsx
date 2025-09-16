@@ -58,6 +58,8 @@ interface ProblemTabsContentProps {
   userSubmissions?: Submission[];
   latestSubmissionResult?: SubmissionResult | null;
   className?: string;
+  activeTab?: string;
+  onTabChange?: (value: string) => void;
 }
 
 const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
@@ -113,12 +115,14 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
   userSubmissions = [],
   latestSubmissionResult = null,
   className,
+  activeTab = "problem",
+  onTabChange,
 }: ProblemTabsContentProps) {
   const hasCorrectSubmission = userSubmissions.some((sub) => sub.isCorrect);
 
   return (
     <div className={`h-full flex flex-col ${className || ''}`}>
-      <Tabs defaultValue="problem" className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="flex flex-col h-full">
         <TabsList className="w-full justify-start border-b bg-transparent p-0 h-auto rounded-none">
           <TabsTrigger
             value="problem"
