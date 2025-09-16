@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from "react";
 import EditorHeader from "@/components/EditorHeader";
 import CodeEditor from "@/components/CodeEditor";
 import OutputPanel from "@/components/OutputPanel";
+import SubmissionResultPanel from "@/components/SubmissionResultPanel";
 import VerticalResizableSplitter from "@/components/vertical-resizable-splitter";
 
 interface Problem {
@@ -22,6 +23,7 @@ interface QueryResult {
 
 interface OptimizedEditorOutputSplitProps {
   problem?: Problem;
+  problemId?: string;
   handleRunQuery: (query: string) => Promise<any>;
   handleSubmitSolution: (query: string) => Promise<any>;
   onDifficultyClick: (difficulty: string) => void;
@@ -31,6 +33,7 @@ interface OptimizedEditorOutputSplitProps {
 
 const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   problem,
+  problemId,
   handleRunQuery,
   handleSubmitSolution,
   onDifficultyClick,
@@ -38,9 +41,11 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   className,
 }: OptimizedEditorOutputSplitProps) {
   const [result, setResult] = useState<QueryResult | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<any | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  const [isSubmissionMode, setIsSubmissionMode] = useState(false);
 
   const selectedCompany = problem?.company || "NY Times";
   const selectedDifficulty = problem?.difficulty || "Medium";
@@ -50,6 +55,7 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
     async (query: string) => {
       setIsRunning(true);
       setShowOutput(true);
+      setIsSubmissionMode(false); // Switch to query mode
       try {
         const runResult = await handleRunQuery(query);
         setResult(runResult);
@@ -74,16 +80,17 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
     async (query: string) => {
       setIsSubmitting(true);
       setShowOutput(true);
+      setIsSubmissionMode(true); // Switch to submission mode
       try {
         const submitResult = await handleSubmitSolution(query);
-        setResult(submitResult);
+        setSubmissionResult(submitResult);
         return submitResult;
       } catch (error) {
         const errorResult = {
           error: true,
           message: error instanceof Error ? error.message : "Submission failed",
         };
-        setResult(errorResult);
+        setSubmissionResult(errorResult);
         return errorResult;
       } finally {
         setIsSubmitting(false);
@@ -113,9 +120,15 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
     </div>
   );
 
-  // Output panel
-  const outputPanel = (
-    <OutputPanel result={result} isLoading={isRunning || isSubmitting} />
+  // Output panel - show different component based on mode
+  const outputPanel = isSubmissionMode ? (
+    <SubmissionResultPanel 
+      result={submissionResult} 
+      isLoading={isSubmitting}
+      problemId={problemId || ""} 
+    />
+  ) : (
+    <OutputPanel result={result} isLoading={isRunning} />
   );
 
   // Show resizable layout when output is visible, otherwise show just the editor

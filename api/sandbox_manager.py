@@ -338,8 +338,9 @@ class SandboxManager:
             start_time = time.time()
             
             async with pool.acquire() as conn:
-                # Set resource limits
-                await conn.execute(f"SET statement_timeout = '{timeout_seconds}s'")
+                # Set resource limits with proper None handling
+                timeout_value = timeout_seconds if timeout_seconds is not None else 30
+                await conn.execute(f"SET statement_timeout = '{timeout_value}s'")
                 await conn.execute("SET lock_timeout = '10s'")
                 
                 try:

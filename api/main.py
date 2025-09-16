@@ -414,6 +414,21 @@ def get_user_submissions(user_id: str,
     return [SubmissionResponse.from_orm(sub) for sub in submissions]
 
 
+@app.get("/api/problems/{problem_id}/submissions",
+         response_model=List[SubmissionResponse],
+         response_model_by_alias=True)
+def get_problem_submissions(problem_id: str,
+                           current_user: User = Depends(get_current_user),
+                           db: Session = Depends(get_db)):
+    """Get user's submissions for a specific problem"""
+    submissions = db.query(Submission).filter(
+        Submission.user_id == current_user.id,
+        Submission.problem_id == problem_id
+    ).order_by(desc(Submission.submitted_at)).all()
+
+    return [SubmissionResponse.from_orm(sub) for sub in submissions]
+
+
 # Leaderboard endpoint
 @app.get("/api/leaderboard",
          response_model=List[UserResponse],

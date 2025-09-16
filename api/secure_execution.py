@@ -388,9 +388,12 @@ class SecureQueryExecutor:
                 
                 # Validate result using advanced test validator
                 if execution_status == ExecutionStatus.SUCCESS:
+                    user_output = result.get('result', [])
+                    expected_output = test_case.expected_output
+                    
                     validation = test_validator.validate_test_case(
-                        result.get('result', []),
-                        test_case.expected_output,
+                        user_output,
+                        expected_output,
                         ComparisonMode.UNORDERED  # Allow row reordering by default
                     )
                     
@@ -403,7 +406,11 @@ class SecureQueryExecutor:
                         'feedback': validation['feedback'],
                         'execution_time_ms': result.get('execution_time_ms', 0),
                         'execution_status': execution_status.value,
-                        'validation_details': validation['details']
+                        'validation_details': validation['details'],
+                        # Add detailed comparison data for UI
+                        'user_output': user_output,
+                        'expected_output': expected_output,
+                        'output_matches': validation['is_correct']
                     })
                 else:
                     results.append({

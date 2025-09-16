@@ -109,8 +109,19 @@ export const submissionsApi = {
     });
   },
 
+  async submit(problemId: string, query: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ query: query.trim() }),
+    });
+  },
+
   async getUserSubmissions(userId: string): Promise<any[]> {
     return apiRequest(`/submissions/user/${userId}`);
+  },
+
+  async getByProblemId(problemId: string): Promise<any[]> {
+    return apiRequest(`/problems/${problemId}/submissions`);
   },
 
   async testQuery(problemId: string, query: string, includeHidden: boolean = false): Promise<any> {
