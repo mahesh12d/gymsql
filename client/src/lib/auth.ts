@@ -120,6 +120,10 @@ export const submissionsApi = {
     return apiRequest(`/submissions/user/${userId}`);
   },
 
+  async getByProblemId(problemId: string): Promise<any[]> {
+    return apiRequest(`/problems/${problemId}/submissions`);
+  },
+
   async testQuery(problemId: string, query: string, includeHidden: boolean = false): Promise<any> {
     return apiRequest(`/problems/${problemId}/test`, {
       method: "POST",
