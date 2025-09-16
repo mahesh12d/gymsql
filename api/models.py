@@ -65,6 +65,7 @@ class User(Base):
     auth_provider = Column(String(20), default="email", nullable=False, name="auth_provider")
     problems_solved = Column(Integer, default=0, nullable=False, name="problems_solved")
     premium = Column(Boolean, nullable=False, default=False)  # False = free user, True = premium user
+    is_admin = Column(Boolean, nullable=False, default=False)  # False = regular user, True = admin user
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
     
