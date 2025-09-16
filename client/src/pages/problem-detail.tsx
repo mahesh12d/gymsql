@@ -18,6 +18,7 @@ export default function ProblemDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [latestSubmissionResult, setLatestSubmissionResult] = useState<any>(null);
 
   // Memoized navigation handlers to prevent recreation
   const handleDifficultyClick = useCallback((difficulty: string) => {
@@ -63,6 +64,8 @@ export default function ProblemDetail() {
       return submissionsApi.submit(problemId, query);
     },
     onSuccess: (result) => {
+      // Store the latest submission result for the left panel
+      setLatestSubmissionResult(result);
       // Invalidate submissions to refetch
       queryClient.invalidateQueries({
         queryKey: ["/api/submissions", problemId],
@@ -147,6 +150,7 @@ export default function ProblemDetail() {
             <ProblemTabsContent
               problem={problem}
               userSubmissions={userSubmissions}
+              latestSubmissionResult={latestSubmissionResult}
             />
           }
           rightPanel={
