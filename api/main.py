@@ -271,6 +271,7 @@ def get_problem(problem_id: str,
             "expectedOutput": []
         }
         problem_data.question = premium_question
+        problem_data.hints = []  # Hide hints for non-premium users
         return problem_data
     
     return ProblemResponse.from_orm(problem)
