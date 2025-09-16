@@ -14,11 +14,11 @@ Base = declarative_base()
 # Named Postgres enums for better type safety and performance
 # Python enums for reference
 class DifficultyLevel(enum.Enum):
-    BEGINNER = "Beginner"
-    EASY = "Easy"
-    MEDIUM = "Medium"
-    HARD = "Hard"
-    EXPERT = "Expert"
+    BEGINNER = "BEGINNER"
+    EASY = "EASY"
+    MEDIUM = "MEDIUM"
+    HARD = "HARD"
+    EXPERT = "EXPERT"
 
 class ExecutionStatus(enum.Enum):
     SUCCESS = "SUCCESS"
@@ -33,7 +33,7 @@ class SandboxStatus(enum.Enum):
 
 # Create named Postgres enums
 difficulty_enum = ENUM(
-    'Beginner', 'Easy', 'Medium', 'Hard', 'Expert',
+    'BEGINNER', 'EASY', 'MEDIUM', 'HARD', 'EXPERT',
     name='difficulty_level',
     create_type=False
 )
