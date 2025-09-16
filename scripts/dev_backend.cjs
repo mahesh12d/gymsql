@@ -13,9 +13,9 @@ function hasUv() {
   }
 }
 
-// Check for USE_UV environment variable - force disabled for Replit compatibility
+// Check for USE_UV environment variable - disabled by default for Replit compatibility
 const forceUv = process.env.USE_UV === '1';
-const disableUv = process.env.DISABLE_UV === '1' || true; // Always disable uv in Replit environment
+const disableUv = process.env.DISABLE_UV === '1' || process.env.REPLIT_ENVIRONMENT === '1' || true; // Disable uv by default in Replit environment
 
 async function startBackend() {
   const useUv = forceUv && !disableUv && hasUv();
@@ -57,7 +57,7 @@ async function startBackend() {
     
   } else {
     console.log('📦 Installing dependencies with pip...');
-    const installResult = spawnSync('python', ['-m', 'pip', 'install', '-r', 'requirements.txt'], {
+    const installResult = spawnSync('python3.11', ['-m', 'pip', 'install', '--break-system-packages', '-r', 'requirements.txt'], {
       stdio: 'inherit',
       cwd: process.cwd()
     });
@@ -67,8 +67,8 @@ async function startBackend() {
       process.exit(1);
     }
     
-    console.log('🚀 Starting backend with python -m uvicorn...');
-    const backend = spawn('python', [
+    console.log('🚀 Starting backend with python3.11 -m uvicorn...');
+    const backend = spawn('python3.11', [
       '-m', 'uvicorn', 'api.main:app',
       '--host', '0.0.0.0',
       '--port', '8000',
