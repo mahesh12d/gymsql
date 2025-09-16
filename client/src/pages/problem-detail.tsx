@@ -63,28 +63,9 @@ export default function ProblemDetail() {
       return submissionsApi.submit(problemId, query);
     },
     onSuccess: (result) => {
-      if (result.isCorrect) {
-        toast({
-          title: "🎉 Congratulations!",
-          description: "Your solution is correct!",
-        });
-      } else {
-        toast({
-          title: "Solution submitted",
-          description: "Keep trying! Check the feedback for hints.",
-          variant: "default",
-        });
-      }
       // Invalidate submissions to refetch
       queryClient.invalidateQueries({
         queryKey: ["/api/submissions", problemId],
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Submission failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
       });
     },
   });
