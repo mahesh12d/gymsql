@@ -57,52 +57,18 @@ app.include_router(sandbox_router)
 
 
 def format_console_output(execution_result):
-    """Convert execution result to console-like output"""
+    """Create lightweight console output for errors and metadata"""
     if not execution_result.get('success'):
         error_msg = execution_result.get('error', 'Unknown error')
-        return f"ERROR: {error_msg}\n\nQuery failed to execute."
-
-    # Extract results from query_result structure returned by secure_executor
-    query_result = execution_result.get('query_result', {})
-    results = query_result.get('result', []) if query_result else []
+        return f"ERROR: {error_msg}"
     
-    output_lines = []
-
+    results = execution_result.get('results', [])
+    exec_time = execution_result.get('execution_time_ms', 0)
+    
     if not results:
-        output_lines.append("Query executed successfully.")
-        output_lines.append("0 rows returned.")
-    else:
-        # Format as ASCII table
-        if isinstance(results[0], dict):
-            headers = list(results[0].keys())
-
-            # Calculate column widths
-            col_widths = {}
-            for header in headers:
-                col_widths[header] = max(
-                    len(str(header)),
-                    max(len(str(row.get(header, ''))) for row in results))
-
-            # Create header row
-            header_row = " | ".join(
-                header.ljust(col_widths[header]) for header in headers)
-            output_lines.append(header_row)
-            output_lines.append("-" * len(header_row))
-
-            # Add data rows
-            for row in results:
-                data_row = " | ".join(
-                    str(row.get(header, '')).ljust(col_widths[header])
-                    for header in headers)
-                output_lines.append(data_row)
-
-        output_lines.append(f"\n({len(results)} rows)")
-
-    # Add performance info from query_result
-    exec_time = query_result.get('execution_time_ms', 0) if query_result else 0
-    output_lines.append(f"Execution time: {exec_time}ms")
-
-    return "\n".join(output_lines)
+        return f"Query executed successfully.\n0 rows returned.\nExecution time: {exec_time}ms"
+    
+    return f"Query executed successfully.\n{len(results)} rows returned.\nExecution time: {exec_time}ms"
 
 
 # Create tables on startup
@@ -360,13 +326,12 @@ async def test_query(problem_id: str,
     result = await secure_executor.test_query(current_user.id, problem_id,
                                               query, db, include_hidden)
 
-    # Return both console output AND structured data
     return {
         "success": result['success'],
-        "console_output":
-        format_console_output(result),  # NEW: For fast display
-        "results": result.get('results', []),  # Keep for validation
+        "results": result.get('results', []),  # Raw data for table
         "execution_time_ms": result.get('execution_time_ms'),
+        "rows_affected": len(result.get('results', [])),
+        "console_info": format_console_output(result),  # Just metadata
         "feedback": result.get('feedback', []),
         "test_results": result.get('test_results', []),
         "error": result.get('error')
