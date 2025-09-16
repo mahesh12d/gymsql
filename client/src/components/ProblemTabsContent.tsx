@@ -77,10 +77,10 @@ const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
       <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
         <h3 className="text-sm font-medium text-gray-700">{title}</h3>
       </div>
-      <div className="overflow-x-auto max-h-64">
+      <div className="overflow-auto max-h-80 min-h-32">
         <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
+          <thead className="sticky top-0 bg-gray-50 z-10">
+            <tr className="border-b border-gray-200">
               {headers.map((header, i) => (
                 <th 
                   key={i} 
