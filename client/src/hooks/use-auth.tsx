@@ -38,12 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [user, setUser] = useState<User | null>(mockUser);
-  const [token, setToken] = useState<string | null>('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4ODBiZTNjMy1lMDkzLTQyNzQtOTI5NC1kMjBjNWYwOGM1ODMiLCJ1c2VybmFtZSI6ImRlbW8xMnMiLCJleHAiOjE3NTgwMzgzNDV9.xFadvOmd5EoIF40JSWTG87pJVv3XwRPYamXf69iL_DM');
+  const [token, setToken] = useState<string | null>('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4ODBiZTNjMy1lMDkzLTQyNzQtOTI5NC1kMjBjNWYwOGM1ODMiLCJ1c2VybmFtZSI6ImRlbW8xMnMiLCJleHAiOjE3NTg2NDQxMzN9.mk2sDUt5sTx89PZTqLTHV4m03C4druJATA_asBCq0SA');
   const [isLoading, setIsLoading] = useState(false); // Set to false to skip loading
 
   useEffect(() => {
     // TEMPORARY: Set up mock authentication for development
-    const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4ODBiZTNjMy1lMDkzLTQyNzQtOTI5NC1kMjBjNWYwOGM1ODMiLCJ1c2VybmFtZSI6ImRlbW8xMnMiLCJleHAiOjE3NTgwMzgzNDV9.xFadvOmd5EoIF40JSWTG87pJVv3XwRPYamXf69iL_DM';
+    const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4ODBiZTNjMy1lMDkzLTQyNzQtOTI5NC1kMjBjNWYwOGM1ODMiLCJ1c2VybmFtZSI6ImRlbW8xMnMiLCJleHAiOjE3NTg2NDQxMzN9.mk2sDUt5sTx89PZTqLTHV4m03C4druJATA_asBCq0SA';
     const mockUserData = JSON.stringify(mockUser);
     
     // Set the valid token and user in localStorage for API requests
