@@ -54,6 +54,7 @@ def verify_token(token: str) -> TokenData:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
         user_id: str = payload.get("userId")
         username: str = payload.get("username")
+        is_admin: bool = payload.get("isAdmin", False)
         
         if user_id is None:
             raise HTTPException(
@@ -62,7 +63,7 @@ def verify_token(token: str) -> TokenData:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        token_data = TokenData(user_id=user_id, username=username)
+        token_data = TokenData(user_id=user_id, username=username, is_admin=is_admin)
         return token_data
     except JWTError:
         raise HTTPException(

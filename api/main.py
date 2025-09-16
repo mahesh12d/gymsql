@@ -149,7 +149,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Generate JWT token
     access_token = create_access_token(data={
         "userId": user.id,
-        "username": user.username
+        "username": user.username,
+        "isAdmin": user.is_admin
     })
 
     return RegisterResponse(token=access_token,
@@ -175,7 +176,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     # Generate JWT token
     access_token = create_access_token(data={
         "userId": user.id,
-        "username": user.username
+        "username": user.username,
+        "isAdmin": user.is_admin
     })
 
     return LoginResponse(token=access_token, user=UserResponse.from_orm(user))

@@ -157,6 +157,7 @@ class Token(CamelCaseModel):
 class TokenData(CamelCaseModel):
     user_id: Optional[str] = None
     username: Optional[str] = None
+    is_admin: Optional[bool] = None
 
 class LoginResponse(CamelCaseModel):
     token: str
