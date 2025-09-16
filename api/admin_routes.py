@@ -9,7 +9,7 @@ import uuid
 
 from .database import get_db
 from .models import Problem, Topic
-from .auth import verify_admin_access
+from .auth import verify_admin_access, verify_admin_user_access
 from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn
 
 # Create admin router
@@ -50,7 +50,7 @@ class SchemaInfo(BaseModel):
 
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
-    _: bool = Depends(verify_admin_access),
+    _: bool = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Get the exact schema structure and example for creating problems"""
@@ -155,7 +155,7 @@ Order the results by total sales amount in descending order.
 @admin_router.post("/problems")
 def create_problem(
     problem_data: AdminProblemCreate,
-    _: bool = Depends(verify_admin_access),
+    _: bool = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Create a new problem with the provided data"""
