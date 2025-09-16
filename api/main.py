@@ -234,6 +234,17 @@ def get_problems(
         problem_data.solved_count = int(solved_count)
         problem_data.is_user_solved = bool(
             is_user_solved) if current_user else False
+        
+        # For premium problems, filter content for non-premium users
+        if problem.premium is True and (not current_user or not current_user.premium):
+            # Create a limited question data for premium problems
+            limited_question = {
+                "description": "🔒 Premium Problem - Subscribe to view full description",
+                "tables": [],
+                "expectedOutput": []
+            }
+            problem_data.question = limited_question
+        
         problems.append(problem_data)
 
     return problems
@@ -242,11 +253,19 @@ def get_problems(
 @app.get("/api/problems/{problem_id}",
          response_model=ProblemResponse,
          response_model_by_alias=True)
-def get_problem(problem_id: str, db: Session = Depends(get_db)):
+def get_problem(problem_id: str, 
+                current_user: Optional[User] = Depends(get_current_user_optional),
+                db: Session = Depends(get_db)):
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Problem not found")
+    
+    # Check if problem is premium and user doesn't have premium access
+    if problem.premium is True and (not current_user or not current_user.premium):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Premium subscription required to access this problem")
+    
     return ProblemResponse.from_orm(problem)
 
 
@@ -257,6 +276,17 @@ async def submit_solution(problem_id: str,
                           current_user: User = Depends(get_current_user),
                           db: Session = Depends(get_db)):
     """Submit and execute SQL query for final evaluation"""
+    # Check if problem exists and is accessible
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Check if problem is premium and user doesn't have premium access
+    if problem.premium is True and not current_user.premium:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Premium subscription required to submit solutions for this problem")
+    
     query = query_data.get("query", "").strip()
 
     if not query:
@@ -283,6 +313,17 @@ async def get_or_create_sandbox(problem_id: str,
     """Get or create user sandbox for a problem"""
     from .sandbox_manager import create_user_sandbox
     from .models import UserSandbox, SandboxStatus
+
+    # Check if problem exists and is accessible
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Check if problem is premium and user doesn't have premium access
+    if problem.premium is True and not current_user.premium:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Premium subscription required to access sandbox for this problem")
 
     # Check for existing active sandbox
     existing_sandbox = db.query(UserSandbox).filter(
@@ -318,6 +359,17 @@ async def test_query(problem_id: str,
                      current_user: User = Depends(get_current_user),
                      db: Session = Depends(get_db)):
     """Test query without submitting (practice mode)"""
+    # Check if problem exists and is accessible
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Check if problem is premium and user doesn't have premium access
+    if problem.premium is True and not current_user.premium:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Premium subscription required to test queries for this problem")
+    
     query = query_data.get("query", "").strip()
     include_hidden = query_data.get("include_hidden", False)
 

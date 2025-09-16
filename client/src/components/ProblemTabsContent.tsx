@@ -15,6 +15,7 @@ interface Problem {
   };
   hints?: string[];
   tags?: string[];
+  premium?: boolean | null;
 }
 
 interface Submission {

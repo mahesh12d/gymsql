@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Users, Star } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Users, Star, Lock } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ interface Problem {
   likes?: number;
   company?: string;
   difficulty?: string;
+  premium?: boolean | null;
 }
 
 interface ProblemNavigationProps {
@@ -68,9 +69,14 @@ const ProblemNavigation = memo(function ProblemNavigation({
           <>
             <div className="h-4 w-px bg-border"></div>
             <div className="flex items-center space-x-3">
-              <h1 className="text-lg font-semibold" data-testid="text-problem-title">
-                {problem.title || 'Untitled Problem'}
-              </h1>
+              <div className="flex items-center gap-2">
+                {problem.premium && (
+                  <Lock className="w-4 h-4 text-amber-500" />
+                )}
+                <h1 className="text-lg font-semibold" data-testid="text-problem-title">
+                  {problem.title || 'Untitled Problem'}
+                </h1>
+              </div>
               {isSolved() && (
                 <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                   ✓ Solved

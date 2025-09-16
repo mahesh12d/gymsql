@@ -64,6 +64,7 @@ class User(Base):
     github_id = Column(String(255), unique=True, name="github_id")
     auth_provider = Column(String(20), default="email", nullable=False, name="auth_provider")
     problems_solved = Column(Integer, default=0, nullable=False, name="problems_solved")
+    premium = Column(Boolean, nullable=False, default=False)  # False = free user, True = premium user
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
     
@@ -90,6 +91,7 @@ class Problem(Base):
 
     # Match DB schema: jsonb
     question = Column(JSONB, nullable=False)  # description, schema, expected_output
+    premium = Column(Boolean, nullable=True, default=None)  # null = free, True = premium
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")

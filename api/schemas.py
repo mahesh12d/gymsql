@@ -51,6 +51,7 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: str
     problems_solved: int
+    premium: bool
     created_at: datetime
 
 class UserLogin(CamelCaseModel):
@@ -92,6 +93,7 @@ class ProblemBase(CamelCaseModel):
     tags: List[str] = []
     company: Optional[str] = None
     hints: List[str] = []
+    premium: Optional[bool] = None  # null = free, True = premium
 
 class ProblemCreate(ProblemBase):
     pass

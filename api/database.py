@@ -165,6 +165,27 @@ def run_schema_migrations():
                 print("Fixed incorrect expectedOutput formats!")
             else:
                 print("Question column already exists, no migration needed")
+        
+        # Premium feature migrations
+        print("Checking premium columns...")
+        
+        # Add premium column to problems table (nullable, default null)
+        if 'premium' not in columns:
+            print("Adding premium column to problems table...")
+            conn.execute(text("ALTER TABLE problems ADD COLUMN premium boolean"))
+            print("Premium column added to problems table")
+        
+        # Add premium column to users table (non-nullable, default false)
+        users_columns = [col['name'] for col in inspector.get_columns('users')]
+        if 'premium' not in users_columns:
+            print("Adding premium column to users table...")
+            conn.execute(text("ALTER TABLE users ADD COLUMN premium boolean"))
+            conn.execute(text("UPDATE users SET premium = false WHERE premium IS NULL"))
+            conn.execute(text("ALTER TABLE users ALTER COLUMN premium SET DEFAULT false"))
+            conn.execute(text("ALTER TABLE users ALTER COLUMN premium SET NOT NULL"))
+            print("Premium column added to users table")
+        
+        print("Premium feature migration completed!")
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

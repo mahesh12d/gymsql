@@ -8,6 +8,7 @@ import VerticalResizableSplitter from "@/components/vertical-resizable-splitter"
 interface Problem {
   company?: string;
   difficulty?: string;
+  premium?: boolean | null;
   question?: {
     starterQuery?: string;
     tables?: Array<{ name: string }>;

@@ -12,6 +12,7 @@ import {
   Tag,
   Dumbbell,
   CheckCircle,
+  Lock,
 } from "lucide-react";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
@@ -50,6 +51,7 @@ interface Problem {
   difficulty: string;
   tags: string[];
   company?: string | null;
+  premium?: boolean | null;
   solvedCount: number;
   isUserSolved: boolean;
 }
@@ -583,9 +585,14 @@ export default function Problems() {
                         </TableCell>
 
                         <TableCell className="py-4 max-w-xs">
-                          <h3 className="font-medium text-gray-900 hover:text-orange-600 transition-colors truncate">
-                            {problem.title}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            {problem.premium && (
+                              <Lock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                            )}
+                            <h3 className="font-medium text-gray-900 hover:text-orange-600 transition-colors truncate">
+                              {problem.title}
+                            </h3>
+                          </div>
                         </TableCell>
 
                         <TableCell className="py-4 max-w-md">
