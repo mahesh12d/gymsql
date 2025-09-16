@@ -148,7 +148,7 @@ Order the results by total sales amount in descending order.
     return SchemaInfo(
         problem_structure=problem_structure,
         example_problem=example_problem,
-        difficulty_options=["Easy", "Medium", "Hard", "Expert"],
+        difficulty_options=["Beginner", "Easy", "Medium", "Hard", "Expert"],
         available_topics=available_topics
     )
 
@@ -161,7 +161,7 @@ def create_problem(
     """Create a new problem with the provided data"""
     
     # Validate difficulty
-    valid_difficulties = ["Easy", "Medium", "Hard", "Expert"]
+    valid_difficulties = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
     if problem_data.difficulty not in valid_difficulties:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
