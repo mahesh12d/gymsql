@@ -14,20 +14,9 @@ interface SubmissionHistoryProps {
   problemId: string;
 }
 
-// Mock API function - will need to be replaced with actual API call
-const fetchSubmissions = async (problemId: string): Promise<Submission[]> => {
-  // This should be replaced with actual API call
-  const response = await fetch(`/api/problems/${problemId}/submissions`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch submissions');
-  }
-  return response.json();
-};
-
 export default function SubmissionHistory({ problemId }: SubmissionHistoryProps) {
   const { data: submissions = [], isLoading, error } = useQuery({
-    queryKey: ['/api/submissions', problemId],
-    queryFn: () => fetchSubmissions(problemId),
+    queryKey: [`/api/problems/${problemId}/submissions`],
     enabled: !!problemId,
   });
 
