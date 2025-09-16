@@ -193,6 +193,7 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 def get_problems(
         difficulty: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
+        premium: Optional[str] = Query(None),
         current_user: Optional[User] = Depends(get_current_user_optional),
         db: Session = Depends(get_db)):
     # Base query with solved count
@@ -223,6 +224,13 @@ def get_problems(
     # Apply company filter
     if company:
         query = query.filter(Problem.company == company)
+
+    # Apply premium filter
+    if premium:
+        if premium.lower() == "free":
+            query = query.filter(Problem.premium.is_(None) | Problem.premium.is_(False))
+        elif premium.lower() == "premium":
+            query = query.filter(Problem.premium.is_(True))
 
     # Group by problem and order by title
     results = query.group_by(Problem.id).order_by(Problem.title).all()

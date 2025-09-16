@@ -61,6 +61,7 @@ interface FilterState {
   companies: string[];
   tags: string[];
   status: "all" | "solved" | "unsolved";
+  premium: "all" | "free" | "premium";
 }
 
 export default function Problems() {
@@ -72,6 +73,7 @@ export default function Problems() {
     companies: [],
     tags: [],
     status: "all",
+    premium: "all",
   });
 
   // Handle URL search parameters for filtering
@@ -148,12 +150,19 @@ export default function Problems() {
         (filters.status === "solved" && problem.isUserSolved === true) ||
         (filters.status === "unsolved" && problem.isUserSolved !== true);
 
+      // Premium filter
+      const matchesPremium =
+        filters.premium === "all" ||
+        (filters.premium === "free" && (problem.premium !== true)) ||
+        (filters.premium === "premium" && problem.premium === true);
+
       return (
         matchesSearch &&
         matchesDifficulty &&
         matchesCompany &&
         matchesTags &&
-        matchesStatus
+        matchesStatus &&
+        matchesPremium
       );
     }) || [];
 
@@ -180,6 +189,7 @@ export default function Problems() {
       companies: [],
       tags: [],
       status: "all",
+      premium: "all",
     });
     setSearchQuery("");
   };
@@ -189,7 +199,8 @@ export default function Problems() {
       filters.difficulties.length +
       filters.companies.length +
       filters.tags.length +
-      (filters.status !== "all" ? 1 : 0)
+      (filters.status !== "all" ? 1 : 0) +
+      (filters.premium !== "all" ? 1 : 0)
     );
   };
 
@@ -316,6 +327,57 @@ export default function Problems() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Premium Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 border-gray-200 hover:border-orange-500"
+                  data-testid="button-premium-filter"
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  Type
+                  {filters.premium !== "all" && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-orange-100 text-orange-700"
+                    >
+                      1
+                    </Badge>
+                  )}
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="start">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">
+                    Filter by Type
+                  </h4>
+                  {[
+                    { value: "all", label: "All Problems" },
+                    { value: "free", label: "Free Problems" },
+                    { value: "premium", label: "Premium Problems 🏋️‍♂️" },
+                  ].map((option) => (
+                    <div
+                      key={option.value}
+                      className="flex items-center space-x-2"
+                    >
+                      <Checkbox
+                        checked={filters.premium === option.value}
+                        onCheckedChange={() =>
+                          updateFilter("premium", option.value)
+                        }
+                        data-testid={`checkbox-premium-${option.value}`}
+                      />
+                      <label className="text-sm font-medium cursor-pointer">
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
