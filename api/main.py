@@ -23,6 +23,7 @@ from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
+from .admin_routes import admin_router
 
 # Create FastAPI app
 app = FastAPI(title="SQLGym API",
@@ -54,6 +55,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(sandbox_router)
+app.include_router(admin_router)
 
 
 def format_console_output(execution_result):

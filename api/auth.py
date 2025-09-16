@@ -18,6 +18,9 @@ JWT_SECRET = os.getenv("JWT_SECRET", "your-jwt-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
+# Admin Configuration
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "admin-dev-key-123")
+
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -100,3 +103,23 @@ def get_current_user_optional(
         return user
     except HTTPException:
         return None
+
+def verify_admin_access(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> bool:
+    """Verify admin access using the admin secret key"""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if the token matches the admin secret key
+    if credentials.credentials != ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin credentials"
+        )
+    
+    return True
