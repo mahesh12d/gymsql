@@ -124,3 +124,50 @@ def verify_admin_access(
         )
     
     return True
+
+def verify_admin_user_access(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Verify admin access using either admin secret key or admin user token"""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # First, check if it's the admin secret key
+    if credentials.credentials == ADMIN_SECRET_KEY:
+        # For admin secret key, return a special admin user object (no real user)
+        return True
+    
+    # Otherwise, verify it's a JWT token from an admin user
+    try:
+        token_data = verify_token(credentials.credentials)
+        user = db.query(User).filter(User.id == token_data.user_id).first()
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Check if user is admin
+        if not user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required"
+            )
+        
+        return user
+        
+    except HTTPException:
+        # If JWT verification fails, re-raise the exception
+        raise
+    except Exception:
+        # For any other error, return forbidden
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin credentials"
+        )
