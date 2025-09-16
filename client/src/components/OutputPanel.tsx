@@ -29,11 +29,11 @@ const OptimizedTable = ({ data }: { data: any[] }) => {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden max-h-full">
+      <div className="overflow-auto max-h-96">
         <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
+          <thead className="sticky top-0 bg-gray-50">
+            <tr className="border-b border-gray-200">
               {headers.map((header, i) => (
                 <th 
                   key={i} 
