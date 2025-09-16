@@ -171,6 +171,7 @@ export default function ProblemDetail() {
           rightPanel={
             <OptimizedEditorOutputSplit
               problem={problem}
+              problemId={problemId}
               handleRunQuery={handleRunQuery}
               handleSubmitSolution={handleSubmitSolution}
               onDifficultyClick={handleDifficultyClick}
