@@ -106,11 +106,12 @@ async def execute_query(
                 detail=f"Sandbox is {sandbox.status}, not active"
             )
         
-        # Execute query with timeout
+        # Execute query with timeout (ensure we have a valid timeout value)
+        timeout_seconds = sandbox.max_execution_time_seconds or 30
         result, execution_status = await execute_sandbox_query(
             sandbox_id, 
             query, 
-            sandbox.max_execution_time_seconds
+            timeout_seconds
         )
         
         return {
