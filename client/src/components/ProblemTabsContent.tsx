@@ -24,15 +24,94 @@ interface Submission {
   executionTime?: number;
 }
 
+interface TestResult {
+  test_case_id: string;
+  test_case_name: string;
+  is_hidden: boolean;
+  is_correct: boolean;
+  score: number;
+  feedback: string[];
+  execution_time_ms: number;
+  execution_status: string;
+  validation_details: any;
+  user_output: any[];
+  expected_output: any[];
+  output_matches: boolean;
+}
+
+interface SubmissionResult {
+  success: boolean;
+  is_correct: boolean;
+  score: number;
+  feedback: string[];
+  test_results: TestResult[];
+  submission_id: string;
+  execution_stats: {
+    avg_time_ms: number;
+    max_time_ms: number;
+    memory_used_mb: number;
+  };
+}
+
 interface ProblemTabsContentProps {
   problem?: Problem;
   userSubmissions?: Submission[];
+  latestSubmissionResult?: SubmissionResult | null;
   className?: string;
 }
+
+const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>
+        <div className="text-gray-500 italic text-sm">No data to display</div>
+      </div>
+    );
+  }
+
+  const headers = Object.keys(data[0]);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+        <h3 className="text-sm font-medium text-gray-700">{title}</h3>
+      </div>
+      <div className="overflow-x-auto max-h-64">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              {headers.map((header, i) => (
+                <th 
+                  key={i} 
+                  className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((row, i) => (
+              <tr key={i} className="hover:bg-gray-50">
+                {headers.map((header, j) => (
+                  <td key={j} className="px-4 py-2 text-sm text-gray-900">
+                    {String(row[header] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 
 const ProblemTabsContent = memo(function ProblemTabsContent({
   problem,
   userSubmissions = [],
+  latestSubmissionResult = null,
   className,
 }: ProblemTabsContentProps) {
   const hasCorrectSubmission = userSubmissions.some((sub) => sub.isCorrect);
@@ -165,8 +244,61 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
               </div>
             </div>
 
+            {/* Latest Submission Result */}
+            {latestSubmissionResult && (
+              <div className="space-y-4">
+                {/* Result Status Banner */}
+                {latestSubmissionResult.is_correct ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3" data-testid="banner-success">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-green-800 font-medium text-sm">Success!</span>
+                    </div>
+                    <p className="text-green-700 text-sm mt-1">
+                      Your solution is correct! Well done!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3" data-testid="banner-mismatch">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-red-800 font-medium text-sm">Mismatched</span>
+                    </div>
+                    <p className="text-red-700 text-sm mt-1">
+                      Your query's output doesn't match with the solution's output!
+                    </p>
+                  </div>
+                )}
+
+                {/* Output and Expected Tables */}
+                {latestSubmissionResult.test_results && latestSubmissionResult.test_results.length > 0 && (
+                  <div className="space-y-4">
+                    {(() => {
+                      const mainTestResult = latestSubmissionResult.test_results.find(test => !test.is_hidden) || latestSubmissionResult.test_results[0];
+                      return mainTestResult ? (
+                        <>
+                          <OutputTable 
+                            data={mainTestResult.user_output} 
+                            title="Your Output" 
+                          />
+                          <OutputTable 
+                            data={mainTestResult.expected_output} 
+                            title="Expected Output" 
+                          />
+                        </>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Submission History */}
             {userSubmissions.length > 0 ? (
               <div className="space-y-3">
+                <h4 className="text-md font-semibold text-foreground border-t pt-4">
+                  Submission History
+                </h4>
                 {userSubmissions.map((submission, index) => (
                   <Card key={submission.id} className="p-4">
                     <div className="flex items-center justify-between">
@@ -195,7 +327,7 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
                   </Card>
                 ))}
               </div>
-            ) : (
+            ) : !latestSubmissionResult && (
               <div className="text-center py-8">
                 <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h4 className="text-base font-semibold text-foreground mb-2">
