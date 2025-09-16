@@ -35,53 +35,6 @@ interface SubmissionResultPanelProps {
   problemId: string;
 }
 
-const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
-  if (!data || data.length === 0) {
-    return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>
-        <div className="text-gray-500 italic text-sm">No data to display</div>
-      </div>
-    );
-  }
-
-  const headers = Object.keys(data[0]);
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-700">{title}</h3>
-      </div>
-      <div className="overflow-x-auto max-h-64">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              {headers.map((header, i) => (
-                <th 
-                  key={i} 
-                  className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50">
-                {headers.map((header, j) => (
-                  <td key={j} className="px-4 py-2 text-sm text-gray-900">
-                    {String(row[header] ?? '')}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
 
 export default function SubmissionResultPanel({ result, isLoading, problemId }: SubmissionResultPanelProps) {
   if (isLoading) {
@@ -132,22 +85,6 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
         </div>
       )}
 
-      {/* Output Comparison Section */}
-      {mainTestResult && (
-        <div className="flex-1 space-y-4">
-          {/* User Output */}
-          <OutputTable 
-            data={mainTestResult.user_output} 
-            title="Output" 
-          />
-
-          {/* Expected Output */}
-          <OutputTable 
-            data={mainTestResult.expected_output} 
-            title="Expected" 
-          />
-        </div>
-      )}
 
       {/* Submission Stats */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
