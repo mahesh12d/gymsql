@@ -415,7 +415,7 @@ class TestCaseValidator:
         if score >= 95:
             result['feedback'].insert(0, "🎉 Perfect! Your query matches the expected result exactly.")
         elif score >= 80:
-            result['feedback'].insert(0, "✅ Great job! Your query is mostly correct with minor issues.")
+            result['feedback'].insert(0, "Great job! Your query is mostly correct with minor issues.")
         elif score >= 60:
             result['feedback'].insert(0, "⚠️  Good attempt, but there are some significant differences.")
         elif score >= 40:

@@ -312,7 +312,7 @@ if (require.main === module) {
     monitor.trackResources();
     monitor.trackDatabasePerformance().then(() => {
       monitor.saveMetrics();
-      console.log('\n✅ Quick performance check completed');
+      console.log('\nQuick performance check completed');
     });
   } else if (command === 'watch') {
     // Continuous monitoring

@@ -63,12 +63,12 @@ class DatabaseMigrator:
             print("Testing source database connection...")
             with self.source_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            print("✅ Source database connection successful")
+            print("SUCCESS: Source database connection successful")
             
             print("Testing destination database connection...")
             with self.destination_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            print("✅ Destination database connection successful")
+            print("SUCCESS: Destination database connection successful")
             
             return True
         except Exception as e:
@@ -80,7 +80,7 @@ class DatabaseMigrator:
         try:
             print("Creating destination database schema...")
             Base.metadata.create_all(bind=self.destination_engine)
-            print("✅ Schema created successfully")
+            print("SUCCESS: Schema created successfully")
             return True
         except Exception as e:
             print(f"❌ Schema creation failed: {e}")
@@ -157,9 +157,9 @@ class DatabaseMigrator:
                         migrated += len(users)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_users} users")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_users} users")
                     
-                    print(f"✅ Users migration completed: {migrated} records")
+                    print(f"SUCCESS: Users migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -206,9 +206,9 @@ class DatabaseMigrator:
                         migrated += len(problems)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_problems} problems")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_problems} problems")
                     
-                    print(f"✅ Problems migration completed: {migrated} records")
+                    print(f"SUCCESS: Problems migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -253,9 +253,9 @@ class DatabaseMigrator:
                         migrated += len(submissions)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_submissions} submissions")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_submissions} submissions")
                     
-                    print(f"✅ Submissions migration completed: {migrated} records")
+                    print(f"SUCCESS: Submissions migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -301,9 +301,9 @@ class DatabaseMigrator:
                         migrated += len(posts)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_posts} community posts")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_posts} community posts")
                     
-                    print(f"✅ Community posts migration completed: {migrated} records")
+                    print(f"SUCCESS: Community posts migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -345,9 +345,9 @@ class DatabaseMigrator:
                         migrated += len(likes)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_likes} post likes")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_likes} post likes")
                     
-                    print(f"✅ Post likes migration completed: {migrated} records")
+                    print(f"SUCCESS: Post likes migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -390,9 +390,9 @@ class DatabaseMigrator:
                         migrated += len(comments)
                         offset += BATCH_SIZE
                         
-                        print(f"  ✅ Migrated {migrated}/{total_comments} post comments")
+                        print(f"  SUCCESS: Migrated {migrated}/{total_comments} post comments")
                     
-                    print(f"✅ Post comments migration completed: {migrated} records")
+                    print(f"SUCCESS: Post comments migration completed: {migrated} records")
                     return True
                     
         except Exception as e:
@@ -436,7 +436,7 @@ class DatabaseMigrator:
             for table_name in source_counts:
                 source_count = source_counts[table_name]
                 dest_count = dest_counts[table_name]
-                status = "✅ OK" if source_count == dest_count else "❌ MISMATCH"
+                status = "OK" if source_count == dest_count else "MISMATCH"
                 
                 if source_count != dest_count:
                     all_match = False
@@ -446,7 +446,7 @@ class DatabaseMigrator:
             print("-" * 50)
             
             if all_match:
-                print("✅ Migration verification successful! All record counts match.")
+                print("SUCCESS: Migration verification successful! All record counts match.")
                 return True
             else:
                 print("❌ Migration verification failed! Some record counts don't match.")

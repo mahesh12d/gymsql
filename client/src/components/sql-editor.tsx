@@ -341,7 +341,7 @@ export default function SQLEditor({
                   <div className="bg-muted/50 rounded p-3">
                     <p className="text-sm text-muted-foreground mb-2">📊 Results:</p>
                     <div className="font-mono text-sm bg-background rounded border p-2">
-                      <p className="mb-2">Status: {result.isCorrect ? '✅ Correct' : '⚠️ Check again'}</p>
+                      <p className="mb-2">Status: {result.isCorrect ? 'Correct' : 'Check again'}</p>
                       <p className="mb-2">Performance: {result.query_result?.execution_time_ms || result.executionTime || 0}ms</p>
                       {result.query_result?.result && result.query_result.result.length > 0 ? (
                         <div className="overflow-x-auto mt-2">

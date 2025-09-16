@@ -177,7 +177,7 @@ def create_tables():
     
     # Then create all tables
     Base.metadata.create_all(bind=engine)
-    print("✅ All database tables created successfully")
+    print("SUCCESS: All database tables created successfully")
     
     # Initialize enhanced schema with sample data
     initialize_enhanced_schema()
@@ -212,7 +212,7 @@ def create_enum_types():
             END $$;
         """))
         
-        print("✅ PostgreSQL enum types created successfully")
+        print("SUCCESS: PostgreSQL enum types created successfully")
 
 def initialize_enhanced_schema():
     """Initialize the enhanced schema with sample data - handles topics and badges independently"""
@@ -266,7 +266,7 @@ def initialize_enhanced_schema():
                 db.add_all(topics)
                 db.commit()
                 topics_created = len(topics)
-                print(f"✅ Created {topics_created} topics")
+                print(f"SUCCESS: Created {topics_created} topics")
             else:
                 print("Topics already exist, skipping topic initialization")
         except Exception as e:
@@ -312,7 +312,7 @@ def initialize_enhanced_schema():
                 db.add_all(badges)
                 db.commit()
                 badges_created = len(badges)
-                print(f"✅ Created {badges_created} badges")
+                print(f"SUCCESS: Created {badges_created} badges")
             else:
                 print("Badges already exist, skipping badge initialization")
         except Exception as e:

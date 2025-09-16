@@ -19,7 +19,7 @@ def main():
     try:
         # Create all tables
         create_tables()
-        print("✅ Enhanced database schema initialized successfully!")
+        print("SUCCESS: Enhanced database schema initialized successfully!")
         
         # List all tables
         from sqlalchemy import inspect

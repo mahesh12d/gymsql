@@ -543,7 +543,7 @@ class SecureQueryExecutor:
         if overall_score >= 95:
             summary = "🎉 Excellent! Your solution passes all test cases."
         elif overall_score >= 80:
-            summary = "✅ Great job! Your solution passes most test cases with minor issues."
+            summary = "Great job! Your solution passes most test cases with minor issues."
         elif overall_score >= 60:
             summary = "⚠️ Good attempt, but there are some issues to address."
         else:
@@ -568,7 +568,7 @@ class SecureQueryExecutor:
         if passed == total:
             feedback.append("🎉 All visible test cases pass! Your solution looks correct.")
         elif passed > 0:
-            feedback.append(f"✅ {passed}/{total} test cases pass. Review the failing cases below.")
+            feedback.append(f"{passed}/{total} test cases pass. Review the failing cases below.")
         else:
             feedback.append("❌ No test cases pass. Check your query logic carefully.")
         

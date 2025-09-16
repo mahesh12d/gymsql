@@ -21,13 +21,13 @@ def test_security_fixes():
     # Should pass: Single SELECT
     result = query_validator.validate_query("SELECT * FROM users")
     assert result['is_valid'] == True, "Single SELECT should be valid"
-    print("✅ Single SELECT statement allowed")
+    print("SUCCESS: Single SELECT statement allowed")
     
     # Should fail: Multiple statements
     result = query_validator.validate_query("SELECT * FROM users; DROP TABLE users;")
     assert result['is_valid'] == False, "Multiple statements should be blocked"
     assert any("Multiple statements" in error for error in result['errors']), "Should detect multiple statements"
-    print("✅ Multiple statements blocked")
+    print("SUCCESS: Multiple statements blocked")
     
     # Test 2: DML/DDL blocking
     print("\n2. Testing DML/DDL operation blocking...")
@@ -35,27 +35,27 @@ def test_security_fixes():
     # Should fail: INSERT
     result = query_validator.validate_query("INSERT INTO users (name) VALUES ('test')")
     assert result['is_valid'] == False, "INSERT should be blocked"
-    print("✅ INSERT operations blocked")
+    print("SUCCESS: INSERT operations blocked")
     
     # Should fail: UPDATE
     result = query_validator.validate_query("UPDATE users SET name = 'test' WHERE id = 1")
     assert result['is_valid'] == False, "UPDATE should be blocked"
-    print("✅ UPDATE operations blocked")
+    print("SUCCESS: UPDATE operations blocked")
     
     # Should fail: DELETE
     result = query_validator.validate_query("DELETE FROM users WHERE id = 1")
     assert result['is_valid'] == False, "DELETE should be blocked"
-    print("✅ DELETE operations blocked")
+    print("SUCCESS: DELETE operations blocked")
     
     # Should fail: CREATE
     result = query_validator.validate_query("CREATE TABLE test (id INT)")
     assert result['is_valid'] == False, "CREATE should be blocked"
-    print("✅ CREATE operations blocked")
+    print("SUCCESS: CREATE operations blocked")
     
     # Should fail: DROP
     result = query_validator.validate_query("DROP TABLE users")
     assert result['is_valid'] == False, "DROP should be blocked"
-    print("✅ DROP operations blocked")
+    print("SUCCESS: DROP operations blocked")
     
     # Test 3: UNION operations (should be allowed)
     print("\n3. Testing UNION operations (should be allowed)...")
@@ -66,7 +66,7 @@ def test_security_fixes():
         SELECT name FROM customers
     """)
     assert result['is_valid'] == True, "UNION should be allowed"
-    print("✅ UNION operations allowed")
+    print("SUCCESS: UNION operations allowed")
     
     result = query_validator.validate_query("""
         SELECT id, name FROM users 
@@ -74,7 +74,7 @@ def test_security_fixes():
         SELECT id, name FROM customers
     """)
     assert result['is_valid'] == True, "UNION ALL should be allowed"
-    print("✅ UNION ALL operations allowed")
+    print("SUCCESS: UNION ALL operations allowed")
     
     # Test 4: INTERSECT/EXCEPT operations
     print("\n4. Testing INTERSECT/EXCEPT operations...")
@@ -85,7 +85,7 @@ def test_security_fixes():
         SELECT name FROM customers
     """)
     assert result['is_valid'] == True, "INTERSECT should be allowed"
-    print("✅ INTERSECT operations allowed")
+    print("SUCCESS: INTERSECT operations allowed")
     
     result = query_validator.validate_query("""
         SELECT name FROM users 
@@ -93,7 +93,7 @@ def test_security_fixes():
         SELECT name FROM customers
     """)
     assert result['is_valid'] == True, "EXCEPT should be allowed"
-    print("✅ EXCEPT operations allowed")
+    print("SUCCESS: EXCEPT operations allowed")
     
     # Test 5: Comments (should be allowed)
     print("\n5. Testing SQL comments...")
@@ -104,7 +104,7 @@ def test_security_fixes():
         WHERE id > 10
     """)
     assert result['is_valid'] == True, "Comments should be allowed"
-    print("✅ SQL comments allowed")
+    print("SUCCESS: SQL comments allowed")
     
     result = query_validator.validate_query("""
         /* Multi-line comment */
@@ -112,7 +112,7 @@ def test_security_fixes():
         /* Another comment */
     """)
     assert result['is_valid'] == True, "Multi-line comments should be allowed"
-    print("✅ Multi-line comments allowed")
+    print("SUCCESS: Multi-line comments allowed")
     
     # Test 6: Dangerous functions (should be blocked)
     print("\n6. Testing dangerous function blocking...")
@@ -120,11 +120,11 @@ def test_security_fixes():
     # Should fail: File operations
     result = query_validator.validate_query("SELECT LOAD_FILE('/etc/passwd')")
     assert result['is_valid'] == False, "LOAD_FILE should be blocked"
-    print("✅ LOAD_FILE operations blocked")
+    print("SUCCESS: LOAD_FILE operations blocked")
     
     result = query_validator.validate_query("SELECT * FROM users INTO OUTFILE '/tmp/test.txt'")
     assert result['is_valid'] == False, "INTO OUTFILE should be blocked"
-    print("✅ INTO OUTFILE operations blocked")
+    print("SUCCESS: INTO OUTFILE operations blocked")
     
     # Test 7: Complex valid queries
     print("\n7. Testing complex valid queries...")
@@ -154,24 +154,24 @@ def test_security_fixes():
         LIMIT 10
     """)
     assert result['is_valid'] == True, "Complex valid query should be allowed"
-    print("✅ Complex valid queries allowed")
+    print("SUCCESS: Complex valid queries allowed")
     
     # Test 8: Injection attempts (should be blocked)
     print("\n8. Testing injection attempt blocking...")
     
     result = query_validator.validate_query("SELECT * FROM users WHERE name = '' OR '1'='1'")
     assert result['is_valid'] == False, "SQL injection should be blocked"
-    print("✅ SQL injection attempts blocked")
+    print("SUCCESS: SQL injection attempts blocked")
     
     print("\n" + "=" * 50)
     print("🎉 ALL SECURITY TESTS PASSED!")
-    print("✅ Single statement enforcement working")
-    print("✅ Complete DML/DDL blocking working") 
-    print("✅ UNION/INTERSECT/EXCEPT operations allowed")
-    print("✅ SQL comments allowed")
-    print("✅ Dangerous functions blocked")
-    print("✅ Complex valid queries supported")
-    print("✅ Injection attempts blocked")
+    print("SUCCESS: Single statement enforcement working")
+    print("SUCCESS: Complete DML/DDL blocking working") 
+    print("SUCCESS: UNION/INTERSECT/EXCEPT operations allowed")
+    print("SUCCESS: SQL comments allowed")
+    print("SUCCESS: Dangerous functions blocked")
+    print("SUCCESS: Complex valid queries supported")
+    print("SUCCESS: Injection attempts blocked")
     print("\n🔒 SQL Query Validator is now SECURE! 🔒")
 
 if __name__ == "__main__":

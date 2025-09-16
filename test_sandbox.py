@@ -26,7 +26,7 @@ async def test_sandbox_functionality():
         # Step 1: Create a sandbox
         print("1️⃣  Creating sandbox database...")
         sandbox = await create_user_sandbox(user_id, problem_id)
-        print(f"✅ Sandbox created successfully!")
+        print(f"SUCCESS: Sandbox created successfully!")
         
         # Capture attributes before session closes
         database_name = sandbox.database_name
@@ -48,7 +48,7 @@ async def test_sandbox_functionality():
             timeout_seconds=10
         )
         
-        print(f"✅ Query executed successfully!")
+        print(f"SUCCESS: Query executed successfully!")
         print(f"   - Status: {status}")
         print(f"   - Execution Time: {result.get('execution_time_ms', 0)}ms")
         print(f"   - Rows Returned: {result.get('rows_affected', 0)}")
@@ -66,7 +66,7 @@ async def test_sandbox_functionality():
             timeout_seconds=10
         )
         
-        print(f"✅ Complex query executed successfully!")
+        print(f"SUCCESS: Complex query executed successfully!")
         print(f"   - Status: {status2}")
         print(f"   - Execution Time: {result2.get('execution_time_ms', 0)}ms")
         print(f"   - Filtered Results: {result2.get('result', [])}")
@@ -82,7 +82,7 @@ async def test_sandbox_functionality():
             timeout_seconds=10
         )
         
-        print(f"✅ Validation query executed successfully!")
+        print(f"SUCCESS: Validation query executed successfully!")
         print(f"   - Status: {status3}")
         print(f"   - Data matches expected format: {len(result3.get('result', [])) == 3}")
         
@@ -90,7 +90,7 @@ async def test_sandbox_functionality():
         print(f"📊 Summary:")
         print(f"   - Sandbox Database: {database_name}")
         print(f"   - Total Queries Executed: 3")
-        print(f"   - All Tests: ✅ PASSED")
+        print(f"   - All Tests: PASSED")
         
         return True
         
@@ -103,7 +103,7 @@ async def test_sandbox_functionality():
 if __name__ == "__main__":
     success = asyncio.run(test_sandbox_functionality())
     if success:
-        print("\n✅ Sandbox system is working correctly!")
+        print("\nSUCCESS: Sandbox system is working correctly!")
         sys.exit(0)
     else:
         print("\n❌ Sandbox system has issues!")

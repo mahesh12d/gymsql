@@ -198,7 +198,7 @@ export function hasCompanyLogo(companyName: string): boolean {
 `;
 
   fs.writeFileSync(OUTPUT_FILE, fileContent);
-  console.log(`✅ Generated ${OUTPUT_FILE} with ${svgFiles.length} company logos`);
+  console.log(`Generated ${OUTPUT_FILE} with ${svgFiles.length} company logos`);
 }
 
 // Run if called directly
