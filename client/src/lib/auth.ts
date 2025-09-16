@@ -109,6 +109,13 @@ export const submissionsApi = {
     });
   },
 
+  async submit(problemId: string, query: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ query: query.trim() }),
+    });
+  },
+
   async getUserSubmissions(userId: string): Promise<any[]> {
     return apiRequest(`/submissions/user/${userId}`);
   },
