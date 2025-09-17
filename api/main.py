@@ -543,7 +543,8 @@ def create_community_post(post_data: CommunityPostCreate,
                           db: Session = Depends(get_db)):
     post = CommunityPost(user_id=current_user.id,
                          content=post_data.content,
-                         code_snippet=post_data.code_snippet)
+                         code_snippet=post_data.code_snippet,
+                         problem_id=post_data.problem_id)
 
     db.add(post)
     db.commit()
