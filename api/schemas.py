@@ -121,6 +121,7 @@ class SubmissionResponse(SubmissionBase):
 class CommunityPostBase(CamelCaseModel):
     content: str
     code_snippet: Optional[str] = None
+    problem_id: Optional[str] = None  # For problem-specific discussions
 
 class CommunityPostCreate(CommunityPostBase):
     pass
@@ -340,3 +341,21 @@ class DetailedSubmissionResponse(SubmissionResponse):
     overall_score: Optional[float] = None
     passed_test_cases: Optional[int] = 0
     total_test_cases: Optional[int] = 0
+
+# Solution schemas
+class SolutionBase(CamelCaseModel):
+    problem_id: str
+    title: str
+    content: str
+    sql_code: str
+    is_official: bool = True
+
+class SolutionCreate(SolutionBase):
+    pass
+
+class SolutionResponse(SolutionBase):
+    id: str
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    creator: UserResponse
