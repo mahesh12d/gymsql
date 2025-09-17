@@ -31,7 +31,7 @@ class SandboxStatus(enum.Enum):
 
 # Create named Postgres enums
 difficulty_enum = ENUM(
-    'Easy', 'Medium', 'Hard',
+    'Easy', 'Medium', 'Hard', 'BEGINNER',
     name='difficulty_level',
     create_type=False
 )
