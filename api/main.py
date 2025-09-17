@@ -18,7 +18,7 @@ from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
-                      PostCommentResponse, SolutionResponse)
+                      PostCommentResponse, SolutionResponse, QuestionData)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
@@ -250,11 +250,11 @@ def get_problems(
         # For premium problems, filter content for non-premium users
         if problem.premium is True and (not current_user or not current_user.premium):
             # Create a limited question data for premium problems
-            limited_question = {
-                "description": "🔒 Premium Problem - Subscribe to view full description",
-                "tables": [],
-                "expectedOutput": []
-            }
+            limited_question = QuestionData(
+                description="🔒 Premium Problem - Subscribe to view full description",
+                tables=[],
+                expectedOutput=[]
+            )
             problem_data.question = limited_question
         
         problems.append(problem_data)
@@ -277,11 +277,11 @@ def get_problem(problem_id: str,
     if problem.premium is True and (not current_user or not current_user.premium):
         # Return problem with premium message instead of throwing error
         problem_data = ProblemResponse.from_orm(problem)
-        premium_question = {
-            "description": "Want to lift try Premium 🏋️‍♂️",
-            "tables": [],
-            "expectedOutput": []
-        }
+        premium_question = QuestionData(
+            description="Want to lift try Premium 🏋️‍♂️",
+            tables=[],
+            expectedOutput=[]
+        )
         problem_data.question = premium_question
         problem_data.hints = []  # Hide hints for non-premium users
         return problem_data
