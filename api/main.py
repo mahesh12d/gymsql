@@ -610,11 +610,31 @@ def unlike_post(post_id: str,
          response_model=List[PostCommentResponse],
          response_model_by_alias=True)
 def get_post_comments(post_id: str, db: Session = Depends(get_db)):
-    comments = db.query(PostComment).options(joinedload(
+    # Get all comments for the post
+    all_comments = db.query(PostComment).options(joinedload(
         PostComment.user)).filter(PostComment.post_id == post_id).order_by(
             PostComment.created_at).all()
-
-    return [PostCommentResponse.from_orm(comment) for comment in comments]
+    
+    # Build nested comment structure
+    comment_map = {}
+    root_comments = []
+    
+    # First pass: create comment objects
+    for comment in all_comments:
+        comment_response = PostCommentResponse.from_orm(comment)
+        comment_map[comment.id] = comment_response
+    
+    # Second pass: build tree structure
+    for comment in all_comments:
+        comment_response = comment_map[comment.id]
+        if comment.parent_id and comment.parent_id in comment_map:
+            # This is a reply, add to parent's replies
+            comment_map[comment.parent_id].replies.append(comment_response)
+        else:
+            # This is a root comment
+            root_comments.append(comment_response)
+    
+    return root_comments
 
 
 @app.post("/api/community/posts/{post_id}/comments",
@@ -624,9 +644,23 @@ def create_post_comment(post_id: str,
                         comment_data: PostCommentCreate,
                         current_user: User = Depends(get_current_user),
                         db: Session = Depends(get_db)):
-    comment = PostComment(user_id=current_user.id,
-                          post_id=post_id,
-                          content=comment_data.content)
+    # Validate parent comment exists if parent_id is provided
+    if comment_data.parent_id:
+        parent_comment = db.query(PostComment).filter(
+            and_(PostComment.id == comment_data.parent_id, PostComment.post_id == post_id)
+        ).first()
+        if not parent_comment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Parent comment not found"
+            )
+    
+    comment = PostComment(
+        user_id=current_user.id,
+        post_id=post_id,
+        parent_id=comment_data.parent_id,
+        content=comment_data.content
+    )
 
     db.add(comment)
 

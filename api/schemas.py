@@ -137,6 +137,7 @@ class CommunityPostResponse(CommunityPostBase):
 # Post comment schemas
 class PostCommentBase(CamelCaseModel):
     content: str
+    parent_id: Optional[str] = None  # For nested replies
 
 class PostCommentCreate(PostCommentBase):
     pass
@@ -145,8 +146,13 @@ class PostCommentResponse(PostCommentBase):
     id: str
     user_id: str
     post_id: str
+    parent_id: Optional[str] = None
     created_at: datetime
     user: UserResponse
+    replies: List['PostCommentResponse'] = []  # Nested replies
+
+# Update forward references for recursive type
+PostCommentResponse.model_rebuild()
 
 # Authentication schemas
 class Token(CamelCaseModel):

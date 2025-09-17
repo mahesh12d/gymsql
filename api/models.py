@@ -178,12 +178,14 @@ class PostComment(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, name="user_id")
     post_id = Column(String, ForeignKey("community_posts.id", ondelete="CASCADE"), nullable=False, name="post_id")
+    parent_id = Column(String, ForeignKey("post_comments.id", ondelete="CASCADE"), nullable=True, name="parent_id")  # For nested replies
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     
     # Relationships
     user = relationship("User", back_populates="post_comments")
     post = relationship("CommunityPost", back_populates="post_comments")
+    parent = relationship("PostComment", remote_side=[id], backref="replies")
 
 # New Tables for Enhanced SQL Learning Platform
 
