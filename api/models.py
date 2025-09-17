@@ -95,12 +95,15 @@ class Problem(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
     
+    topic_id = Column(String, ForeignKey("topics.id", ondelete="SET NULL"))
+    
     # Relationships
     submissions = relationship("Submission", back_populates="problem")
     test_cases = relationship("TestCase", back_populates="problem")
     schemas = relationship("ProblemSchema", back_populates="problem")
     sandboxes = relationship("UserSandbox", back_populates="problem")
-    topic_id = Column(String, ForeignKey("topics.id", ondelete="SET NULL"))
+    community_posts = relationship("CommunityPost", back_populates="problem")
+    solutions = relationship("Solution", back_populates="problem")
     topic = relationship("Topic", back_populates="problems")
     
     # Indexes for performance
@@ -140,6 +143,7 @@ class CommunityPost(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, name="user_id")
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=True, name="problem_id")  # For problem-specific discussions
     content = Column(Text, nullable=False)
     code_snippet = Column(Text, name="code_snippet")
     likes = Column(Integer, default=0, nullable=False)
@@ -149,6 +153,7 @@ class CommunityPost(Base):
     
     # Relationships
     user = relationship("User", back_populates="community_posts")
+    problem = relationship("Problem", back_populates="community_posts")
     post_likes = relationship("PostLike", back_populates="post")
     post_comments = relationship("PostComment", back_populates="post")
 
@@ -392,3 +397,28 @@ class UserBadge(Base):
     
     # Unique constraint: one badge per user (prevent duplicate awards)
     __table_args__ = (UniqueConstraint('user_id', 'badge_id', name='uq_user_badges_user_badge'),)
+
+class Solution(Base):
+    """Official solutions for problems posted by admins"""
+    __tablename__ = "solutions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False, name="problem_id")
+    created_by = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, name="created_by")
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)  # Solution explanation
+    sql_code = Column(Text, nullable=False, name="sql_code")  # The actual SQL solution
+    is_official = Column(Boolean, default=True, nullable=False, name="is_official")  # Mark as official solution
+    created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
+    
+    # Relationships
+    problem = relationship("Problem", back_populates="solutions")
+    creator = relationship("User", foreign_keys=[created_by])
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_solutions_problem_id', 'problem_id'),
+        Index('idx_solutions_created_by', 'created_by'),
+        Index('idx_solutions_created_at', 'created_at'),
+    )
