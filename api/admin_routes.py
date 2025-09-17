@@ -61,7 +61,7 @@ def get_schema_info(
     
     problem_structure = {
         "title": "string (required) - The problem title",
-        "difficulty": "string (required) - One of: Easy, Medium, Hard",
+        "difficulty": "string (required) - One of: BEGINNER, EASY, MEDIUM, HARD, EXPERT",
         "question": {
             "description": "string (required) - Problem description in markdown",
             "tables": [
@@ -148,7 +148,7 @@ Order the results by total sales amount in descending order.
     return SchemaInfo(
         problem_structure=problem_structure,
         example_problem=example_problem,
-        difficulty_options=["Easy", "Medium", "Hard"],
+        difficulty_options=["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"],
         available_topics=available_topics
     )
 
@@ -161,7 +161,7 @@ def create_problem(
     """Create a new problem with the provided data"""
     
     # Validate difficulty
-    valid_difficulties = ["Easy", "Medium", "Hard"]
+    valid_difficulties = ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"]
     if problem_data.difficulty not in valid_difficulties:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
