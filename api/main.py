@@ -512,6 +512,19 @@ def get_problem_submissions(problem_id: str,
     return [SubmissionResponse.from_orm(sub) for sub in submissions]
 
 
+@app.get("/api/problems/{problem_id}/solutions",
+         response_model=List[SolutionResponse],
+         response_model_by_alias=True)
+def get_problem_solutions(problem_id: str, db: Session = Depends(get_db)):
+    """Get all official solutions for a specific problem (public access)"""
+    solutions = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        Solution.problem_id == problem_id,
+        Solution.is_official == True  # Only show official solutions
+    ).order_by(Solution.created_at.desc()).all()
+    
+    return [SolutionResponse.from_orm(solution) for solution in solutions]
+
+
 # Leaderboard endpoint
 @app.get("/api/leaderboard",
          response_model=List[UserResponse],
