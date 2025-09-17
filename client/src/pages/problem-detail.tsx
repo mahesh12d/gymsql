@@ -156,6 +156,7 @@ export default function ProblemDetail() {
               latestSubmissionResult={latestSubmissionResult}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              problemId={problemId}
             />
           }
           rightPanel={
