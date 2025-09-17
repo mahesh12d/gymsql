@@ -563,6 +563,25 @@ def get_problem_solutions(problem_id: str, db: Session = Depends(get_db)):
     return [SolutionResponse.from_orm(solution) for solution in solutions]
 
 
+@app.get("/api/problems/{problem_id}/official-solution",
+         response_model=SolutionResponse,
+         response_model_by_alias=True)
+def get_official_solution(problem_id: str, db: Session = Depends(get_db)):
+    """Get the official solution for a specific problem (returns single solution)"""
+    solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        Solution.problem_id == problem_id,
+        Solution.is_official == True
+    ).order_by(Solution.created_at.desc()).first()
+    
+    if not solution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No official solution found for this problem"
+        )
+    
+    return SolutionResponse.from_orm(solution)
+
+
 # Leaderboard endpoint
 @app.get("/api/leaderboard",
          response_model=List[UserResponse],

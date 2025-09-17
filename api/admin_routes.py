@@ -285,6 +285,19 @@ def create_solution(
             detail="Problem not found"
         )
     
+    # Check for existing official solution if this is meant to be official
+    if solution_data.is_official:
+        existing_official = db.query(Solution).filter(
+            Solution.problem_id == problem_id,
+            Solution.is_official == True
+        ).first()
+        
+        if existing_official:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"An official solution already exists for this problem. Use PUT /api/admin/solutions/{existing_official.id} to update it instead."
+            )
+    
     # Create solution
     solution = Solution(
         id=str(uuid.uuid4()),

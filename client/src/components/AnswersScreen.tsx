@@ -100,9 +100,9 @@ const AnswersScreen = memo(function AnswersScreen({
   hasCorrectSubmission = false, 
   className 
 }: AnswersScreenProps) {
-  // Fetch admin solutions only
-  const { data: adminSolutions = [], isLoading: solutionsLoading } = useQuery({
-    queryKey: [`/api/problems/${problemId}/solutions`, problemId],
+  // Fetch the official solution (single solution)
+  const { data: officialSolution, isLoading: solutionsLoading, error: solutionError } = useQuery({
+    queryKey: [`/api/problems/${problemId}/official-solution`, problemId],
     enabled: !!problemId,
   });
 
@@ -130,24 +130,25 @@ const AnswersScreen = memo(function AnswersScreen({
           </div>
         )}
 
-        {!solutionsLoading && adminSolutions.length > 0 && (
-          adminSolutions.map((solution: OfficialSolution) => (
-            <OfficialSolutionCard
-              key={solution.id}
-              solution={solution}
-              hasAccess={hasCorrectSubmission}
-            />
-          ))
+        {!solutionsLoading && !solutionError && officialSolution && (
+          <OfficialSolutionCard
+            key={officialSolution.id}
+            solution={officialSolution}
+            hasAccess={hasCorrectSubmission}
+          />
         )}
 
-        {!solutionsLoading && adminSolutions.length === 0 && (
+        {!solutionsLoading && (solutionError || !officialSolution) && (
           <div className="text-center py-12">
             <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">
-              No solutions yet
+              No official solution yet
             </h3>
             <p className="text-muted-foreground">
-              Official solutions haven't been published for this problem yet.
+              {solutionError?.response?.status === 404 
+                ? "The official solution hasn't been published for this problem yet."
+                : "Official solutions haven't been published for this problem yet."
+              }
             </p>
           </div>
         )}
