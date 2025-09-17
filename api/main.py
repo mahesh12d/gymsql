@@ -135,29 +135,7 @@ def read_root():
     }
 
 
-# SPA fallback - serve index.html for any non-API routes (client-side routing)
-@app.get("/{path:path}")
-def spa_fallback(path: str):
-    """
-    Catch-all route for SPA client-side routing.
-    Serves index.html for any route that doesn't start with /api
-    """
-    # Don't interfere with API routes
-    if path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-    
-    # Serve static files directly if they exist
-    if os.path.exists(f"dist/public/{path}"):
-        return FileResponse(f"dist/public/{path}")
-    
-    # For all other routes, serve the SPA index.html (client-side routing)
-    if os.path.exists("dist/public/index.html"):
-        return FileResponse("dist/public/index.html")
-    
-    # Development fallback
-    return {
-        "message": "SQLGym FastAPI Backend - Please run 'npm run build' first"
-    }
+# SPA fallback route will be defined at the very end of the file after all API routes
 
 
 # Mount static assets for production
