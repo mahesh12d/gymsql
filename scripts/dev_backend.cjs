@@ -3,6 +3,28 @@
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 
+// Function to detect the best Python command to use
+function detectPythonCommand() {
+  // Try different Python commands in order of preference
+  const pythonCommands = ['python3.11', 'python3', 'python'];
+  
+  for (const cmd of pythonCommands) {
+    try {
+      const result = spawnSync(cmd, ['--version'], { stdio: 'pipe' });
+      if (result.status === 0) {
+        console.log(`🐍 Found Python: ${cmd}`);
+        return cmd;
+      }
+    } catch (error) {
+      // Command not found, continue to next
+    }
+  }
+  
+  // Fallback to python if nothing else works
+  console.log('🐍 Falling back to: python');
+  return 'python';
+}
+
 // Check if uv is available
 function hasUv() {
   try {
@@ -19,6 +41,7 @@ const disableUv = process.env.DISABLE_UV === '1' || process.env.REPLIT_ENVIRONME
 
 async function startBackend() {
   const useUv = forceUv && !disableUv && hasUv();
+  const pythonCmd = detectPythonCommand();
   
   // Set environment variables to prevent Unicode encoding issues
   process.env.PYTHONIOENCODING = 'utf-8';
@@ -57,7 +80,7 @@ async function startBackend() {
     
   } else {
     console.log('📦 Installing dependencies with pip...');
-    const installResult = spawnSync('python3.11', ['-m', 'pip', 'install', '--break-system-packages', '-r', 'requirements.txt'], {
+    const installResult = spawnSync(pythonCmd, ['-m', 'pip', 'install', '--break-system-packages', '-r', 'requirements.txt'], {
       stdio: 'inherit',
       cwd: process.cwd()
     });
@@ -67,8 +90,8 @@ async function startBackend() {
       process.exit(1);
     }
     
-    console.log('🚀 Starting backend with python3.11 -m uvicorn...');
-    const backend = spawn('python3.11', [
+    console.log(`🚀 Starting backend with ${pythonCmd} -m uvicorn...`);
+    const backend = spawn(pythonCmd, [
       '-m', 'uvicorn', 'api.main:app',
       '--host', '0.0.0.0',
       '--port', '8000',
