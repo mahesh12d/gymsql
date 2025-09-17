@@ -15,9 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostCodeSnippet, setNewPostCodeSnippet] = useState('');
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [selectedPostComments, setSelectedPostComments] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
+  const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -51,34 +51,55 @@ export default function Community() {
   const likePostMutation = useMutation({
     mutationFn: ({ postId, isLiked }: { postId: string; isLiked: boolean }) =>
       isLiked ? communityApi.unlikePost(postId) : communityApi.likePost(postId),
-    onMutate: ({ postId, isLiked }) => {
-      // Optimistic update
-      const newLikedPosts = new Set(likedPosts);
-      if (isLiked) {
-        newLikedPosts.delete(postId);
-      } else {
-        newLikedPosts.add(postId);
-      }
-      setLikedPosts(newLikedPosts);
+    onMutate: async ({ postId, isLiked }) => {
+      // Add to pending likes
+      setPendingLikes(prev => new Set(prev).add(postId));
+      
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['/api/community/posts'] });
+      
+      // Snapshot previous value
+      const previousPosts = queryClient.getQueryData(['/api/community/posts']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['/api/community/posts'], (old: any) => {
+        if (!old) return old;
+        return old.map((post: any) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              likedByCurrentUser: !isLiked,
+              likes: isLiked ? post.likes - 1 : post.likes + 1
+            };
+          }
+          return post;
+        });
+      });
+      
+      return { previousPosts };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
-    },
-    onError: (error, { postId, isLiked }) => {
+    onError: (error, { postId }, context) => {
       // Revert optimistic update
-      const newLikedPosts = new Set(likedPosts);
-      if (isLiked) {
-        newLikedPosts.add(postId);
-      } else {
-        newLikedPosts.delete(postId);
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['/api/community/posts'], context.previousPosts);
       }
-      setLikedPosts(newLikedPosts);
       
       toast({
         title: 'Action failed',
         description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
+    },
+    onSettled: (data, error, { postId }) => {
+      // Remove from pending likes
+      setPendingLikes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+      
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
     },
   });
 
@@ -120,9 +141,8 @@ export default function Community() {
     });
   };
 
-  const handleLikePost = (postId: string) => {
-    const isCurrentlyLiked = likedPosts.has(postId);
-    likePostMutation.mutate({ postId, isLiked: isCurrentlyLiked });
+  const handleLikePost = (postId: string, currentlyLiked: boolean) => {
+    likePostMutation.mutate({ postId, isLiked: currentlyLiked });
   };
 
   const handleOpenComments = (postId: string) => {
@@ -359,25 +379,34 @@ WHERE condition;"
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleLikePost(post.id)}
+                                onClick={() => handleLikePost(post.id, post.likedByCurrentUser)}
                                 className={`flex items-center space-x-2 transition-colors ${
-                                  likedPosts.has(post.id) 
+                                  post.likedByCurrentUser 
                                     ? 'text-red-500 hover:text-red-600' 
                                     : 'text-muted-foreground hover:text-red-500'
                                 }`}
                                 data-testid={`button-like-${post.id}`}
-                                disabled={likePostMutation.isPending}
+                                disabled={pendingLikes.has(post.id)}
                               >
-                                <Heart className={`w-4 h-4 ${likedPosts.has(post.id) ? 'fill-current' : ''}`} />
-                                <span className="text-sm">{post.likes + (likedPosts.has(post.id) ? 1 : 0)}</span>
+                                <Heart className={`w-4 h-4 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
+                                <span className="text-sm">{post.likes}</span>
                               </Button>
                               
-                              <Dialog>
+                              <Dialog 
+                                open={selectedPostComments === post.id}
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    handleOpenComments(post.id);
+                                  } else {
+                                    setSelectedPostComments(null);
+                                    setNewComment('');
+                                  }
+                                }}
+                              >
                                 <DialogTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleOpenComments(post.id)}
                                     className="flex items-center space-x-2 text-muted-foreground hover:text-blue-500 transition-colors"
                                     data-testid={`button-comment-${post.id}`}
                                   >
@@ -392,7 +421,7 @@ WHERE condition;"
                                   
                                   {/* Comments List */}
                                   <div className="space-y-4 mb-4">
-                                    {comments.length > 0 ? (
+                                    {selectedPostComments === post.id && comments.length > 0 ? (
                                       comments.map((comment: any) => (
                                         <div key={comment.id} className="border-b pb-3">
                                           <div className="flex items-start space-x-3">
