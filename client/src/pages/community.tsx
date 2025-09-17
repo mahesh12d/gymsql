@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, MessageCircle, Share, Code, Trophy, Image, Users, Activity } from 'lucide-react';
+import { Heart, MessageCircle, Share, Code, Trophy, Image, Users, Activity, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostCodeSnippet, setNewPostCodeSnippet] = useState('');
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [selectedPostComments, setSelectedPostComments] = useState<string | null>(null);
+  const [newComment, setNewComment] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -46,12 +51,60 @@ export default function Community() {
   const likePostMutation = useMutation({
     mutationFn: ({ postId, isLiked }: { postId: string; isLiked: boolean }) =>
       isLiked ? communityApi.unlikePost(postId) : communityApi.likePost(postId),
+    onMutate: ({ postId, isLiked }) => {
+      // Optimistic update
+      const newLikedPosts = new Set(likedPosts);
+      if (isLiked) {
+        newLikedPosts.delete(postId);
+      } else {
+        newLikedPosts.add(postId);
+      }
+      setLikedPosts(newLikedPosts);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
     },
-    onError: (error) => {
+    onError: (error, { postId, isLiked }) => {
+      // Revert optimistic update
+      const newLikedPosts = new Set(likedPosts);
+      if (isLiked) {
+        newLikedPosts.add(postId);
+      } else {
+        newLikedPosts.delete(postId);
+      }
+      setLikedPosts(newLikedPosts);
+      
       toast({
         title: 'Action failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Fetch comments for a specific post
+  const { data: comments = [] } = useQuery({
+    queryKey: [`/api/community/posts/${selectedPostComments}/comments`],
+    queryFn: () => communityApi.getComments(selectedPostComments!),
+    enabled: !!selectedPostComments,
+  });
+
+  // Create comment mutation
+  const createCommentMutation = useMutation({
+    mutationFn: ({ postId, content }: { postId: string; content: string }) =>
+      communityApi.createComment(postId, content),
+    onSuccess: () => {
+      setNewComment('');
+      queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${selectedPostComments}/comments`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      toast({
+        title: 'Comment posted!',
+        description: 'Your comment has been added.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to post comment',
         description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
@@ -67,8 +120,21 @@ export default function Community() {
     });
   };
 
-  const handleLikePost = (postId: string, isLiked: boolean) => {
-    likePostMutation.mutate({ postId, isLiked });
+  const handleLikePost = (postId: string) => {
+    const isCurrentlyLiked = likedPosts.has(postId);
+    likePostMutation.mutate({ postId, isLiked: isCurrentlyLiked });
+  };
+
+  const handleOpenComments = (postId: string) => {
+    setSelectedPostComments(postId);
+  };
+
+  const handleCreateComment = () => {
+    if (!newComment.trim() || !selectedPostComments) return;
+    createCommentMutation.mutate({ 
+      postId: selectedPostComments, 
+      content: newComment 
+    });
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -293,23 +359,99 @@ WHERE condition;"
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleLikePost(post.id, false)} // For simplicity, always like
-                                className="flex items-center space-x-2 text-muted-foreground hover:text-red-500 transition-colors"
+                                onClick={() => handleLikePost(post.id)}
+                                className={`flex items-center space-x-2 transition-colors ${
+                                  likedPosts.has(post.id) 
+                                    ? 'text-red-500 hover:text-red-600' 
+                                    : 'text-muted-foreground hover:text-red-500'
+                                }`}
                                 data-testid={`button-like-${post.id}`}
+                                disabled={likePostMutation.isPending}
                               >
-                                <Heart className="w-4 h-4" />
-                                <span className="text-sm">{post.likes}</span>
+                                <Heart className={`w-4 h-4 ${likedPosts.has(post.id) ? 'fill-current' : ''}`} />
+                                <span className="text-sm">{post.likes + (likedPosts.has(post.id) ? 1 : 0)}</span>
                               </Button>
                               
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="flex items-center space-x-2 text-muted-foreground hover:text-blue-500 transition-colors"
-                                data-testid={`button-comment-${post.id}`}
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                                <span className="text-sm">{post.comments}</span>
-                              </Button>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenComments(post.id)}
+                                    className="flex items-center space-x-2 text-muted-foreground hover:text-blue-500 transition-colors"
+                                    data-testid={`button-comment-${post.id}`}
+                                  >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span className="text-sm">{post.comments}</span>
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Comments</DialogTitle>
+                                  </DialogHeader>
+                                  
+                                  {/* Comments List */}
+                                  <div className="space-y-4 mb-4">
+                                    {comments.length > 0 ? (
+                                      comments.map((comment: any) => (
+                                        <div key={comment.id} className="border-b pb-3">
+                                          <div className="flex items-start space-x-3">
+                                            <Avatar className="w-8 h-8">
+                                              <AvatarImage src={comment.user.profileImageUrl} alt={comment.user.username} />
+                                              <AvatarFallback>
+                                                {comment.user.username?.charAt(0).toUpperCase() || 'U'}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                              <div className="flex items-center space-x-2 mb-1">
+                                                <span className="font-semibold text-sm">{comment.user.username}</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                  {formatTimeAgo(comment.createdAt)}
+                                                </span>
+                                              </div>
+                                              <p className="text-sm text-foreground">{comment.content}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-muted-foreground text-sm text-center py-8">
+                                        No comments yet. Be the first to comment!
+                                      </p>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Add Comment */}
+                                  <div className="border-t pt-4">
+                                    <div className="flex space-x-3">
+                                      <Avatar className="w-8 h-8">
+                                        <AvatarImage src={user?.profileImageUrl} alt={user?.username} />
+                                        <AvatarFallback>
+                                          {user?.username?.charAt(0).toUpperCase() || 'U'}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 space-y-2">
+                                        <Textarea
+                                          placeholder="Write a comment..."
+                                          value={newComment}
+                                          onChange={(e) => setNewComment(e.target.value)}
+                                          className="min-h-[80px] resize-none"
+                                        />
+                                        <div className="flex justify-end">
+                                          <Button
+                                            onClick={handleCreateComment}
+                                            disabled={!newComment.trim() || createCommentMutation.isPending}
+                                            size="sm"
+                                          >
+                                            <Send className="w-4 h-4 mr-2" />
+                                            {createCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
                               
                               <Button
                                 variant="ghost"

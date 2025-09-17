@@ -179,6 +179,10 @@ export const communityApi = {
       body: JSON.stringify({ content }),
     });
   },
+
+  async checkLikeStatus(postId: string): Promise<{ isLiked: boolean }> {
+    return apiRequest(`/community/posts/${postId}/like/status`);
+  },
 };
 
 export const badgesApi = {
