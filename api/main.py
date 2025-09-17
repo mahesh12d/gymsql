@@ -94,11 +94,67 @@ def health_check():
     return {"status": "healthy", "service": "SQLGym API", "version": "1.0.0"}
 
 
-# Development/fallback root endpoint
+# Database initialization endpoint (admin-only, authenticated)
+@app.post("/api/admin/init-db")
+def initialize_database(current_user: User = Depends(get_current_user)):
+    """Initialize database tables and schema. Admin-only endpoint for safe database setup."""
+    # Check if user is admin
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required for database initialization"
+        )
+    
+    try:
+        print("🚀 Starting database initialization...")
+        
+        # Just create tables - skip complex migrations for now
+        create_tables()
+        print("✅ Database tables created")
+        
+        return {
+            "success": True,
+            "message": "Database initialized successfully",
+            "operations": ["table_creation"]
+        }
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database initialization failed: {str(e)}"
+        )
+
+
+# Root endpoint and SPA fallback
 @app.get("/")
 def read_root():
     if os.path.exists("dist/public/index.html"):
         return FileResponse("dist/public/index.html")
+    return {
+        "message": "SQLGym FastAPI Backend - Please run 'npm run build' first"
+    }
+
+
+# SPA fallback - serve index.html for any non-API routes (client-side routing)
+@app.get("/{path:path}")
+def spa_fallback(path: str):
+    """
+    Catch-all route for SPA client-side routing.
+    Serves index.html for any route that doesn't start with /api
+    """
+    # Don't interfere with API routes
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve static files directly if they exist
+    if os.path.exists(f"dist/public/{path}"):
+        return FileResponse(f"dist/public/{path}")
+    
+    # For all other routes, serve the SPA index.html (client-side routing)
+    if os.path.exists("dist/public/index.html"):
+        return FileResponse("dist/public/index.html")
+    
+    # Development fallback
     return {
         "message": "SQLGym FastAPI Backend - Please run 'npm run build' first"
     }
