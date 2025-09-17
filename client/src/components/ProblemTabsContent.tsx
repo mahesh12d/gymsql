@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { Code2, MessageSquare, CheckCircle } from 'lucide-react';
+import { Code2, MessageSquare, CheckCircle, BookOpen } from 'lucide-react';
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import ProblemDescriptionTab from '@/components/ProblemDescriptionTab';
 
 interface Problem {
+  id?: string;
   question?: {
     description?: string;
     tables?: any[];
@@ -16,6 +18,19 @@ interface Problem {
   hints?: string[];
   tags?: string[];
   premium?: boolean | null;
+}
+
+interface Solution {
+  id: string;
+  problem_id: string;
+  title: string;
+  explanation: string;
+  code: string;
+  approach: string;
+  time_complexity: string;
+  space_complexity: string;
+  tags: string[];
+  created_at: string;
 }
 
 interface Submission {
@@ -61,6 +76,7 @@ interface ProblemTabsContentProps {
   className?: string;
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  problemId?: string;
 }
 
 const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
@@ -118,8 +134,15 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
   className,
   activeTab = "problem",
   onTabChange,
+  problemId,
 }: ProblemTabsContentProps) {
   const hasCorrectSubmission = userSubmissions.some((sub) => sub.isCorrect);
+
+  // Fetch solutions for this problem
+  const { data: solutions = [], isLoading: solutionsLoading } = useQuery({
+    queryKey: ["/api/problems", problemId, "solutions"],
+    enabled: !!problemId,
+  });
 
   return (
     <div className={`h-full flex flex-col ${className || ''}`}>
@@ -169,34 +192,121 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
           data-testid="content-solution"
         >
           <div className="space-y-6">
-            <div className="text-center py-8">
-              <Code2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Solution
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Complete this problem to view the official solution and
-                explanations.
-              </p>
-              {!hasCorrectSubmission && (
-                <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30">
-                  <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                    💡 Solve the problem first to unlock the detailed
-                    solution walkthrough!
-                  </AlertDescription>
-                </Alert>
-              )}
-              {hasCorrectSubmission && (
-                <div className="mt-6 p-6 bg-muted/50 rounded-lg">
-                  <h4 className="font-semibold mb-4">Official Solution:</h4>
-                  <div className="text-left font-mono text-sm bg-background rounded border p-4">
-                    <p className="text-muted-foreground">
-                      [Solution code would be displayed here]
-                    </p>
-                  </div>
+            {/* Solutions Loading State */}
+            {solutionsLoading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading solutions...</p>
+              </div>
+            )}
+
+            {/* No Solutions Available */}
+            {!solutionsLoading && solutions.length === 0 && (
+              <div className="text-center py-8">
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No Solutions Available
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Official solutions haven't been published for this problem yet.
+                </p>
+                {!hasCorrectSubmission && (
+                  <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30">
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                      💡 Try solving the problem first and check back later for official solutions!
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {/* Display Solutions */}
+            {!solutionsLoading && solutions.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Official Solutions
+                  </h3>
+                  <Badge variant="secondary" data-testid="badge-solution-count">
+                    {solutions.length} solution{solutions.length !== 1 ? 's' : ''}
+                  </Badge>
                 </div>
-              )}
-            </div>
+
+                {/* Show lock message if user hasn't solved */}
+                {!hasCorrectSubmission && (
+                  <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/30">
+                    <AlertDescription className="text-orange-800 dark:text-orange-200">
+                      🔒 Solve this problem first to unlock the official solutions and explanations!
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Solution Cards */}
+                {solutions.map((solution: Solution, index: number) => (
+                  <Card key={solution.id} className="overflow-hidden" data-testid={`card-solution-${index}`}>
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="text-lg font-semibold text-foreground mb-1" data-testid={`text-solution-title-${index}`}>
+                            {solution.title}
+                          </h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>Time: {solution.time_complexity}</span>
+                            <span>•</span>
+                            <span>Space: {solution.space_complexity}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {solution.tags.map((tag, tagIndex) => (
+                            <Badge key={tagIndex} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Approach Section */}
+                      {solution.approach && (
+                        <div className="mb-4">
+                          <h5 className="font-medium text-foreground mb-2">Approach:</h5>
+                          <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`text-solution-approach-${index}`}>
+                            {hasCorrectSubmission ? solution.approach : "🔒 Solve the problem to view approach"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Explanation Section */}
+                      {solution.explanation && (
+                        <div className="mb-4">
+                          <h5 className="font-medium text-foreground mb-2">Explanation:</h5>
+                          <div className="text-sm text-muted-foreground leading-relaxed" data-testid={`text-solution-explanation-${index}`}>
+                            {hasCorrectSubmission ? (
+                              <div className="whitespace-pre-wrap">{solution.explanation}</div>
+                            ) : (
+                              "🔒 Solve the problem to view detailed explanation"
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Code Section */}
+                      <div>
+                        <h5 className="font-medium text-foreground mb-2">SQL Solution:</h5>
+                        <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm" data-testid={`code-solution-${index}`}>
+                          {hasCorrectSubmission ? (
+                            <pre className="whitespace-pre-wrap text-foreground">{solution.code}</pre>
+                          ) : (
+                            <div className="text-muted-foreground italic">
+                              🔒 Complete the problem to view the solution code
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 
