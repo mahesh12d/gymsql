@@ -255,19 +255,19 @@ def initialize_enhanced_schema():
                     Topic(
                         name="Joins and Relationships",
                         description="Master INNER, LEFT, RIGHT, and FULL joins",
-                        difficulty_level=DifficultyLevel.EASY,
+                        difficulty_level=DifficultyLevel.EASY.value,
                         order_index=1
                     ),
                     Topic(
                         name="Aggregate Functions",
                         description="COUNT, SUM, AVG, MIN, MAX and GROUP BY clauses",
-                        difficulty_level=DifficultyLevel.MEDIUM,
+                        difficulty_level=DifficultyLevel.MEDIUM.value,
                         order_index=2
                     ),
                     Topic(
                         name="Subqueries and CTEs",
                         description="Complex nested queries and Common Table Expressions",
-                        difficulty_level=DifficultyLevel.HARD,
+                        difficulty_level=DifficultyLevel.HARD.value,
                         order_index=3
                     )
                 ]
@@ -311,8 +311,8 @@ def initialize_enhanced_schema():
                     ),
                     Badge(
                         name="Master",
-                        description="Solve 5 Expert level problems",
-                        criteria={"expert_problems_solved": 5},
+                        description="Solve 5 Hard level problems",
+                        criteria={"hard_problems_solved": 5},
                         points_reward=200,
                         rarity="legendary"
                     )

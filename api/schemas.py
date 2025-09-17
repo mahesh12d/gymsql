@@ -9,9 +9,9 @@ from enum import Enum
 
 # Enums matching the SQLAlchemy enums
 class DifficultyLevel(str, Enum):
-    EASY = "Easy"
-    MEDIUM = "Medium"
-    HARD = "Hard"
+    EASY = "EASY"
+    MEDIUM = "MEDIUM"
+    HARD = "HARD"
 
 class ExecutionStatus(str, Enum):
     SUCCESS = "SUCCESS"
