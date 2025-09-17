@@ -731,10 +731,8 @@ def create_problem_discussion(
     post = CommunityPost(
         user_id=current_user.id,
         problem_id=problem_id,  # Link to problem
-        title=post_data.title,
         content=post_data.content,
-        likes=0,
-        comments=0
+        code_snippet=post_data.code_snippet
     )
     
     db.add(post)
