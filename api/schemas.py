@@ -360,7 +360,6 @@ class DetailedSubmissionResponse(SubmissionResponse):
 
 # Solution schemas
 class SolutionBase(CamelCaseModel):
-    problem_id: str
     title: str
     content: str
     sql_code: str
@@ -371,6 +370,7 @@ class SolutionCreate(SolutionBase):
 
 class SolutionResponse(SolutionBase):
     id: str
+    problem_id: str
     created_by: str
     created_at: datetime
     updated_at: datetime
