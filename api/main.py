@@ -13,12 +13,12 @@ from datetime import timedelta
 import random
 
 from .database import get_db, create_tables
-from .models import User, Problem, Submission, CommunityPost, PostLike, PostComment
+from .models import User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
-                      PostCommentResponse)
+                      PostCommentResponse, SolutionResponse)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
@@ -643,6 +643,92 @@ def create_post_comment(post_id: str,
         PostComment.user)).filter(PostComment.id == comment.id).first()
 
     return PostCommentResponse.from_orm(comment)
+
+
+# Solution API routes (public viewing)
+@app.get("/api/problems/{problem_id}/solutions", response_model=List[SolutionResponse])
+def get_problem_solutions_public(
+    problem_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get all official solutions for a problem (public view)"""
+    solutions = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        and_(Solution.problem_id == problem_id, Solution.is_official == True)
+    ).order_by(Solution.created_at.desc()).all()
+    
+    return [SolutionResponse.from_orm(solution) for solution in solutions]
+
+# Enhanced discussion API routes for problem-specific discussions  
+@app.get("/api/problems/{problem_id}/discussions", response_model=List[CommunityPostResponse])
+def get_problem_discussions(
+    problem_id: str,
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get discussions for a specific problem"""
+    posts = db.query(CommunityPost).options(
+        joinedload(CommunityPost.user)
+    ).filter(
+        CommunityPost.problem_id == problem_id
+    ).order_by(
+        desc(CommunityPost.created_at)
+    ).limit(limit).all()
+    
+    return [CommunityPostResponse.from_orm(post) for post in posts]
+
+@app.post("/api/problems/{problem_id}/discussions", response_model=CommunityPostResponse)
+def create_problem_discussion(
+    problem_id: str,
+    post_data: CommunityPostCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new discussion post for a specific problem"""
+    # Verify problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Problem not found"
+        )
+    
+    # Create discussion post
+    post = CommunityPost(
+        user_id=current_user.id,
+        problem_id=problem_id,  # Link to problem
+        title=post_data.title,
+        content=post_data.content,
+        likes=0,
+        comments=0
+    )
+    
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    
+    # Load user relationship
+    post = db.query(CommunityPost).options(joinedload(CommunityPost.user)).filter(
+        CommunityPost.id == post.id
+    ).first()
+    
+    return CommunityPostResponse.from_orm(post)
+
+# Get all community posts with optional problem filtering
+@app.get("/api/community/posts/all", response_model=List[CommunityPostResponse])
+def get_all_community_posts(
+    problem_id: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get all community posts with optional problem filtering"""
+    query = db.query(CommunityPost).options(joinedload(CommunityPost.user))
+    
+    if problem_id:
+        query = query.filter(CommunityPost.problem_id == problem_id)
+    
+    posts = query.order_by(desc(CommunityPost.created_at)).limit(limit).all()
+    
+    return [CommunityPostResponse.from_orm(post) for post in posts]
 
 
 # Helper function for query simulation
