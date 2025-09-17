@@ -678,13 +678,22 @@ class SecureQueryExecutor:
             user = db.query(User).filter(User.id == user_id).first()
             if user:
                 # Check if this is the first time solving this problem
-                existing_correct = db.query(Submission).filter(
+                # Get the current submission to exclude from duplicate check
+                current_submission = db.query(Submission).filter(
                     Submission.user_id == user_id,
                     Submission.problem_id == problem_id,
                     Submission.is_correct == True
-                ).first()
+                ).order_by(Submission.submitted_at.desc()).first()
                 
-                if not existing_correct:
+                # Count previous correct submissions (excluding the current one)
+                existing_correct_count = db.query(Submission).filter(
+                    Submission.user_id == user_id,
+                    Submission.problem_id == problem_id,
+                    Submission.is_correct == True,
+                    Submission.id != current_submission.id if current_submission else None
+                ).count()
+                
+                if existing_correct_count == 0:
                     # First time solving this problem
                     user.problems_solved = (user.problems_solved or 0) + 1
                     db.commit()

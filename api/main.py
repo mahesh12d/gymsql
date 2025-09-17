@@ -457,12 +457,23 @@ def create_submission(submission_data: SubmissionCreate,
                             execution_time=execution_time)
 
     db.add(submission)
-
-    # If correct, update user progress
-    if is_correct:
-        current_user.problems_solved = (current_user.problems_solved or 0) + 1
-
     db.commit()
+    db.refresh(submission)
+
+    # If correct, update user progress (check for duplicates after commit)
+    if is_correct:
+        # Check if this is the first time solving this problem
+        existing_correct = db.query(Submission).filter(
+            Submission.user_id == current_user.id,
+            Submission.problem_id == submission_data.problem_id,
+            Submission.is_correct == True,
+            Submission.id != submission.id  # Exclude current submission
+        ).first()
+        
+        if not existing_correct:
+            # First time solving this problem
+            current_user.problems_solved = (current_user.problems_solved or 0) + 1
+            db.commit()
     db.refresh(submission)
 
     return SubmissionResponse.from_orm(submission)
