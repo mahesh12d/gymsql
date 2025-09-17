@@ -76,11 +76,15 @@ def format_console_output(execution_result):
 
 
 # Create tables on startup
-@app.on_event("startup")
-def startup_event():
-    from .database import run_schema_migrations
-    run_schema_migrations()  # Run migrations first
-    create_tables()  # Then create any missing tables
+# @app.on_event("startup")  
+# def startup_event():
+#     try:
+#         print("🚀 Starting database initialization...")
+#         create_tables()  # Just create basic tables first
+#         print("✅ Database initialization completed")
+#     except Exception as e:
+#         print(f"⚠️ Database initialization failed, continuing anyway: {e}")
+#         # Continue startup even if database fails
 
 
 # Development/fallback root endpoint
