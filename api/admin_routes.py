@@ -3,14 +3,14 @@ Admin routes for creating and managing problems
 """
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, Field
 import uuid
 
 from .database import get_db
-from .models import Problem, Topic
+from .models import Problem, Topic, Solution, User
 from .auth import verify_admin_access, verify_admin_user_access
-from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn
+from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse
 
 # Create admin router
 admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -267,3 +267,105 @@ def validate_problem_json(
         "message": "Use the POST /api/admin/problems endpoint to validate and create problems",
         "schema_endpoint": "/api/admin/schema-info"
     }
+
+# Solution management routes
+@admin_router.post("/problems/{problem_id}/solutions", response_model=SolutionResponse)
+def create_solution(
+    problem_id: str,
+    solution_data: SolutionCreate,
+    current_user: User = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """Create an official solution for a problem"""
+    # Verify problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Problem not found"
+        )
+    
+    # Create solution
+    solution = Solution(
+        id=str(uuid.uuid4()),
+        problem_id=problem_id,
+        created_by=current_user.id,
+        title=solution_data.title,
+        content=solution_data.content,
+        sql_code=solution_data.sql_code,
+        is_official=solution_data.is_official
+    )
+    
+    db.add(solution)
+    db.commit()
+    db.refresh(solution)
+    
+    # Load creator relationship
+    solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        Solution.id == solution.id
+    ).first()
+    
+    return SolutionResponse.from_orm(solution)
+
+@admin_router.get("/problems/{problem_id}/solutions", response_model=List[SolutionResponse])
+def get_problem_solutions(
+    problem_id: str,
+    _: bool = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """Get all solutions for a problem (admin view)"""
+    solutions = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        Solution.problem_id == problem_id
+    ).order_by(Solution.created_at.desc()).all()
+    
+    return [SolutionResponse.from_orm(solution) for solution in solutions]
+
+@admin_router.put("/solutions/{solution_id}", response_model=SolutionResponse)
+def update_solution(
+    solution_id: str,
+    solution_data: SolutionCreate,
+    current_user: User = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """Update an existing solution"""
+    solution = db.query(Solution).filter(Solution.id == solution_id).first()
+    if not solution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Solution not found"
+        )
+    
+    # Update solution fields
+    solution.title = solution_data.title
+    solution.content = solution_data.content
+    solution.sql_code = solution_data.sql_code
+    solution.is_official = solution_data.is_official
+    
+    db.commit()
+    db.refresh(solution)
+    
+    # Load creator relationship
+    solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
+        Solution.id == solution.id
+    ).first()
+    
+    return SolutionResponse.from_orm(solution)
+
+@admin_router.delete("/solutions/{solution_id}")
+def delete_solution(
+    solution_id: str,
+    _: bool = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """Delete a solution"""
+    solution = db.query(Solution).filter(Solution.id == solution_id).first()
+    if not solution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Solution not found"
+        )
+    
+    db.delete(solution)
+    db.commit()
+    
+    return {"success": True, "message": "Solution deleted successfully"}
