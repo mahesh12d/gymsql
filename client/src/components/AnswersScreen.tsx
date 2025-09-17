@@ -102,7 +102,7 @@ const AnswersScreen = memo(function AnswersScreen({
 }: AnswersScreenProps) {
   // Fetch the official solution (single solution)
   const { data: officialSolution, isLoading: solutionsLoading, error: solutionError } = useQuery({
-    queryKey: [`/api/problems/${problemId}/official-solution`, problemId],
+    queryKey: [`/api/problems/${problemId}/official-solution`],
     enabled: !!problemId,
   });
 

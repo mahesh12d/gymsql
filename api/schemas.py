@@ -363,7 +363,7 @@ class SolutionBase(CamelCaseModel):
     title: str
     content: str
     sql_code: str
-    is_official: bool = True
+    is_official: bool = True  # Always true since there's only one solution per problem
 
 class SolutionCreate(SolutionBase):
     pass

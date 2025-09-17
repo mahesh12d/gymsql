@@ -1153,16 +1153,6 @@ export default function AdminPanel() {
                     />
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="is-official"
-                      checked={solutionForm.is_official}
-                      onChange={(e) => setSolutionForm(prev => ({ ...prev, is_official: e.target.checked }))}
-                      data-testid="checkbox-is-official"
-                    />
-                    <Label htmlFor="is-official">Mark as Official Solution</Label>
-                  </div>
 
                   <div className="flex gap-2">
                     <Button
