@@ -139,8 +139,22 @@ def verify_admin_user_access(
     
     # First, check if it's the admin secret key
     if credentials.credentials == ADMIN_SECRET_KEY:
-        # For admin secret key, return a special admin user object (no real user)
-        return True
+        # For admin secret key, find or create an admin user
+        admin_user = db.query(User).filter(User.is_admin == True).first()
+        if admin_user is None:
+            # Create a default admin user if none exists
+            from uuid import uuid4
+            admin_user = User(
+                id=str(uuid4()),
+                username="admin",
+                email="admin@system.local",
+                is_admin=True,
+                premium=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+        return admin_user
     
     # Otherwise, verify it's a JWT token from an admin user
     try:
