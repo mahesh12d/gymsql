@@ -9,11 +9,9 @@ from enum import Enum
 
 # Enums matching the SQLAlchemy enums
 class DifficultyLevel(str, Enum):
-    BEGINNER = "Beginner"
     EASY = "Easy"
     MEDIUM = "Medium"
     HARD = "Hard"
-    EXPERT = "Expert"
 
 class ExecutionStatus(str, Enum):
     SUCCESS = "SUCCESS"
@@ -281,8 +279,8 @@ class UserProgressBase(CamelCaseModel):
     average_execution_time_ms: Optional[float] = None
     best_execution_time_ms: Optional[float] = None
     total_time_spent_minutes: int = 0
-    current_difficulty: DifficultyLevel = DifficultyLevel.BEGINNER
-    highest_difficulty_solved: DifficultyLevel = DifficultyLevel.BEGINNER
+    current_difficulty: DifficultyLevel = DifficultyLevel.EASY
+    highest_difficulty_solved: DifficultyLevel = DifficultyLevel.EASY
     hint_usage_count: int = 0
     average_attempts_per_problem: float = 1.0
     streak_count: int = 0

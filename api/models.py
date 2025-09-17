@@ -14,11 +14,9 @@ Base = declarative_base()
 # Named Postgres enums for better type safety and performance
 # Python enums for reference
 class DifficultyLevel(enum.Enum):
-    BEGINNER = "BEGINNER"
     EASY = "EASY"
     MEDIUM = "MEDIUM"
     HARD = "HARD"
-    EXPERT = "EXPERT"
 
 class ExecutionStatus(enum.Enum):
     SUCCESS = "SUCCESS"
@@ -33,7 +31,7 @@ class SandboxStatus(enum.Enum):
 
 # Create named Postgres enums
 difficulty_enum = ENUM(
-    'BEGINNER', 'EASY', 'MEDIUM', 'HARD', 'EXPERT',
+    'EASY', 'MEDIUM', 'HARD',
     name='difficulty_level',
     create_type=False
 )
@@ -338,8 +336,8 @@ class UserProgress(Base):
     total_time_spent_minutes = Column(Integer, default=0)
     
     # Difficulty progression
-    current_difficulty = Column(difficulty_enum, default=DifficultyLevel.BEGINNER.value)
-    highest_difficulty_solved = Column(difficulty_enum, default=DifficultyLevel.BEGINNER.value)
+    current_difficulty = Column(difficulty_enum, default=DifficultyLevel.EASY.value)
+    highest_difficulty_solved = Column(difficulty_enum, default=DifficultyLevel.EASY.value)
     
     # Learning metrics
     hint_usage_count = Column(Integer, default=0)

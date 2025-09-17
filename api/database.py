@@ -209,7 +209,7 @@ def create_enum_types():
         # Create difficulty_level enum
         conn.execute(text("""
             DO $$ BEGIN
-                CREATE TYPE difficulty_level AS ENUM ('Beginner', 'Easy', 'Medium', 'Hard', 'Expert');
+                CREATE TYPE difficulty_level AS ENUM ('Easy', 'Medium', 'Hard');
             EXCEPTION
                 WHEN duplicate_object THEN null;
             END $$;
@@ -253,34 +253,22 @@ def initialize_enhanced_schema():
                 
                 topics = [
                     Topic(
-                        name="Basic SELECT Queries",
-                        description="Learn fundamental SELECT statements, filtering, and sorting",
-                        difficulty_level=DifficultyLevel.BEGINNER,
-                        order_index=1
-                    ),
-                    Topic(
                         name="Joins and Relationships",
                         description="Master INNER, LEFT, RIGHT, and FULL joins",
                         difficulty_level=DifficultyLevel.EASY,
-                        order_index=2
+                        order_index=1
                     ),
                     Topic(
                         name="Aggregate Functions",
                         description="COUNT, SUM, AVG, MIN, MAX and GROUP BY clauses",
                         difficulty_level=DifficultyLevel.MEDIUM,
-                        order_index=3
+                        order_index=2
                     ),
                     Topic(
                         name="Subqueries and CTEs",
                         description="Complex nested queries and Common Table Expressions",
                         difficulty_level=DifficultyLevel.HARD,
-                        order_index=4
-                    ),
-                    Topic(
-                        name="Advanced Performance",
-                        description="Query optimization, indexing, and window functions",
-                        difficulty_level=DifficultyLevel.EXPERT,
-                        order_index=5
+                        order_index=3
                     )
                 ]
                 
