@@ -128,6 +128,13 @@ class CommunityPostBase(CamelCaseModel):
 class CommunityPostCreate(CommunityPostBase):
     pass
 
+# Simple problem schema for community posts
+class CommunityProblemResponse(CamelCaseModel):
+    id: str
+    title: str
+    company: Optional[str] = None
+    difficulty: str
+
 class CommunityPostResponse(CommunityPostBase):
     id: str
     user_id: str
@@ -135,6 +142,7 @@ class CommunityPostResponse(CommunityPostBase):
     comments: int
     created_at: datetime
     user: UserResponse
+    problem: Optional[CommunityProblemResponse] = None
 
 # Post comment schemas
 class PostCommentBase(CamelCaseModel):

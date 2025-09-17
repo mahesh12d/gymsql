@@ -245,6 +245,35 @@ WHERE condition;"
                             </Badge>
                           </div>
                           
+                          {/* Problem Information - Only show on community page */}
+                          {post.problem && (
+                            <div className="flex items-center space-x-2 mb-3">
+                              <span className="text-sm text-muted-foreground">Discussing:</span>
+                              <span className="text-sm font-medium text-primary" data-testid={`text-problem-title-${post.id}`}>
+                                {post.problem.title}
+                              </span>
+                              {post.problem.company && (
+                                <>
+                                  <span className="text-sm text-muted-foreground">•</span>
+                                  <Badge variant="secondary" className="text-xs" data-testid={`badge-company-${post.id}`}>
+                                    {post.problem.company}
+                                  </Badge>
+                                </>
+                              )}
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${
+                                  post.problem.difficulty === 'Easy' ? 'text-green-600 border-green-300' :
+                                  post.problem.difficulty === 'Medium' ? 'text-yellow-600 border-yellow-300' :
+                                  'text-red-600 border-red-300'
+                                }`}
+                                data-testid={`badge-difficulty-${post.id}`}
+                              >
+                                {post.problem.difficulty}
+                              </Badge>
+                            </div>
+                          )}
+                          
                           <p className="text-foreground mb-4 leading-relaxed" data-testid={`text-post-content-${post.id}`}>
                             {post.content}
                           </p>

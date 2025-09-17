@@ -529,8 +529,10 @@ def get_leaderboard(limit: Optional[int] = Query(50),
          response_model=List[CommunityPostResponse],
          response_model_by_alias=True)
 def get_community_posts(db: Session = Depends(get_db)):
-    posts = db.query(CommunityPost).options(joinedload(
-        CommunityPost.user)).order_by(desc(CommunityPost.created_at)).all()
+    posts = db.query(CommunityPost).options(
+        joinedload(CommunityPost.user),
+        joinedload(CommunityPost.problem)
+    ).order_by(desc(CommunityPost.created_at)).all()
 
     return [CommunityPostResponse.from_orm(post) for post in posts]
 
