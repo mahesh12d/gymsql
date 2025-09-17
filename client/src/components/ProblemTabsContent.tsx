@@ -538,13 +538,13 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
 
   // Fetch solutions for this problem
   const { data: solutions = [], isLoading: solutionsLoading } = useQuery({
-    queryKey: [`/api/problems/${problemId}/solutions`, problemId],
+    queryKey: [`/api/problems/${problemId}/solutions`],
     enabled: !!problemId,
   });
 
   // Fetch discussions for this problem
   const { data: discussions = [], isLoading: discussionsLoading } = useQuery({
-    queryKey: [`/api/problems/${problemId}/discussions`, problemId],
+    queryKey: [`/api/problems/${problemId}/discussions`],
     enabled: !!problemId,
   });
 
