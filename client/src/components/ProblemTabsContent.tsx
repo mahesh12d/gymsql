@@ -132,13 +132,10 @@ const NestedComment = memo(function NestedComment({
 
   const replyMutation = useMutation({
     mutationFn: async (data: { content: string; parentId?: string }) => {
-      return apiRequest(`/api/community/posts/${discussionId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ 
+      return apiRequest('POST', `/api/community/posts/${discussionId}/comments`, { 
           content: data.content,
           parent_id: data.parentId 
-        }),
-      });
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${discussionId}/comments`] });
@@ -324,10 +321,7 @@ const DiscussionCard = memo(function DiscussionCard({
 
   const replyMutation = useMutation({
     mutationFn: async (content: string) => {
-      return apiRequest(`/api/community/posts/${discussion.id}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      });
+      return apiRequest('POST', `/api/community/posts/${discussion.id}/comments`, { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${discussion.id}/comments`] });
@@ -458,13 +452,10 @@ const CreateDiscussionDialog = memo(function CreateDiscussionDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: { content: string; codeSnippet?: string }) => {
-      return apiRequest(`/api/problems/${problemId}/discussions`, {
-        method: 'POST',
-        body: JSON.stringify({
+      return apiRequest('POST', `/api/problems/${problemId}/discussions`, {
           content: data.content,
           codeSnippet: data.codeSnippet || undefined,
-        }),
-      });
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/problems/${problemId}/discussions`] });
@@ -561,7 +552,7 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
   const likeMutation = useMutation({
     mutationFn: async ({ postId, isLiked }: { postId: string; isLiked: boolean }) => {
       const method = isLiked ? 'DELETE' : 'POST';
-      return apiRequest(`/api/community/posts/${postId}/like`, { method });
+      return apiRequest(method, `/api/community/posts/${postId}/like`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/problems/${problemId}/discussions`] });
