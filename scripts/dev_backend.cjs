@@ -90,6 +90,17 @@ async function startBackend() {
       process.exit(1);
     }
     
+    console.log('📦 Installing additional packages...');
+    const additionalResult = spawnSync(pythonCmd, ['-m', 'pip', 'install', '--break-system-packages', 'duckdb', 'fsspec', 'pyarrow'], {
+      stdio: 'inherit',
+      cwd: process.cwd()
+    });
+    
+    if (additionalResult.status !== 0) {
+      console.error('❌ Additional packages install failed');
+      process.exit(1);
+    }
+    
     console.log(`🚀 Starting backend with ${pythonCmd} -m uvicorn...`);
     const backend = spawn(pythonCmd, [
       '-m', 'uvicorn', 'api.main:app',
