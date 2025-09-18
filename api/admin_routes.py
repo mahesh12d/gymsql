@@ -171,6 +171,101 @@ class ParquetValidationResponse(BaseModel):
     row_count: Optional[int] = None
     parquet_url: Optional[str] = None
     error: Optional[str] = None
+    # New fields for schema enforcement
+    suggested_table_schema: Optional[List[Dict[str, Any]]] = None
+    table_name: Optional[str] = None
+
+def _map_duckdb_type_to_sql(duckdb_type: str) -> str:
+    """Map DuckDB data types to standard SQL types for problem creation"""
+    type_lower = duckdb_type.lower().strip()
+    
+    # Integer types (including unsigned variants)
+    if 'hugeint' in type_lower:
+        return 'BIGINT'  # Closest equivalent
+    elif 'bigint' in type_lower or 'int64' in type_lower:
+        return 'BIGINT'
+    elif 'ubigint' in type_lower:
+        return 'BIGINT'  # Unsigned, but map to signed equivalent
+    elif 'int' in type_lower or 'integer' in type_lower:
+        return 'INTEGER'
+    elif 'uinteger' in type_lower:
+        return 'INTEGER'
+    elif 'smallint' in type_lower or 'int16' in type_lower:
+        return 'SMALLINT'
+    elif 'usmallint' in type_lower:
+        return 'SMALLINT'
+    elif 'tinyint' in type_lower or 'int8' in type_lower:
+        return 'TINYINT'
+    elif 'utinyint' in type_lower:
+        return 'TINYINT'
+    
+    # Floating point types
+    elif 'double' in type_lower or 'float64' in type_lower:
+        return 'DOUBLE'
+    elif 'float' in type_lower or 'real' in type_lower or 'float32' in type_lower:
+        return 'FLOAT'
+    
+    # Decimal/numeric types (preserve precision if possible)
+    elif 'decimal' in type_lower or 'numeric' in type_lower:
+        # Try to preserve precision/scale if specified
+        if '(' in duckdb_type:
+            return duckdb_type.upper()  # Keep original precision
+        return 'DECIMAL'
+    
+    # String types
+    elif 'varchar' in type_lower or 'string' in type_lower or 'text' in type_lower:
+        # Preserve length if specified
+        if '(' in duckdb_type and 'varchar' in type_lower:
+            return duckdb_type.upper()
+        return 'VARCHAR'
+    elif 'char' in type_lower:
+        if '(' in duckdb_type:
+            return duckdb_type.upper()
+        return 'CHAR'
+    elif 'clob' in type_lower:
+        return 'TEXT'
+    
+    # Binary types
+    elif 'blob' in type_lower or 'binary' in type_lower or 'bytea' in type_lower:
+        return 'BLOB'
+    elif 'varbinary' in type_lower:
+        return 'VARBINARY'
+    
+    # Date/time types
+    elif 'timestamptz' in type_lower or 'timestamp with time zone' in type_lower:
+        return 'TIMESTAMPTZ'
+    elif 'timestamp' in type_lower:
+        return 'TIMESTAMP'
+    elif 'date' in type_lower:
+        return 'DATE'
+    elif 'time' in type_lower:
+        return 'TIME'
+    elif 'interval' in type_lower:
+        return 'INTERVAL'
+    
+    # UUID type
+    elif 'uuid' in type_lower:
+        return 'UUID'
+    
+    # Boolean type
+    elif 'bool' in type_lower or 'boolean' in type_lower:
+        return 'BOOLEAN'
+    
+    # JSON and structured types
+    elif 'json' in type_lower:
+        return 'JSON'
+    elif any(x in type_lower for x in ['list', 'array', '[]']):
+        return 'JSON'  # Lists/arrays map to JSON
+    elif 'struct' in type_lower or 'row(' in type_lower:
+        return 'JSON'  # Structs map to JSON
+    elif 'map' in type_lower:
+        return 'JSON'  # Maps map to JSON
+    elif 'union' in type_lower:
+        return 'JSON'  # Unions map to JSON
+    
+    # Fallback to VARCHAR for unknown types
+    else:
+        return 'VARCHAR'
 
 @admin_router.post("/validate-parquet", response_model=ParquetValidationResponse)
 def validate_parquet_file(
@@ -230,35 +325,68 @@ def validate_parquet_file(
         
         # Test accessibility and get basic info
         try:
-            # Test if parquet file exists and is accessible using parameterized query
-            result = conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
-            
-            if result is None:
+            # Test if parquet file exists and is accessible using a lightweight query
+            # Avoid COUNT(*) which can be expensive on large files
+            try:
+                conn.execute("SELECT 1 FROM read_parquet(?) LIMIT 1", [parquet_url]).fetchone()
+                # File is accessible, use metadata to estimate row count if available
+                row_count = None  # We'll skip row count for performance
+            except Exception:
                 return ParquetValidationResponse(
                     success=False,
                     message="Parquet file not found or inaccessible",
                     error=f"Could not access parquet file at: {parquet_url}"
                 )
             
-            row_count = result[0]
-            
             # Get schema information using parameterized query
             schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet_url]).fetchall()
             schema = [{"column": row[0], "type": row[1]} for row in schema_result]
             
-            # Get sample data (first 10 rows) using parameterized query
-            sample_result = conn.execute("SELECT * FROM read_parquet(?) LIMIT 10", [parquet_url]).fetchdf()
-            sample_data = sample_result.to_dict(orient="records") if not sample_result.empty else []
+            # Create suggested table schema for auto-population in problem creation
+            suggested_columns = []
+            for row in schema_result:
+                column_name = row[0]
+                duckdb_type = row[1]
+                sql_type = _map_duckdb_type_to_sql(duckdb_type)
+                
+                suggested_columns.append({
+                    "name": column_name,
+                    "type": sql_type,
+                    "description": f"{column_name} column ({sql_type})"
+                })
+            
+            suggested_table_schema = [{
+                "name": parquet_source.table_name,
+                "columns": suggested_columns,
+                "sample_data": []  # Will be populated from sample data
+            }]
+            
+            # Get sample data (first 10 rows) using parameterized query - avoid pandas dependency
+            sample_query = conn.execute("SELECT * FROM read_parquet(?) LIMIT 10", [parquet_url])
+            sample_rows = sample_query.fetchall()
+            
+            # Get column names from the query
+            if sample_rows:
+                column_names = [desc[0] for desc in sample_query.description]
+                sample_data = [dict(zip(column_names, row)) for row in sample_rows]
+            else:
+                sample_data = []
+            
+            # Add sample data to suggested table schema
+            if sample_data:
+                suggested_table_schema[0]["sample_data"] = sample_data[:5]  # Limit to 5 rows for UI
             
             conn.close()
             
             return ParquetValidationResponse(
                 success=True,
-                message=f"Parquet file validated successfully. Found {row_count} rows with {len(schema)} columns.",
+                message=f"Parquet file validated successfully. Found {len(schema)} columns with schema auto-population ready.",
                 table_schema=schema,
                 sample_data=sample_data,
-                row_count=row_count,
-                parquet_url=parquet_url
+                row_count=row_count,  # Will be None for performance
+                parquet_url=parquet_url,
+                suggested_table_schema=suggested_table_schema,
+                table_name=parquet_source.table_name
             )
             
         except Exception as e:
@@ -277,6 +405,132 @@ def validate_parquet_file(
             message="Validation failed",
             error=f"Validation error: {str(e)}"
         )
+
+def _validate_schema_consistency(table_schema: List[Dict], parquet_data_source: ParquetDataSource) -> tuple[Optional[str], Optional[str]]:
+    """
+    Validate that the manual table schema is consistent with the parquet schema.
+    Returns (error_message, warning_message). error_message is None if successful.
+    """
+    if not parquet_data_source:
+        return None, None
+    
+    try:
+        # Re-validate parquet file to get current schema
+        parquet_url = f"{parquet_data_source.git_repo_url.rstrip('/')}/{parquet_data_source.file_path.lstrip('/')}"
+        
+        # Initialize temporary DuckDB connection
+        conn = duckdb.connect(":memory:")
+        conn.execute("SET memory_limit = '64MB'")
+        conn.execute("INSTALL httpfs")
+        conn.execute("LOAD httpfs")
+        
+        # Get parquet schema
+        schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet_url]).fetchall()
+        parquet_columns = {row[0]: _map_duckdb_type_to_sql(row[1]) for row in schema_result}
+        conn.close()
+        
+        # Find the table that matches the parquet table name
+        matching_table = None
+        for table in table_schema:
+            if table.get("name") == parquet_data_source.table_name:
+                matching_table = table
+                break
+        
+        if not matching_table:
+            return f"No table named '{parquet_data_source.table_name}' found in schema to match parquet data", None
+        
+        # Compare schemas
+        table_columns = {col["name"]: col["type"] for col in matching_table.get("columns", [])}
+        
+        # Check for missing columns (critical error)
+        missing_in_table = set(parquet_columns.keys()) - set(table_columns.keys())
+        if missing_in_table:
+            return f"Columns missing from table schema: {', '.join(sorted(missing_in_table))}", None
+        
+        # Check for extra columns (warning only)
+        extra_in_table = set(table_columns.keys()) - set(parquet_columns.keys())
+        warning_message = None
+        if extra_in_table:
+            warning_message = f"Extra columns in table schema (not in parquet): {', '.join(sorted(extra_in_table))}"
+        
+        # Check for type mismatches (critical error)
+        type_mismatches = []
+        for col_name in parquet_columns:
+            if col_name in table_columns:
+                parquet_type = parquet_columns[col_name]
+                table_type = table_columns[col_name]
+                # Allow some type flexibility (e.g., INTEGER vs BIGINT)
+                if not _types_compatible(parquet_type, table_type):
+                    type_mismatches.append(f"{col_name}: parquet={parquet_type}, table={table_type}")
+        
+        if type_mismatches:
+            return f"Column type mismatches: {'; '.join(type_mismatches)}", warning_message
+        
+        # All validations passed
+        return None, warning_message
+        
+    except Exception as e:
+        return f"Schema validation failed: {str(e)}", None
+
+def _normalize_sql_type(sql_type: str) -> str:
+    """Normalize SQL types by removing parameters and handling synonyms"""
+    normalized = sql_type.upper().strip()
+    
+    # Remove parameters (everything in parentheses)
+    if '(' in normalized:
+        normalized = normalized.split('(')[0]
+    
+    # Handle common synonyms
+    synonyms = {
+        'INT': 'INTEGER',
+        'BOOL': 'BOOLEAN', 
+        'REAL': 'FLOAT',
+        'STRING': 'VARCHAR',
+        'TEXT': 'VARCHAR',
+        'CLOB': 'VARCHAR',
+        'NUMERIC': 'DECIMAL',
+        'BYTEA': 'BLOB',
+        'BINARY': 'BLOB',
+        'VARBINARY': 'BLOB'
+    }
+    
+    return synonyms.get(normalized, normalized)
+
+def _types_compatible(type1: str, type2: str) -> bool:
+    """Check if two SQL types are compatible"""
+    norm1 = _normalize_sql_type(type1)
+    norm2 = _normalize_sql_type(type2)
+    
+    # Exact match after normalization
+    if norm1 == norm2:
+        return True
+    
+    # Integer family compatibility
+    int_types = {'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'}
+    if norm1 in int_types and norm2 in int_types:
+        return True
+    
+    # Float family compatibility 
+    float_types = {'FLOAT', 'DOUBLE'}
+    if norm1 in float_types and norm2 in float_types:
+        return True
+    
+    # String family compatibility
+    string_types = {'VARCHAR', 'CHAR'}
+    if norm1 in string_types and norm2 in string_types:
+        return True
+    
+    # Binary family compatibility
+    binary_types = {'BLOB', 'VARBINARY'}
+    if norm1 in binary_types and norm2 in binary_types:
+        return True
+    
+    # Timestamp compatibility (with and without timezone)
+    timestamp_types = {'TIMESTAMP', 'TIMESTAMPTZ'}
+    if norm1 in timestamp_types and norm2 in timestamp_types:
+        return True
+    
+    return False
 
 @admin_router.post("/problems")
 def create_problem(
@@ -302,6 +556,28 @@ def create_problem(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid topic_id"
             )
+    
+    # Schema enforcement: validate consistency between table schema and parquet data
+    if problem_data.question.parquet_data_source and problem_data.question.tables:
+        table_data = [
+            {
+                "name": table.name,
+                "columns": [{"name": col.name, "type": col.type} for col in table.columns]
+            }
+            for table in problem_data.question.tables
+        ]
+        
+        schema_error, schema_warning = _validate_schema_consistency(table_data, problem_data.question.parquet_data_source)
+        if schema_error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Schema validation failed: {schema_error}"
+            )
+        
+        # Log warning if present (could be enhanced to return to frontend)
+        if schema_warning:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Schema validation warning for problem creation: {schema_warning}")
     
     # Convert AdminQuestionData to the format expected by the database
     question_data = {

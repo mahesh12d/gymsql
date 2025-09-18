@@ -86,6 +86,13 @@ interface ParquetValidationResponse {
   row_count?: number;
   parquet_url?: string;
   error?: string;
+  // New fields for schema enforcement
+  suggested_table_schema?: Array<{
+    name: string;
+    columns: Array<{name: string; type: string; description: string}>;
+    sample_data: Record<string, any>[];
+  }>;
+  table_name?: string;
 }
 
 export default function AdminPanel() {
@@ -395,17 +402,44 @@ export default function AdminPanel() {
     }
   };
 
-  // Use validated parquet in problem creation
+  // Use validated parquet in problem creation with auto-population
   const useParquetInProblem = () => {
-    if (!parquetValidation?.success) return;
+    if (!parquetValidation?.success || !parquetValidation.suggested_table_schema) {
+      toast({
+        title: "Error",
+        description: "No validated parquet data to use",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Auto-populate table schema from validated parquet data
+    const suggestedTables = parquetValidation.suggested_table_schema.map(table => ({
+      name: table.name,
+      columns: table.columns.map(col => ({
+        name: col.name,
+        type: col.type,
+        description: col.description || `${col.name} column (${col.type})`
+      })),
+      sample_data: table.sample_data || []
+    }));
+
+    // Update sample data JSON strings for the UI
+    const newSampleDataJson = suggestedTables.map(table => 
+      JSON.stringify(table.sample_data, null, 2)
+    );
 
     setProblemData(prev => ({
       ...prev,
       question: {
         ...prev.question,
+        tables: suggestedTables,
         parquet_data_source: parquetSource
       }
     }));
+
+    // Update the sample data JSON state for the form
+    setSampleDataJson(newSampleDataJson);
 
     setActiveTab('create');
     toast({
@@ -1278,11 +1312,12 @@ export default function AdminPanel() {
 
                 {parquetValidation?.success && (
                   <Button
-                    variant="secondary"
+                    variant="default"
                     onClick={useParquetInProblem}
                     data-testid="button-use-in-problem"
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
                   >
-                    Use in Problem Creation
+                    ✨ Auto-Populate Problem Schema
                   </Button>
                 )}
               </div>
@@ -1300,6 +1335,16 @@ export default function AdminPanel() {
                           ✅ Validation successful! Found {parquetValidation.row_count} rows with {parquetValidation.table_schema?.length} columns.
                         </AlertDescription>
                       </Alert>
+
+                      {/* Auto-populate Information */}
+                      {parquetValidation.suggested_table_schema && (
+                        <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                          <Info className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="text-green-800 dark:text-green-200">
+                            <strong>Ready for Auto-Population!</strong> The "Auto-Populate Problem Schema" button will automatically create a table named "{parquetValidation.table_name}" with {parquetValidation.suggested_table_schema[0]?.columns?.length} columns, including sample data. This eliminates manual schema entry and ensures consistency between your parquet data and problem definition.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
                       {/* Schema Information */}
                       {parquetValidation.table_schema && (
