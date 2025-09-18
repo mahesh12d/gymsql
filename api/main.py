@@ -865,9 +865,25 @@ def get_problem_solutions_public(
 def get_problem_discussions(
     problem_id: str,
     limit: int = Query(20, ge=1, le=100),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """Get discussions for a specific problem"""
+    # First check if the problem exists and if it's premium
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Problem not found"
+        )
+    
+    # Check premium access for premium problems
+    if problem.premium and (not current_user or not current_user.premium):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to view discussions for this problem"
+        )
+    
     posts = db.query(CommunityPost).options(
         joinedload(CommunityPost.user)
     ).filter(
@@ -892,6 +908,13 @@ def create_problem_discussion(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Problem not found"
+        )
+    
+    # Check premium access for premium problems
+    if problem.premium and not current_user.premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to create discussions for this problem"
         )
     
     # Create discussion post
