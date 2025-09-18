@@ -1,6 +1,8 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Lock, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { problemsApi, submissionsApi } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
@@ -129,6 +131,57 @@ export default function ProblemDetail() {
           >
             Back to Problems
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Premium access check - block entire premium problems for non-premium users
+  if (problem.premium && (!user || !user.premium)) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="flex items-center justify-center w-20 h-20 bg-amber-100 dark:bg-amber-900/20 rounded-full mx-auto mb-6">
+            <Lock className="w-10 h-10 text-amber-600 dark:text-amber-500" />
+          </div>
+          <h1 className="text-3xl font-bold mb-4 text-foreground">Premium Problem</h1>
+          <p className="text-muted-foreground mb-6 text-lg leading-relaxed">
+            🔒 This is a premium problem. Upgrade to access the complete problem description, 
+            hints, solutions, discussions, and coding environment.
+          </p>
+          <div className="space-y-3">
+            <Button 
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={() => {
+                if (!user) {
+                  // If not logged in, redirect to landing page (which shows auth forms)
+                  setLocation("/");
+                } else {
+                  // If logged in but not premium, show upgrade message and redirect to landing
+                  toast({
+                    title: "Premium Upgrade Required",
+                    description: "Contact support or visit our pricing page to upgrade to Premium.",
+                    variant: "default",
+                  });
+                  // In a real app, this would redirect to billing/upgrade page
+                  setLocation("/");
+                }
+              }}
+              data-testid="button-upgrade-premium"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              {!user ? "Sign in to Access" : "Upgrade to Premium"}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation("/problems")}
+              className="w-full"
+              data-testid="button-back-problems"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Problems
+            </Button>
+          </div>
         </div>
       </div>
     );
