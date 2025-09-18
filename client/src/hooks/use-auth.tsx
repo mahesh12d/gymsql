@@ -10,6 +10,7 @@ interface User {
   xp: number;
   level: string;
   problemsSolved: number;
+  premium?: boolean;
 }
 
 interface AuthContextType {
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     xp: 500,
     level: 'SQL Trainee',
     problemsSolved: 5,
+    premium: false,
   };
 
   const [user, setUser] = useState<User | null>(mockUser);

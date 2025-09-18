@@ -620,7 +620,7 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
           {problemId && (
             <AnswersScreen 
               problemId={problemId} 
-              hasCorrectSubmission={hasCorrectSubmission} 
+              problem={problem}
             />
           )}
         </TabsContent>

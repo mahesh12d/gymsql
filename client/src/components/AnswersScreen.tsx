@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Trophy } from 'lucide-react';
 import { useQuery } from "@tanstack/react-query";
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/use-auth';
 
 interface User {
   id: string;
@@ -24,22 +25,26 @@ interface Solution {
 
 interface AnswersScreenProps {
   problemId: string;
-  hasCorrectSubmission?: boolean;
+  problem?: {
+    premium?: boolean | null;
+  };
   className?: string;
 }
 
 const SolutionDisplay = memo(function SolutionDisplay({
   solution,
-  hasAccess
+  hasAccess,
+  lockReason
 }: {
   solution: Solution;
   hasAccess: boolean;
+  lockReason?: string;
 }) {
   if (!hasAccess) {
     return (
       <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/30">
         <AlertDescription className="text-orange-800 dark:text-orange-200">
-          🔒 Solve this problem first to unlock the solution!
+          {lockReason || "🔒 Access denied"}
         </AlertDescription>
       </Alert>
     );
@@ -77,9 +82,19 @@ const SolutionDisplay = memo(function SolutionDisplay({
 
 const AnswersScreen = memo(function AnswersScreen({ 
   problemId, 
-  hasCorrectSubmission = false, 
+  problem,
   className 
 }: AnswersScreenProps) {
+  const { user } = useAuth();
+  
+  // Determine access to solutions
+  const isPremiumProblem = problem?.premium === true;
+  const userHasPremium = user?.premium === true;
+  const hasAccess = !isPremiumProblem || userHasPremium;
+  const lockReason = isPremiumProblem && !userHasPremium 
+    ? "🔒 Premium subscription required to view the solution!"
+    : undefined;
+
   // Fetch the solution (single solution)
   const { data: solution, isLoading: solutionsLoading, error: solutionError } = useQuery({
     queryKey: [`/api/problems/${problemId}/official-solution`],
@@ -111,7 +126,8 @@ const AnswersScreen = memo(function AnswersScreen({
           <SolutionDisplay
             key={solution.id}
             solution={solution}
-            hasAccess={hasCorrectSubmission}
+            hasAccess={hasAccess}
+            lockReason={lockReason}
           />
         )}
 
