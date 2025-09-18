@@ -1,0 +1,36 @@
+[build]
+  base = "client/"
+  command = "npm run build"
+  publish = "dist/"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_VERSION = "9"
+
+# Redirect all non-API routes to index.html for React Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin", "editor"], Country = ["US"]}
+
+# Handle API routes (if using Netlify Functions)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Prevent processing of certain files
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
