@@ -615,13 +615,28 @@ def get_leaderboard(limit: Optional[int] = Query(50),
 @app.get("/api/community/posts",
          response_model=List[CommunityPostResponse],
          response_model_by_alias=True)
-def get_community_posts(db: Session = Depends(get_db)):
+def get_community_posts(current_user: Optional[User] = Depends(get_current_user_optional),
+                        db: Session = Depends(get_db)):
     posts = db.query(CommunityPost).options(
         joinedload(CommunityPost.user),
         joinedload(CommunityPost.problem)
     ).order_by(desc(CommunityPost.created_at)).all()
 
-    return [CommunityPostResponse.from_orm(post) for post in posts]
+    # Filter out posts related to premium problems for non-premium users
+    filtered_posts = []
+    for post in posts:
+        # If post is not related to any problem, include it
+        if not post.problem:
+            filtered_posts.append(post)
+        # If post is related to a non-premium problem, include it
+        elif not post.problem.premium:
+            filtered_posts.append(post)
+        # If post is related to a premium problem, only include it if user has premium access
+        elif current_user and current_user.premium:
+            filtered_posts.append(post)
+        # Otherwise, exclude the post
+
+    return [CommunityPostResponse.from_orm(post) for post in filtered_posts]
 
 
 @app.post("/api/community/posts",
@@ -630,6 +645,15 @@ def get_community_posts(db: Session = Depends(get_db)):
 def create_community_post(post_data: CommunityPostCreate,
                           current_user: User = Depends(get_current_user),
                           db: Session = Depends(get_db)):
+    # Check if user is trying to create a post about a premium problem
+    if post_data.problem_id:
+        problem = db.query(Problem).filter(Problem.id == post_data.problem_id).first()
+        if problem and problem.premium and not current_user.premium:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Premium subscription required to create discussions for this problem"
+            )
+
     post = CommunityPost(user_id=current_user.id,
                          content=post_data.content,
                          code_snippet=post_data.code_snippet,
@@ -650,6 +674,20 @@ def create_community_post(post_data: CommunityPostCreate,
 def like_post(post_id: str,
               current_user: User = Depends(get_current_user),
               db: Session = Depends(get_db)):
+    # Check if post is related to a premium problem and user has access
+    post = db.query(CommunityPost).options(joinedload(CommunityPost.problem)).filter(
+        CommunityPost.id == post_id).first()
+    
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    # Check premium access for posts related to premium problems
+    if post.problem and post.problem.premium and not current_user.premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to interact with this discussion"
+        )
+
     # Check if already liked
     existing_like = db.query(PostLike).filter(
         and_(PostLike.user_id == current_user.id,
@@ -663,10 +701,8 @@ def like_post(post_id: str,
     like = PostLike(user_id=current_user.id, post_id=post_id)
     db.add(like)
 
-    # Update post likes count
-    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
-    if post:
-        post.likes = (post.likes or 0) + 1
+    # Update post likes count (we already have the post from above)
+    post.likes = (post.likes or 0) + 1
 
     db.commit()
     return {"message": "Post liked successfully"}
@@ -676,6 +712,20 @@ def like_post(post_id: str,
 def unlike_post(post_id: str,
                 current_user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)):
+    # Check if post is related to a premium problem and user has access
+    post = db.query(CommunityPost).options(joinedload(CommunityPost.problem)).filter(
+        CommunityPost.id == post_id).first()
+    
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    # Check premium access for posts related to premium problems
+    if post.problem and post.problem.premium and not current_user.premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to interact with this discussion"
+        )
+
     # Find and delete like
     like = db.query(PostLike).filter(
         and_(PostLike.user_id == current_user.id,
@@ -687,10 +737,8 @@ def unlike_post(post_id: str,
 
     db.delete(like)
 
-    # Update post likes count
-    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
-    if post:
-        post.likes = max(0, (post.likes or 0) - 1)
+    # Update post likes count (we already have the post from above)
+    post.likes = max(0, (post.likes or 0) - 1)
 
     db.commit()
     return {"message": "Post unliked successfully"}
@@ -699,7 +747,23 @@ def unlike_post(post_id: str,
 @app.get("/api/community/posts/{post_id}/comments",
          response_model=List[PostCommentResponse],
          response_model_by_alias=True)
-def get_post_comments(post_id: str, db: Session = Depends(get_db)):
+def get_post_comments(post_id: str, 
+                      current_user: Optional[User] = Depends(get_current_user_optional),
+                      db: Session = Depends(get_db)):
+    # Check if post is related to a premium problem and user has access
+    post = db.query(CommunityPost).options(joinedload(CommunityPost.problem)).filter(
+        CommunityPost.id == post_id).first()
+    
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    # Check premium access for posts related to premium problems
+    if post.problem and post.problem.premium and (not current_user or not current_user.premium):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to view comments on this discussion"
+        )
+
     # Get all comments for the post
     all_comments = db.query(PostComment).options(joinedload(
         PostComment.user)).filter(PostComment.post_id == post_id).order_by(
@@ -734,6 +798,20 @@ def create_post_comment(post_id: str,
                         comment_data: PostCommentCreate,
                         current_user: User = Depends(get_current_user),
                         db: Session = Depends(get_db)):
+    # Check if post is related to a premium problem and user has access
+    post = db.query(CommunityPost).options(joinedload(CommunityPost.problem)).filter(
+        CommunityPost.id == post_id).first()
+    
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    # Check premium access for posts related to premium problems
+    if post.problem and post.problem.premium and not current_user.premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required to comment on this discussion"
+        )
+
     # Validate parent comment exists if parent_id is provided
     if comment_data.parent_id:
         parent_comment = db.query(PostComment).filter(
