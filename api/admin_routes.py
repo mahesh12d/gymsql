@@ -185,9 +185,9 @@ def validate_parquet_file(
         # Construct full parquet file URL
         parquet_url = f"{parquet_source.git_repo_url.rstrip('/')}/{parquet_source.file_path.lstrip('/')}"
         
-        # Security validation - use same logic as DuckDBSandbox
+        # Security validation - exact domain matching to prevent bypass
         from urllib.parse import urlparse
-        allowed_domains = ['raw.githubusercontent.com', 'githubusercontent.com']
+        allowed_domains = ['raw.githubusercontent.com']  # Exact match only for security
         
         try:
             parsed = urlparse(parquet_url)
@@ -197,12 +197,18 @@ def validate_parquet_file(
                     message="Only HTTPS URLs are allowed",
                     error="URL must use HTTPS scheme"
                 )
-            if not any(parsed.netloc.endswith(domain) or parsed.netloc == domain 
-                      for domain in allowed_domains):
+            if parsed.netloc not in allowed_domains:
                 return ParquetValidationResponse(
                     success=False,
                     message="URL domain not allowed",
                     error=f"Domain {parsed.netloc} not in allowed list: {allowed_domains}"
+                )
+            # Additional validation: ensure path ends with .parquet
+            if not parsed.path.lower().endswith('.parquet'):
+                return ParquetValidationResponse(
+                    success=False,
+                    message="Invalid file type",
+                    error="File path must end with .parquet extension"
                 )
         except Exception:
             return ParquetValidationResponse(

@@ -29,6 +29,7 @@ interface QuestionData {
   description: string;
   tables: TableData[];
   expectedOutput: Record<string, any>[];
+  parquet_data_source?: ParquetDataSource;
 }
 
 interface ProblemData {
@@ -70,6 +71,23 @@ interface SolutionCreate {
   is_official: boolean;
 }
 
+interface ParquetDataSource {
+  git_repo_url: string;
+  file_path: string;
+  table_name: string;
+  description: string;
+}
+
+interface ParquetValidationResponse {
+  success: boolean;
+  message: string;
+  table_schema?: Array<{column: string; type: string}>;
+  sample_data?: Record<string, any>[];
+  row_count?: number;
+  parquet_url?: string;
+  error?: string;
+}
+
 export default function AdminPanel() {
   const { toast } = useToast();
   const [adminKey, setAdminKey] = useState('');
@@ -109,6 +127,16 @@ export default function AdminPanel() {
   const [expectedOutputJson, setExpectedOutputJson] = useState('[]');
   const [sampleDataJson, setSampleDataJson] = useState<string[]>([]);
   const [expectedOutputRows, setExpectedOutputRows] = useState<Record<string, any>[]>([]);
+
+  // Parquet validation state
+  const [parquetSource, setParquetSource] = useState<ParquetDataSource>({
+    git_repo_url: 'https://raw.githubusercontent.com/mahesh12d/GymSql-problems_et/main',
+    file_path: '',
+    table_name: 'problem_data',
+    description: ''
+  });
+  const [parquetValidation, setParquetValidation] = useState<ParquetValidationResponse | null>(null);
+  const [isValidatingParquet, setIsValidatingParquet] = useState(false);
 
   // Authentication
   const handleAuthenticate = async () => {
@@ -316,6 +344,75 @@ export default function AdminPanel() {
       setSolutionForm({ title: '', content: '', sql_code: '', is_official: true });
     }
   }, [selectedProblemId, editingSolution]);
+
+  // Parquet validation function
+  const validateParquetFile = async () => {
+    if (!parquetSource.file_path.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "File path is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsValidatingParquet(true);
+    setParquetValidation(null);
+
+    try {
+      const response = await fetch('/api/admin/validate-parquet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify(parquetSource),
+      });
+
+      const result = await response.json();
+      setParquetValidation(result);
+
+      if (result.success) {
+        toast({
+          title: "Validation Success",
+          description: `Found ${result.row_count} rows with ${result.table_schema?.length} columns`,
+        });
+      } else {
+        toast({
+          title: "Validation Failed",
+          description: result.error || "Unknown error occurred",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to validate parquet file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingParquet(false);
+    }
+  };
+
+  // Use validated parquet in problem creation
+  const useParquetInProblem = () => {
+    if (!parquetValidation?.success) return;
+
+    setProblemData(prev => ({
+      ...prev,
+      question: {
+        ...prev.question,
+        parquet_data_source: parquetSource
+      }
+    }));
+
+    setActiveTab('create');
+    toast({
+      title: "Parquet Data Added",
+      description: "Parquet data source has been added to problem creation form",
+    });
+  };
 
   // Form handlers
   const addTable = () => {
@@ -535,7 +632,8 @@ export default function AdminPanel() {
         question: {
           ...problemData.question,
           tables: problemData.question.tables,
-          expectedOutput: expectedOutputRows
+          expectedOutput: expectedOutputRows,
+          parquet_data_source: problemData.question.parquet_data_source
         }
       };
 
@@ -634,6 +732,7 @@ export default function AdminPanel() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="create" data-testid="tab-create">Create Question</TabsTrigger>
+          <TabsTrigger value="parquet" data-testid="tab-parquet">Parquet Files</TabsTrigger>
           <TabsTrigger value="solutions" data-testid="tab-solutions">Solutions</TabsTrigger>
           <TabsTrigger value="schema" data-testid="tab-schema">Schema Info</TabsTrigger>
           <TabsTrigger value="example" data-testid="tab-example">Example</TabsTrigger>
@@ -643,6 +742,14 @@ export default function AdminPanel() {
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
+              {problemData.question.parquet_data_source && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    📊 Parquet data source attached: {problemData.question.parquet_data_source.table_name} from {problemData.question.parquet_data_source.file_path}
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -1077,6 +1184,188 @@ export default function AdminPanel() {
               Reset to Example
             </Button>
           </div>
+        </TabsContent>
+
+        <TabsContent value="parquet" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Parquet File Browser & Validator
+              </CardTitle>
+              <CardDescription>
+                Validate parquet files from git repositories and view their schemas for problem creation.
+                Note: Repository browsing is coming soon - for now, manually enter file paths.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Parquet Source Configuration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="git-repo-url">Git Repository Base URL</Label>
+                  <Input
+                    id="git-repo-url"
+                    value={parquetSource.git_repo_url}
+                    onChange={(e) => setParquetSource(prev => ({ ...prev, git_repo_url: e.target.value }))}
+                    placeholder="https://raw.githubusercontent.com/user/repo/main"
+                    data-testid="input-git-repo-url"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use raw.githubusercontent.com format for security. Example: https://raw.githubusercontent.com/user/repo/main
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="file-path">Parquet File Path</Label>
+                  <Input
+                    id="file-path"
+                    value={parquetSource.file_path}
+                    onChange={(e) => setParquetSource(prev => ({ ...prev, file_path: e.target.value }))}
+                    placeholder="data/sales.parquet"
+                    data-testid="input-file-path"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Path to the .parquet file within the repository
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="table-name">Table Name in DuckDB</Label>
+                  <Input
+                    id="table-name"
+                    value={parquetSource.table_name}
+                    onChange={(e) => setParquetSource(prev => ({ ...prev, table_name: e.target.value }))}
+                    placeholder="problem_data"
+                    data-testid="input-table-name"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Name for the table when loaded into DuckDB sandbox
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Input
+                    id="description"
+                    value={parquetSource.description}
+                    onChange={(e) => setParquetSource(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Dataset description"
+                    data-testid="input-description"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional description of the dataset
+                  </p>
+                </div>
+              </div>
+
+              {/* URL Preview */}
+              <div className="space-y-2">
+                <Label>Full Parquet URL Preview</Label>
+                <div className="p-3 bg-muted rounded border font-mono text-sm break-all">
+                  {parquetSource.git_repo_url.replace(/\/$/, '')}/{parquetSource.file_path.replace(/^\//, '')}
+                </div>
+              </div>
+
+              {/* Validation Actions */}
+              <div className="flex gap-4">
+                <Button
+                  onClick={validateParquetFile}
+                  disabled={isValidatingParquet || !parquetSource.file_path.trim()}
+                  data-testid="button-validate-parquet"
+                >
+                  {isValidatingParquet ? 'Validating...' : 'Validate Parquet File'}
+                </Button>
+
+                {parquetValidation?.success && (
+                  <Button
+                    variant="secondary"
+                    onClick={useParquetInProblem}
+                    data-testid="button-use-in-problem"
+                  >
+                    Use in Problem Creation
+                  </Button>
+                )}
+              </div>
+
+              {/* Validation Results */}
+              {parquetValidation && (
+                <div className="space-y-4">
+                  <Separator />
+                  
+                  {parquetValidation.success ? (
+                    <div className="space-y-4">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          ✅ Validation successful! Found {parquetValidation.row_count} rows with {parquetValidation.table_schema?.length} columns.
+                        </AlertDescription>
+                      </Alert>
+
+                      {/* Schema Information */}
+                      {parquetValidation.table_schema && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Table Schema</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {parquetValidation.table_schema.map((col, index) => (
+                                <div key={index} className="p-2 border rounded bg-gray-50 dark:bg-gray-800">
+                                  <div className="font-semibold text-sm">{col.column}</div>
+                                  <div className="text-xs text-muted-foreground">{col.type}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Sample Data */}
+                      {parquetValidation.sample_data && parquetValidation.sample_data.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Sample Data (First 5 rows)</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full border-collapse border border-gray-300">
+                                <thead>
+                                  <tr className="bg-gray-100 dark:bg-gray-700">
+                                    {Object.keys(parquetValidation.sample_data[0] || {}).map((key) => (
+                                      <th key={key} className="border border-gray-300 px-2 py-1 text-left text-sm font-semibold">
+                                        {key}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {parquetValidation.sample_data.map((row, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                      {Object.values(row).map((value, cellIndex) => (
+                                        <td key={cellIndex} className="border border-gray-300 px-2 py-1 text-sm">
+                                          {value !== null && value !== undefined ? String(value) : 'NULL'}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  ) : (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        ❌ Validation failed: {parquetValidation.error || parquetValidation.message}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="solutions" className="space-y-6">
