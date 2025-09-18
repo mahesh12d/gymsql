@@ -206,10 +206,10 @@ def create_tables():
 def create_enum_types():
     """Create PostgreSQL enum types if they don't exist"""
     with engine.begin() as conn:
-        # Create difficulty_level enum
+        # Create difficultylevel enum (note: name matches model definition)
         conn.execute(text("""
             DO $$ BEGIN
-                CREATE TYPE difficulty_level AS ENUM ('Easy', 'Medium', 'Hard');
+                CREATE TYPE difficultylevel AS ENUM ('BEGINNER', 'EASY', 'MEDIUM', 'HARD', 'EXPERT');
             EXCEPTION
                 WHEN duplicate_object THEN null;
             END $$;
@@ -255,19 +255,19 @@ def initialize_enhanced_schema():
                     Topic(
                         name="Joins and Relationships",
                         description="Master INNER, LEFT, RIGHT, and FULL joins",
-                        difficulty_level=DifficultyLevel.EASY.value,
+                        difficulty_level="EASY",
                         order_index=1
                     ),
                     Topic(
                         name="Aggregate Functions",
                         description="COUNT, SUM, AVG, MIN, MAX and GROUP BY clauses",
-                        difficulty_level=DifficultyLevel.MEDIUM.value,
+                        difficulty_level="MEDIUM",
                         order_index=2
                     ),
                     Topic(
                         name="Subqueries and CTEs",
                         description="Complex nested queries and Common Table Expressions",
-                        difficulty_level=DifficultyLevel.HARD.value,
+                        difficulty_level="HARD",
                         order_index=3
                     )
                 ]

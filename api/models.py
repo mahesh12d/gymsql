@@ -343,8 +343,8 @@ class UserProgress(Base):
     total_time_spent_minutes = Column(Integer, default=0)
     
     # Difficulty progression
-    current_difficulty = Column(difficulty_enum, default=DifficultyLevel.EASY.value)
-    highest_difficulty_solved = Column(difficulty_enum, default=DifficultyLevel.EASY.value)
+    current_difficulty = Column(difficulty_enum, default="EASY")
+    highest_difficulty_solved = Column(difficulty_enum, default="EASY")
     
     # Learning metrics
     hint_usage_count = Column(Integer, default=0)
