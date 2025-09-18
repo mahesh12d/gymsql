@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from urllib.parse import urlparse
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -168,22 +169,28 @@ class DuckDBSandbox:
         start_time = time.time()
         
         try:
-            # Security validation - block dangerous operations
-            forbidden_keywords = [
-                'DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 
-                'TRUNCATE', 'REPLACE', 'ATTACH', 'DETACH', 'PRAGMA',
-                'INSTALL', 'LOAD', 'SET',
-                # Block functions that can bypass URL/domain restrictions (SSRF prevention)
-                'READ_PARQUET', 'READ_CSV', 'READ_JSON', 'HTTPFS', 'HTTP',
-                'COPY', 'EXPORT', 'S3'
+            # Security validation - block dangerous operations using word boundaries
+            import re as regex_module
+            
+            forbidden_patterns = [
+                # DDL/DML operations
+                r'\bDROP\b', r'\bDELETE\b', r'\bINSERT\b', r'\bUPDATE\b', r'\bALTER\b', r'\bCREATE\b',
+                r'\bTRUNCATE\b', r'\bREPLACE\b', r'\bATTACH\b', r'\bDETACH\b', r'\bPRAGMA\b',
+                r'\bINSTALL\b', r'\bLOAD\b', r'\bSET\b',
+                # Functions that can bypass URL/domain restrictions (SSRF prevention)
+                r'\bREAD_PARQUET\s*\(', r'\bREAD_CSV\s*\(', r'\bREAD_JSON\s*\(',
+                r'\bHTTPFS\b', r'\bCOPY\b', r'\bEXPORT\b', r'\bS3\b'
             ]
             
             query_upper = query.upper()
-            for keyword in forbidden_keywords:
-                if keyword in query_upper:
+            for pattern in forbidden_patterns:
+                if regex_module.search(pattern, query_upper, regex_module.IGNORECASE):
+                    # Extract the matched keyword for error reporting
+                    match = regex_module.search(pattern, query_upper, regex_module.IGNORECASE)
+                    matched_keyword = match.group(0) if match else pattern
                     return {
                         "success": False,
-                        "error": f"Forbidden SQL operation detected: {keyword}",
+                        "error": f"Forbidden SQL operation detected: {matched_keyword}",
                         "execution_time_ms": 0
                     }
             
@@ -209,10 +216,48 @@ class DuckDBSandbox:
                                 "execution_time_ms": 0
                             }
             
-            # Execute query with timeout
+            # Execute query with enforced timeout
+            def _execute_query():
+                return self.conn.execute(query).fetchdf()
+                
+            query_thread = None
+            executor = None
             try:
-                result_df = self.conn.execute(query).fetchdf()
-                execution_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+                executor = ThreadPoolExecutor(max_workers=1)
+                future = executor.submit(_execute_query)
+                
+                try:
+                    result_df = future.result(timeout=self.timeout_seconds)
+                    execution_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+                except TimeoutError:
+                    # Timeout occurred - interrupt connection and reset
+                    logger.warning(f"Query timeout after {self.timeout_seconds} seconds")
+                    
+                    # Try to interrupt DuckDB connection
+                    try:
+                        if hasattr(self.conn, 'interrupt'):
+                            self.conn.interrupt()
+                    except:
+                        pass  # Interrupt not supported in all DuckDB versions
+                    
+                    # Force shutdown without waiting
+                    executor.shutdown(wait=False)
+                    
+                    # Reset connection to prevent stuck session
+                    try:
+                        self.conn.close()
+                    except:
+                        pass
+                    self._initialize_connection()
+                    
+                    return {
+                        "success": False,
+                        "error": f"Query timeout after {self.timeout_seconds} seconds",
+                        "execution_time_ms": (time.time() - start_time) * 1000
+                    }
+                finally:
+                    if executor:
+                        executor.shutdown(wait=False)
                 
                 # Limit result size for safety
                 max_rows = 1000
