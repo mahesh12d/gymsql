@@ -440,8 +440,9 @@ async def create_duckdb_sandbox(
         # Create DuckDB sandbox
         sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
         
-        # Setup problem data
-        setup_result = await sandbox.setup_problem_data(problem_id)
+        # Setup problem data with parquet data source if available
+        parquet_data_source = problem.parquet_data_source if hasattr(problem, 'parquet_data_source') and problem.parquet_data_source else None
+        setup_result = await sandbox.setup_problem_data(problem_id, parquet_data_source)
         
         if not setup_result["success"]:
             sandbox.cleanup()
@@ -496,7 +497,9 @@ async def execute_duckdb_query(
         sandbox = duckdb_sandbox_manager.get_sandbox(current_user.id, problem_id)
         if not sandbox:
             sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
-            setup_result = await sandbox.setup_problem_data(problem_id)
+            # Get parquet data source for the problem
+            parquet_data_source = problem.parquet_data_source if hasattr(problem, 'parquet_data_source') and problem.parquet_data_source else None
+            setup_result = await sandbox.setup_problem_data(problem_id, parquet_data_source)
             if not setup_result["success"]:
                 sandbox.cleanup()
                 raise HTTPException(
@@ -602,7 +605,9 @@ async def test_duckdb_connection(
         
         # Create temporary sandbox to test connection
         with DuckDBSandbox() as test_sandbox:
-            setup_result = await test_sandbox.setup_problem_data(problem_id)
+            # Get parquet data source for testing
+            parquet_data_source = problem.parquet_data_source if hasattr(problem, 'parquet_data_source') and problem.parquet_data_source else None
+            setup_result = await test_sandbox.setup_problem_data(problem_id, parquet_data_source)
             
             if setup_result["success"]:
                 # Test basic query

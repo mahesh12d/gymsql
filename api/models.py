@@ -90,6 +90,7 @@ class Problem(Base):
 
     # Match DB schema: jsonb
     question = Column(JSONB, nullable=False)  # description, schema, expected_output
+    parquet_data_source = Column(JSONB, nullable=True)  # git_repo_url, file_path, table_name, description
     premium = Column(Boolean, nullable=True, default=None)  # null = free, True = premium
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")

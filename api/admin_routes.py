@@ -1,11 +1,13 @@
 """
 Admin routes for creating and managing problems
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, Field
 import uuid
+import duckdb
+import logging
 
 from .database import get_db
 from .models import Problem, Topic, Solution, User
@@ -21,6 +23,13 @@ class AdminTableColumn(BaseModel):
     type: str
     description: str = ""
 
+class ParquetDataSource(BaseModel):
+    """Parquet file data source configuration"""
+    git_repo_url: str = Field(..., description="Git repository base URL (e.g., https://github.com/user/repo/raw/main)")
+    file_path: str = Field(..., description="Path to parquet file within repo (e.g., data/sales.parquet)")
+    table_name: str = Field(default="problem_data", description="Name for the table in DuckDB")
+    description: str = Field(default="", description="Description of the dataset")
+
 class AdminTableData(BaseModel):
     name: str
     columns: List[AdminTableColumn]
@@ -30,6 +39,7 @@ class AdminQuestionData(BaseModel):
     description: str
     tables: List[AdminTableData] = []
     expected_output: List[Dict[str, Any]] = Field(..., alias="expectedOutput")
+    parquet_data_source: ParquetDataSource = Field(None, description="Parquet file data source for DuckDB queries")
 
 class AdminProblemCreate(BaseModel):
     title: str
@@ -152,6 +162,116 @@ Order the results by total sales amount in descending order.
         available_topics=available_topics
     )
 
+class ParquetValidationResponse(BaseModel):
+    """Response model for parquet validation"""
+    success: bool
+    message: str
+    table_schema: Optional[List[Dict[str, str]]] = None
+    sample_data: Optional[List[Dict[str, Any]]] = None
+    row_count: Optional[int] = None
+    parquet_url: Optional[str] = None
+    error: Optional[str] = None
+
+@admin_router.post("/validate-parquet", response_model=ParquetValidationResponse)
+def validate_parquet_file(
+    parquet_source: ParquetDataSource,
+    _: bool = Depends(verify_admin_user_access)
+):
+    """Validate parquet file and extract schema information"""
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Construct full parquet file URL
+        parquet_url = f"{parquet_source.git_repo_url.rstrip('/')}/{parquet_source.file_path.lstrip('/')}"
+        
+        # Security validation - use same logic as DuckDBSandbox
+        from urllib.parse import urlparse
+        allowed_domains = ['raw.githubusercontent.com', 'github.com', 'githubusercontent.com']
+        
+        try:
+            parsed = urlparse(parquet_url)
+            if parsed.scheme != 'https':
+                return ParquetValidationResponse(
+                    success=False,
+                    message="Only HTTPS URLs are allowed",
+                    error="URL must use HTTPS scheme"
+                )
+            if not any(parsed.netloc.endswith(domain) or parsed.netloc == domain 
+                      for domain in allowed_domains):
+                return ParquetValidationResponse(
+                    success=False,
+                    message="URL domain not allowed",
+                    error=f"Domain {parsed.netloc} not in allowed list: {allowed_domains}"
+                )
+        except Exception:
+            return ParquetValidationResponse(
+                success=False,
+                message="Invalid URL format",
+                error="Could not parse the provided URL"
+            )
+        
+        logger.info(f"Validating parquet file: {parquet_url}")
+        
+        # Initialize temporary DuckDB connection with limits
+        conn = duckdb.connect(":memory:")
+        conn.execute("SET memory_limit = '128MB'")
+        conn.execute("SET threads = 1")
+        
+        # Install and load httpfs extension for remote file access
+        conn.execute("INSTALL httpfs")
+        conn.execute("LOAD httpfs")
+        
+        # Test accessibility and get basic info
+        try:
+            # Test if parquet file exists and is accessible using parameterized query
+            result = conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
+            
+            if result is None:
+                return ParquetValidationResponse(
+                    success=False,
+                    message="Parquet file not found or inaccessible",
+                    error=f"Could not access parquet file at: {parquet_url}"
+                )
+            
+            row_count = result[0]
+            
+            # Get schema information using parameterized query
+            schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet_url]).fetchall()
+            schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+            
+            # Get sample data (first 10 rows) using parameterized query
+            sample_result = conn.execute("SELECT * FROM read_parquet(?) LIMIT 10", [parquet_url]).fetchdf()
+            sample_data = sample_result.to_dict(orient="records") if not sample_result.empty else []
+            
+            conn.close()
+            
+            return ParquetValidationResponse(
+                success=True,
+                message=f"Parquet file validated successfully. Found {row_count} rows with {len(schema)} columns.",
+                table_schema=schema,
+                sample_data=sample_data,
+                row_count=row_count,
+                parquet_url=parquet_url
+            )
+            
+        except Exception as e:
+            conn.close()
+            logger.error(f"Error accessing parquet file: {e}")
+            return ParquetValidationResponse(
+                success=False,
+                message="Failed to access or validate parquet file",
+                error=f"Error: {str(e)}"
+            )
+            
+    except Exception as e:
+        logger.error(f"General error in parquet validation: {e}")
+        return ParquetValidationResponse(
+            success=False,
+            message="Validation failed",
+            error=f"Validation error: {str(e)}"
+        )
+
 @admin_router.post("/problems")
 def create_problem(
     problem_data: AdminProblemCreate,
@@ -194,12 +314,23 @@ def create_problem(
         "expectedOutput": problem_data.question.expected_output
     }
     
+    # Prepare parquet data source if provided
+    parquet_data_source_data = None
+    if problem_data.question.parquet_data_source:
+        parquet_data_source_data = {
+            "git_repo_url": problem_data.question.parquet_data_source.git_repo_url,
+            "file_path": problem_data.question.parquet_data_source.file_path,
+            "table_name": problem_data.question.parquet_data_source.table_name,
+            "description": problem_data.question.parquet_data_source.description
+        }
+    
     # Create the problem
     problem = Problem(
         id=str(uuid.uuid4()),
         title=problem_data.title,
         difficulty=problem_data.difficulty,
         question=question_data,
+        parquet_data_source=parquet_data_source_data,
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,

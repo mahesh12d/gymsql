@@ -7,8 +7,10 @@ Handles SQL execution against parquet datasets from GitHub for secure sandbox en
 import duckdb
 import os
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
+from urllib.parse import urlparse
 import tempfile
 import time
 
@@ -18,6 +20,14 @@ class DuckDBSandbox:
     """
     Isolated DuckDB instance for executing user SQL queries against problem datasets
     """
+    
+    # Security constants
+    ALLOWED_DOMAINS = [
+        'raw.githubusercontent.com',
+        'github.com',
+        'githubusercontent.com'
+    ]
+    TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
     
     def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 256):
         """
@@ -31,9 +41,32 @@ class DuckDBSandbox:
         self.memory_limit_mb = memory_limit_mb
         self.conn = None
         self.github_repo_base = "https://github.com/mahesh12d/GymSql-problems_et/raw/main"
+        self.loaded_table_names = set()  # Track loaded table names for security
         
         # Initialize DuckDB connection
         self._initialize_connection()
+    
+    def _validate_table_name(self, table_name: str) -> bool:
+        """Validate table name against SQL injection patterns"""
+        return bool(self.TABLE_NAME_PATTERN.match(table_name))
+    
+    def _validate_parquet_url(self, url: str) -> bool:
+        """Validate parquet URL for security"""
+        try:
+            parsed = urlparse(url)
+            if parsed.scheme not in ['https']:
+                return False
+            if not any(parsed.netloc.endswith(domain) or parsed.netloc == domain 
+                      for domain in self.ALLOWED_DOMAINS):
+                return False
+            return True
+        except Exception:
+            return False
+    
+    def _escape_identifier(self, identifier: str) -> str:
+        """Escape SQL identifier to prevent injection"""
+        # Basic escaping - wrap in double quotes and escape internal quotes
+        return f'"{identifier.replace(chr(34), chr(34)+chr(34))}"'
     
     def _initialize_connection(self):
         """Initialize DuckDB connection with security and performance settings"""
@@ -55,44 +88,67 @@ class DuckDBSandbox:
             logger.error(f"Failed to initialize DuckDB connection: {e}")
             raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
     
-    async def setup_problem_data(self, problem_id: str) -> Dict[str, Any]:
+    async def setup_problem_data(self, problem_id: str, parquet_data_source: Dict[str, str] = None) -> Dict[str, Any]:
         """
-        Load problem dataset from GitHub parquet file into DuckDB
+        Load problem dataset from parquet file into DuckDB
         
         Args:
             problem_id: Unique identifier for the problem
+            parquet_data_source: Optional dict containing git_repo_url, file_path, table_name, description
             
         Returns:
             Dict with success status and any error messages
         """
         try:
-            # Construct parquet file URL
-            parquet_url = f"{self.github_repo_base}/problems/{problem_id}.parquet"
+            if parquet_data_source:
+                # Use custom parquet data source
+                git_repo_url = parquet_data_source.get('git_repo_url', '').rstrip('/')
+                file_path = parquet_data_source.get('file_path', '').lstrip('/')
+                table_name = parquet_data_source.get('table_name', 'problem_data')
+                parquet_url = f"{git_repo_url}/{file_path}"
+                logger.info(f"Loading problem data from custom source: {parquet_url}")
+            else:
+                # Fallback to legacy pattern for backward compatibility
+                parquet_url = f"{self.github_repo_base}/problems/{problem_id}.parquet"
+                table_name = "problem_data"
+                logger.info(f"Loading problem data from legacy source: {parquet_url}")
             
-            logger.info(f"Loading problem data from: {parquet_url}")
+            # Security validation
+            if not self._validate_table_name(table_name):
+                return {"success": False, "error": f"Invalid table name: {table_name}"}
             
-            # Test if parquet file exists and is accessible
-            test_query = f"SELECT COUNT(*) as row_count FROM '{parquet_url}'"
-            result = self.conn.execute(test_query).fetchone()
+            if not self._validate_parquet_url(parquet_url):
+                return {"success": False, "error": f"Invalid or insecure parquet URL: {parquet_url}"}
+            
+            # Use parameterized query for parquet URL and escaped identifier for table name
+            escaped_table_name = self._escape_identifier(table_name)
+            
+            # Test if parquet file exists and is accessible using parameterized query
+            result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
             
             if result is None:
-                return {"success": False, "error": f"Parquet file not found or inaccessible: {problem_id}.parquet"}
+                return {"success": False, "error": f"Parquet file not found or inaccessible: {parquet_url}"}
             
-            # Create main problem_data table
-            self.conn.execute(f"CREATE TABLE problem_data AS SELECT * FROM '{parquet_url}'")
+            # Drop table if it exists and create new one using escaped identifiers
+            self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
+            self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [parquet_url])
+            
+            # Track loaded table for security validation
+            self.loaded_table_names.add(table_name)
             
             # Get table schema for user reference
-            schema_result = self.conn.execute("DESCRIBE problem_data").fetchall()
+            schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
             schema = [{"column": row[0], "type": row[1]} for row in schema_result]
             
             row_count = result[0] if result else 0
             
             return {
                 "success": True,
-                "message": f"Problem data loaded successfully",
+                "message": f"Problem data loaded successfully into {table_name}",
                 "schema": schema,
                 "row_count": row_count,
-                "parquet_url": parquet_url
+                "parquet_url": parquet_url,
+                "table_name": table_name
             }
             
         except Exception as e:
@@ -117,7 +173,10 @@ class DuckDBSandbox:
             forbidden_keywords = [
                 'DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 
                 'TRUNCATE', 'REPLACE', 'ATTACH', 'DETACH', 'PRAGMA',
-                'INSTALL', 'LOAD', 'SET'
+                'INSTALL', 'LOAD', 'SET',
+                # Block functions that can bypass URL/domain restrictions (SSRF prevention)
+                'READ_PARQUET', 'READ_CSV', 'READ_JSON', 'HTTPFS', 'HTTP',
+                'COPY', 'EXPORT', 'S3'
             ]
             
             query_upper = query.upper()
@@ -129,18 +188,25 @@ class DuckDBSandbox:
                         "execution_time_ms": 0
                     }
             
-            # Additional validation for table names - only allow problem_data
+            # Additional validation for table names - only allow loaded tables
             if 'FROM' in query_upper:
-                # Simple check for allowed table names
-                allowed_tables = ['problem_data']
+                # Check for allowed table names (only tables loaded via setup_problem_data)
+                if not self.loaded_table_names:
+                    return {
+                        "success": False,
+                        "error": "No data tables available. Please load problem data first.",
+                        "execution_time_ms": 0
+                    }
+                
                 words = query_upper.split()
                 for i, word in enumerate(words):
                     if word == 'FROM' and i + 1 < len(words):
                         next_word = words[i + 1].strip('();,')
-                        if next_word not in [t.upper() for t in allowed_tables]:
+                        if next_word not in [t.upper() for t in self.loaded_table_names]:
+                            allowed_list = ', '.join(self.loaded_table_names)
                             return {
                                 "success": False,
-                                "error": f"Access to table '{next_word}' is not allowed. Use 'problem_data' table.",
+                                "error": f"Access to table '{next_word}' is not allowed. Available tables: {allowed_list}",
                                 "execution_time_ms": 0
                             }
             
