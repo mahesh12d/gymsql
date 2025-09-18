@@ -91,7 +91,7 @@ async function startBackend() {
     }
     
     console.log('📦 Installing additional packages...');
-    const additionalResult = spawnSync(pythonCmd, ['-m', 'pip', 'install', '--break-system-packages', 'duckdb', 'fsspec', 'pyarrow'], {
+    const additionalResult = spawnSync(pythonCmd, ['-m', 'pip', 'install', '--break-system-packages', 'duckdb', 'fsspec', 'pyarrow', 'pandas', 'numpy'], {
       stdio: 'inherit',
       cwd: process.cwd()
     });
