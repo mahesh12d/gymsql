@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Code2, MessageSquare, CheckCircle, BookOpen, Heart, Reply, Send, ChevronUp, ChevronDown } from 'lucide-react';
+import { Code2, MessageSquare, CheckCircle, BookOpen, Heart, Reply, Send, ChevronUp, ChevronDown, Lock } from 'lucide-react';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import ProblemDescriptionTab from '@/components/ProblemDescriptionTab';
 import AnswersScreen from '@/components/AnswersScreen';
@@ -535,6 +536,12 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
   const hasCorrectSubmission = userSubmissions.some((sub) => sub.isCorrect);
   const [showCreateDiscussion, setShowCreateDiscussion] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Determine access to discussions for premium problems
+  const isPremiumProblem = problem?.premium === true;
+  const userHasPremium = user?.premium === true;
+  const hasDiscussionAccess = !isPremiumProblem || userHasPremium;
 
   // Fetch solutions for this problem
   const { data: solutions = [], isLoading: solutionsLoading } = useQuery({
@@ -635,59 +642,84 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
               <h3 className="text-lg font-semibold text-foreground">
                 Discussion
               </h3>
-              <Dialog open={showCreateDiscussion} onOpenChange={setShowCreateDiscussion}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    data-testid="button-new-discussion"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    New Discussion
-                  </Button>
-                </DialogTrigger>
-                {problemId && (
-                  <CreateDiscussionDialog 
-                    problemId={problemId} 
-                    onClose={() => setShowCreateDiscussion(false)} 
-                  />
-                )}
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              {discussionsLoading && (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading discussions...</p>
-                </div>
-              )}
-
-              {!discussionsLoading && discussions.length === 0 && (
-                <div className="text-center py-8">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h4 className="text-base font-semibold text-foreground mb-2">
-                    No discussions yet
-                  </h4>
-                  <p className="text-muted-foreground mb-4">
-                    Be the first to start a discussion about this problem!
-                  </p>
-                </div>
-              )}
-
-              {!discussionsLoading && discussions.length > 0 && (
-                <div className="space-y-4" data-testid="discussions-list">
-                  {discussions.map((discussion: Discussion) => (
-                    <DiscussionCard
-                      key={discussion.id}
-                      discussion={discussion}
-                      onLike={handleLike}
-                      onComment={handleComment}
+              {hasDiscussionAccess && (
+                <Dialog open={showCreateDiscussion} onOpenChange={setShowCreateDiscussion}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-new-discussion"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      New Discussion
+                    </Button>
+                  </DialogTrigger>
+                  {problemId && (
+                    <CreateDiscussionDialog 
+                      problemId={problemId} 
+                      onClose={() => setShowCreateDiscussion(false)} 
                     />
-                  ))}
-                </div>
+                  )}
+                </Dialog>
               )}
             </div>
+
+            {/* Premium Lock UI */}
+            {!hasDiscussionAccess ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="flex items-center justify-center w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-full">
+                  <Lock className="w-8 h-8 text-amber-600 dark:text-amber-500" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h4 className="text-lg font-semibold text-foreground">
+                    Premium Content Locked
+                  </h4>
+                  <p className="text-muted-foreground max-w-md">
+                    🔒 Premium subscription required to view and participate in discussions for this problem!
+                  </p>
+                  <div className="pt-4">
+                    <Button variant="default" className="bg-amber-600 hover:bg-amber-700">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Upgrade to Premium
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {discussionsLoading && (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading discussions...</p>
+                  </div>
+                )}
+
+                {!discussionsLoading && discussions.length === 0 && (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h4 className="text-base font-semibold text-foreground mb-2">
+                      No discussions yet
+                    </h4>
+                    <p className="text-muted-foreground mb-4">
+                      Be the first to start a discussion about this problem!
+                    </p>
+                  </div>
+                )}
+
+                {!discussionsLoading && discussions.length > 0 && (
+                  <div className="space-y-4" data-testid="discussions-list">
+                    {discussions.map((discussion: Discussion) => (
+                      <DiscussionCard
+                        key={discussion.id}
+                        discussion={discussion}
+                        onLike={handleLike}
+                        onComment={handleComment}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </TabsContent>
 

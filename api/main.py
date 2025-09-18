@@ -877,12 +877,10 @@ def get_problem_discussions(
             detail="Problem not found"
         )
     
-    # Check premium access for premium problems
+    # For premium problems with non-premium users, return empty list
+    # The frontend will handle showing the locked state UI
     if problem.premium and (not current_user or not current_user.premium):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Premium subscription required to view discussions for this problem"
-        )
+        return []
     
     posts = db.query(CommunityPost).options(
         joinedload(CommunityPost.user)
