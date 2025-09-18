@@ -21,10 +21,9 @@ class DuckDBSandbox:
     Isolated DuckDB instance for executing user SQL queries against problem datasets
     """
     
-    # Security constants
+    # Security constants  
     ALLOWED_DOMAINS = [
         'raw.githubusercontent.com',
-        'github.com',
         'githubusercontent.com'
     ]
     TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')

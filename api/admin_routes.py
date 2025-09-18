@@ -187,7 +187,7 @@ def validate_parquet_file(
         
         # Security validation - use same logic as DuckDBSandbox
         from urllib.parse import urlparse
-        allowed_domains = ['raw.githubusercontent.com', 'github.com', 'githubusercontent.com']
+        allowed_domains = ['raw.githubusercontent.com', 'githubusercontent.com']
         
         try:
             parsed = urlparse(parquet_url)
