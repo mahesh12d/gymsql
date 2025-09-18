@@ -1,10 +1,22 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// API Base URL - supports separated backend deployment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
+}
+
+function getFullUrl(url: string): string {
+  // If URL is already absolute, return as-is
+  if (url.startsWith('http')) {
+    return url;
+  }
+  // Convert relative URLs to absolute using API base URL
+  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 export async function apiRequest(
@@ -19,7 +31,9 @@ export async function apiRequest(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
+  const fullUrl = getFullUrl(url);
+  
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -43,7 +57,10 @@ export const getQueryFn: <T>(options: {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const fullUrl = getFullUrl(url);
+
+    const res = await fetch(fullUrl, {
       headers,
       credentials: "include",
     });

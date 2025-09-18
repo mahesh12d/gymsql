@@ -30,11 +30,21 @@ app = FastAPI(title="SQLGym API",
               description="A gamified SQL learning platform API",
               version="1.0.0")
 
-# Add CORS middleware
+# Add CORS middleware - Updated for Railway + Vercel/Netlify deployment
 frontend_origins = [
-    "http://localhost:5000", "https://*.replit.dev", "https://*.replit.app",
-    "https://*.replit.co"
+    "http://localhost:5000", 
+    "http://localhost:3000",  # Local React development
+    "https://*.replit.dev", 
+    "https://*.replit.app",
+    "https://*.replit.co",
+    "https://*.vercel.app",   # Vercel deployments
+    "https://*.netlify.app",  # Netlify deployments
+    "https://*.netlify.com"   # Netlify custom domains
 ]
+
+# Add production frontend domains from environment variables
+if os.getenv("FRONTEND_URL"):
+    frontend_origins.append(os.getenv("FRONTEND_URL"))
 
 # In production, use environment variable or specific domain
 if os.getenv("REPL_ID"):
