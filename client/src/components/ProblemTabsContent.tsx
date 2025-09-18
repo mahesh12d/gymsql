@@ -533,21 +533,12 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
   onTabChange,
   problemId,
 }: ProblemTabsContentProps) {
-  const hasCorrectSubmission = userSubmissions.some((sub) => sub.isCorrect);
   const [showCreateDiscussion, setShowCreateDiscussion] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Determine access to discussions for premium problems
-  const isPremiumProblem = problem?.premium === true;
-  const userHasPremium = user?.premium === true;
-  const hasDiscussionAccess = !isPremiumProblem || userHasPremium;
+  // Removed premium access restrictions for discussions
 
-  // Fetch solutions for this problem
-  const { data: solutions = [], isLoading: solutionsLoading } = useQuery({
-    queryKey: [`/api/problems/${problemId}/solutions`],
-    enabled: !!problemId,
-  });
 
   // Fetch discussions for this problem
   const { data: discussions = [], isLoading: discussionsLoading } = useQuery({
@@ -626,8 +617,7 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
         >
           {problemId && (
             <AnswersScreen 
-              problemId={problemId} 
-              problem={problem}
+              problemId={problemId}
             />
           )}
         </TabsContent>
@@ -642,18 +632,17 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
               <h3 className="text-lg font-semibold text-foreground">
                 Discussion
               </h3>
-              {hasDiscussionAccess && (
-                <Dialog open={showCreateDiscussion} onOpenChange={setShowCreateDiscussion}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid="button-new-discussion"
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      New Discussion
-                    </Button>
-                  </DialogTrigger>
+              <Dialog open={showCreateDiscussion} onOpenChange={setShowCreateDiscussion}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-new-discussion"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    New Discussion
+                  </Button>
+                </DialogTrigger>
                   {problemId && (
                     <CreateDiscussionDialog 
                       problemId={problemId} 
@@ -661,11 +650,10 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
                     />
                   )}
                 </Dialog>
-              )}
             </div>
 
-            {/* Premium Lock UI */}
-            {!hasDiscussionAccess ? (
+            {/* Premium lock removed - discussions now always available */}
+            {false ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <div className="flex items-center justify-center w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-full">
                   <Lock className="w-8 h-8 text-amber-600 dark:text-amber-500" />
