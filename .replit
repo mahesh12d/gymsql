@@ -8,16 +8,12 @@ packages = ["arrow-cpp", "cargo", "libiconv", "libxcrypt", "openssl", "pgadmin4"
 
 [deployment]
 build = ["npm", "run", "build"]
-deploymentTarget = "vm"
-run = ["python3.11", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "5000"]
+deploymentTarget = "autoscale"
+run = ["npm", "start"]
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8000
-externalPort = 5173
 
 [[ports]]
 localPort = 34261
@@ -70,6 +66,10 @@ externalPort = 8000
 [[ports]]
 localPort = 45749
 externalPort = 3001
+
+[[ports]]
+localPort = 45777
+externalPort = 5173
 
 [[ports]]
 localPort = 46465
