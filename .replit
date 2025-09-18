@@ -9,7 +9,7 @@ packages = ["arrow-cpp", "cargo", "libiconv", "libxcrypt", "openssl", "pgadmin4"
 [deployment]
 build = ["npm", "run", "build"]
 deploymentTarget = "autoscale"
-run = ["npm", "run"]
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 5000
