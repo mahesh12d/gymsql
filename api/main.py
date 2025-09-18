@@ -104,6 +104,13 @@ def health_check():
     return {"status": "healthy", "service": "SQLGym API", "version": "1.0.0"}
 
 
+# Root API endpoint to handle HEAD/GET requests to /api
+@app.get("/api")
+@app.head("/api")
+def api_root():
+    return {"message": "SQLGym API", "version": "1.0.0", "status": "running"}
+
+
 # Database initialization endpoint (admin-only, authenticated)
 @app.post("/api/admin/init-db")
 def initialize_database(current_user: User = Depends(get_current_user)):
