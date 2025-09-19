@@ -529,6 +529,97 @@ class S3AnswerService:
             logger.error(f"Dataset validation failed for {bucket}/{key}: {e}")
             return {"success": False, "error": str(e)}
     
+    def fetch_solution_sql(self, bucket: str, key: str) -> Dict[str, Any]:
+        """
+        Fetch SQL solution file from S3
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key (must be .sql file)
+            
+        Returns:
+            Dict with success status, sql_content, and any error messages
+        """
+        try:
+            # Validate bucket
+            if not self._validate_dataset_bucket(bucket):
+                return {
+                    "success": False,
+                    "error": f"Bucket '{bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}"
+                }
+            
+            # Validate file extension
+            if not key.lower().endswith('.sql'):
+                return {
+                    "success": False,
+                    "error": f"Invalid file type. Expected .sql file, got: {key}"
+                }
+            
+            # Fetch file content
+            try:
+                response = self.s3_client.get_object(Bucket=bucket, Key=key)
+                sql_content = response['Body'].read().decode('utf-8')
+                etag = response.get('ETag', '').strip('"')
+                
+                # Basic validation - ensure it's not empty
+                if not sql_content.strip():
+                    return {
+                        "success": False,
+                        "error": "SQL file is empty"
+                    }
+                
+                logger.info(f"Successfully fetched SQL solution: s3://{bucket}/{key}")
+                return {
+                    "success": True,
+                    "sql_content": sql_content.strip(),
+                    "etag": etag,
+                    "bucket": bucket,
+                    "key": key
+                }
+                
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == 'NoSuchBucket':
+                    return {"success": False, "error": f"Bucket '{bucket}' does not exist"}
+                elif error_code == 'NoSuchKey':
+                    return {"success": False, "error": f"SQL file '{key}' not found in bucket '{bucket}'"}
+                else:
+                    logger.error(f"S3 error fetching {bucket}/{key}: {e}")
+                    return {"success": False, "error": f"Failed to fetch SQL file: {str(e)}"}
+                    
+        except Exception as e:
+            logger.error(f"Solution SQL fetch failed for {bucket}/{key}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def generate_expected_result_hash(self, result_data: List[Dict[str, Any]]) -> str:
+        """
+        Generate MD5 hash of sorted expected result for validation
+        
+        Args:
+            result_data: List of dictionaries representing query result
+            
+        Returns:
+            MD5 hash string
+        """
+        import hashlib
+        import json
+        
+        try:
+            # Sort the data to ensure consistent hashing
+            # Sort by converting each row to string and sorting lexically
+            sorted_data = sorted(result_data, key=lambda x: json.dumps(x, sort_keys=True, default=str))
+            
+            # Convert to JSON string with consistent formatting
+            json_str = json.dumps(sorted_data, sort_keys=True, separators=(',', ':'), default=str)
+            
+            # Generate MD5 hash
+            hash_object = hashlib.md5(json_str.encode('utf-8'))
+            return hash_object.hexdigest()
+            
+        except Exception as e:
+            logger.error(f"Failed to generate result hash: {e}")
+            raise ValueError(f"Hash generation failed: {str(e)}")
+    
     def _validate_dataset_bucket(self, bucket: str) -> bool:
         """Validate that bucket is in the allowed list for datasets"""
         return bucket in S3_ALLOWED_BUCKETS
