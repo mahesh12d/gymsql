@@ -32,6 +32,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      // Development bypass - automatically log in as a fake user
+      if (import.meta.env.DEV) {
+        const fakeUser: User = {
+          id: 'dev-user-1',
+          username: 'developer',
+          email: 'dev@sqlgym.dev',
+          firstName: 'Dev',
+          lastName: 'User',
+          xp: 1000,
+          level: 'Advanced',
+          problemsSolved: 25,
+          premium: true
+        };
+        const fakeToken = 'dev-token-123';
+        
+        setUser(fakeUser);
+        setToken(fakeToken);
+        localStorage.setItem('auth_token', fakeToken);
+        localStorage.setItem('auth_user', JSON.stringify(fakeUser));
+        setIsLoading(false);
+        return;
+      }
+
       try {
         // Always attempt to fetch current user data from backend
         // This supports both token-based and cookie-based authentication

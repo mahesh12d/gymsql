@@ -27,6 +27,8 @@ The system uses SQLAlchemy ORM with PostgreSQL as the primary database. The sche
 Authentication System
 Authentication is implemented using JWT tokens stored in localStorage on the client side. The server validates tokens using middleware that checks for Authorization headers. User registration includes password hashing with bcrypt, and the system checks for existing usernames and emails to prevent duplicates.
 
+**Development Mode**: Authentication is automatically bypassed in development mode (when `import.meta.env.DEV` is true). The app automatically logs in with a fake developer user, eliminating the need to go through the OAuth login flow during development.
+
 Key Features
 Gamification: XP system with levels (SQL Beginner, Trainee, Athlete, Powerlifter) and badge rewards
 Problem Management: SQL problems categorized by difficulty with hints and expected outputs
