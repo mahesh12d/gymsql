@@ -51,7 +51,7 @@ export default function ProblemDetail() {
       if (!problemId) throw new Error("No problem selected");
       
       // Check if problem has parquet data source to determine which endpoint to use
-      const hasParquetData = problem?.parquet_data_source !== null && problem?.parquet_data_source !== undefined;
+      const hasParquetData = problem?.parquetDataSource !== null && problem?.parquetDataSource !== undefined;
       
       if (hasParquetData) {
         // Use DuckDB endpoint for parquet data

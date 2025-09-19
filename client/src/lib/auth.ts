@@ -135,7 +135,7 @@ export const submissionsApi = {
   },
 
   async testDuckDBQuery(problemId: string, query: string): Promise<any> {
-    return apiRequest(`/duckdb/${problemId}/execute`, {
+    return apiRequest(`/sandbox/duckdb/${problemId}/execute`, {
       method: "POST",
       body: JSON.stringify({ 
         query: query.trim()

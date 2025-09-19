@@ -15,14 +15,14 @@ interface DatabaseSelectorProps {
 
 const DatabaseSelector = memo(function DatabaseSelector({ className, problem }: DatabaseSelectorProps) {
   // Determine database type based on parquet data
-  const databaseType = problem?.parquet_data_source ? "DuckDB" : "PostgreSQL 14";
+  const databaseType = problem?.parquetDataSource ? "DuckDB" : "PostgreSQL 14";
   const [selectedDatabase, setSelectedDatabase] = useState(databaseType);
 
   // Update database type when problem changes
   useEffect(() => {
-    const newDatabaseType = problem?.parquet_data_source ? "DuckDB" : "PostgreSQL 14";
+    const newDatabaseType = problem?.parquetDataSource ? "DuckDB" : "PostgreSQL 14";
     setSelectedDatabase(newDatabaseType);
-  }, [problem?.parquet_data_source]);
+  }, [problem?.parquetDataSource]);
 
   const databases = [
     "DuckDB",
