@@ -25,12 +25,6 @@ class AdminTableColumn(BaseModel):
     type: str
     description: str = ""
 
-class ParquetDataSource(BaseModel):
-    """Parquet file data source configuration"""
-    git_repo_url: str = Field(..., description="Git repository base URL (e.g., https://github.com/user/repo/raw/main)")
-    file_path: str = Field(..., description="Path to parquet file within repo (e.g., data/sales.parquet)")
-    table_name: str = Field(default="problem_data", description="Name for the table in DuckDB")
-    description: str = Field(default="", description="Description of the dataset")
 
 class AdminTableData(BaseModel):
     name: str
@@ -41,7 +35,6 @@ class AdminQuestionData(BaseModel):
     description: str
     tables: List[AdminTableData] = []
     expected_output: List[Dict[str, Any]] = Field(..., alias="expectedOutput")
-    parquet_data_source: ParquetDataSource = Field(None, description="Parquet file data source for DuckDB queries")
 
 class AdminProblemCreate(BaseModel):
     title: str
@@ -164,18 +157,6 @@ Order the results by total sales amount in descending order.
         available_topics=available_topics
     )
 
-class ParquetValidationResponse(BaseModel):
-    """Response model for parquet validation"""
-    success: bool
-    message: str
-    table_schema: Optional[List[Dict[str, str]]] = None
-    sample_data: Optional[List[Dict[str, Any]]] = None
-    row_count: Optional[int] = None
-    parquet_url: Optional[str] = None
-    error: Optional[str] = None
-    # New fields for schema enforcement
-    suggested_table_schema: Optional[List[Dict[str, Any]]] = None
-    table_name: Optional[str] = None
 
 def _map_duckdb_type_to_sql(duckdb_type: str) -> str:
     """Map DuckDB data types to standard SQL types for problem creation"""
@@ -269,210 +250,7 @@ def _map_duckdb_type_to_sql(duckdb_type: str) -> str:
     else:
         return 'VARCHAR'
 
-@admin_router.post("/validate-parquet", response_model=ParquetValidationResponse)
-def validate_parquet_file(
-    parquet_source: ParquetDataSource,
-    _: bool = Depends(verify_admin_user_access)
-):
-    """Validate parquet file and extract schema information"""
-    
-    logger = logging.getLogger(__name__)
-    
-    try:
-        # Construct full parquet file URL
-        parquet_url = f"{parquet_source.git_repo_url.rstrip('/')}/{parquet_source.file_path.lstrip('/')}"
-        
-        # Security validation - exact domain matching to prevent bypass
-        from urllib.parse import urlparse
-        allowed_domains = ['raw.githubusercontent.com']  # Exact match only for security
-        
-        try:
-            parsed = urlparse(parquet_url)
-            if parsed.scheme != 'https':
-                return ParquetValidationResponse(
-                    success=False,
-                    message="Only HTTPS URLs are allowed",
-                    error="URL must use HTTPS scheme"
-                )
-            if parsed.netloc not in allowed_domains:
-                return ParquetValidationResponse(
-                    success=False,
-                    message="URL domain not allowed",
-                    error=f"Domain {parsed.netloc} not in allowed list: {allowed_domains}"
-                )
-            # Additional validation: ensure path ends with .parquet
-            if not parsed.path.lower().endswith('.parquet'):
-                return ParquetValidationResponse(
-                    success=False,
-                    message="Invalid file type",
-                    error="File path must end with .parquet extension"
-                )
-        except Exception:
-            return ParquetValidationResponse(
-                success=False,
-                message="Invalid URL format",
-                error="Could not parse the provided URL"
-            )
-        
-        logger.info(f"Validating parquet file: {parquet_url}")
-        
-        # Initialize temporary DuckDB connection with limits
-        conn = duckdb.connect(":memory:")
-        conn.execute("SET memory_limit = '128MB'")
-        conn.execute("SET threads = 1")
-        
-        # Install and load httpfs extension for remote file access
-        conn.execute("INSTALL httpfs")
-        conn.execute("LOAD httpfs")
-        
-        # Test accessibility and get basic info
-        try:
-            # Test if parquet file exists and is accessible using a lightweight query
-            # Avoid COUNT(*) which can be expensive on large files
-            try:
-                conn.execute("SELECT 1 FROM read_parquet(?) LIMIT 1", [parquet_url]).fetchone()
-                # File is accessible, use metadata to estimate row count if available
-                row_count = None  # We'll skip row count for performance
-            except Exception:
-                return ParquetValidationResponse(
-                    success=False,
-                    message="Parquet file not found or inaccessible",
-                    error=f"Could not access parquet file at: {parquet_url}"
-                )
-            
-            # Get schema information using parameterized query
-            schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet_url]).fetchall()
-            schema = [{"column": row[0], "type": row[1]} for row in schema_result]
-            
-            # Create suggested table schema for auto-population in problem creation
-            suggested_columns = []
-            for row in schema_result:
-                column_name = row[0]
-                duckdb_type = row[1]
-                sql_type = _map_duckdb_type_to_sql(duckdb_type)
-                
-                suggested_columns.append({
-                    "name": column_name,
-                    "type": sql_type,
-                    "description": f"{column_name} column ({sql_type})"
-                })
-            
-            suggested_table_schema = [{
-                "name": parquet_source.table_name,
-                "columns": suggested_columns,
-                "sample_data": []  # Will be populated from sample data
-            }]
-            
-            # Get sample data (first 10 rows) using parameterized query - avoid pandas dependency
-            sample_query = conn.execute("SELECT * FROM read_parquet(?) LIMIT 10", [parquet_url])
-            sample_rows = sample_query.fetchall()
-            
-            # Get column names from the query
-            if sample_rows:
-                column_names = [desc[0] for desc in sample_query.description]
-                sample_data = [dict(zip(column_names, row)) for row in sample_rows]
-            else:
-                sample_data = []
-            
-            # Add sample data to suggested table schema
-            if sample_data:
-                suggested_table_schema[0]["sample_data"] = sample_data[:5]  # Limit to 5 rows for UI
-            
-            conn.close()
-            
-            return ParquetValidationResponse(
-                success=True,
-                message=f"Parquet file validated successfully. Found {len(schema)} columns with schema auto-population ready.",
-                table_schema=schema,
-                sample_data=sample_data,
-                row_count=row_count,  # Will be None for performance
-                parquet_url=parquet_url,
-                suggested_table_schema=suggested_table_schema,
-                table_name=parquet_source.table_name
-            )
-            
-        except Exception as e:
-            conn.close()
-            logger.error(f"Error accessing parquet file: {e}")
-            return ParquetValidationResponse(
-                success=False,
-                message="Failed to access or validate parquet file",
-                error=f"Error: {str(e)}"
-            )
-            
-    except Exception as e:
-        logger.error(f"General error in parquet validation: {e}")
-        return ParquetValidationResponse(
-            success=False,
-            message="Validation failed",
-            error=f"Validation error: {str(e)}"
-        )
 
-def _validate_schema_consistency(table_schema: List[Dict], parquet_data_source: ParquetDataSource) -> tuple[Optional[str], Optional[str]]:
-    """
-    Validate that the manual table schema is consistent with the parquet schema.
-    Returns (error_message, warning_message). error_message is None if successful.
-    """
-    if not parquet_data_source:
-        return None, None
-    
-    try:
-        # Re-validate parquet file to get current schema
-        parquet_url = f"{parquet_data_source.git_repo_url.rstrip('/')}/{parquet_data_source.file_path.lstrip('/')}"
-        
-        # Initialize temporary DuckDB connection
-        conn = duckdb.connect(":memory:")
-        conn.execute("SET memory_limit = '64MB'")
-        conn.execute("INSTALL httpfs")
-        conn.execute("LOAD httpfs")
-        
-        # Get parquet schema
-        schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet_url]).fetchall()
-        parquet_columns = {row[0]: _map_duckdb_type_to_sql(row[1]) for row in schema_result}
-        conn.close()
-        
-        # Find the table that matches the parquet table name
-        matching_table = None
-        for table in table_schema:
-            if table.get("name") == parquet_data_source.table_name:
-                matching_table = table
-                break
-        
-        if not matching_table:
-            return f"No table named '{parquet_data_source.table_name}' found in schema to match parquet data", None
-        
-        # Compare schemas
-        table_columns = {col["name"]: col["type"] for col in matching_table.get("columns", [])}
-        
-        # Check for missing columns (critical error)
-        missing_in_table = set(parquet_columns.keys()) - set(table_columns.keys())
-        if missing_in_table:
-            return f"Columns missing from table schema: {', '.join(sorted(missing_in_table))}", None
-        
-        # Check for extra columns (warning only)
-        extra_in_table = set(table_columns.keys()) - set(parquet_columns.keys())
-        warning_message = None
-        if extra_in_table:
-            warning_message = f"Extra columns in table schema (not in parquet): {', '.join(sorted(extra_in_table))}"
-        
-        # Check for type mismatches (critical error)
-        type_mismatches = []
-        for col_name in parquet_columns:
-            if col_name in table_columns:
-                parquet_type = parquet_columns[col_name]
-                table_type = table_columns[col_name]
-                # Allow some type flexibility (e.g., INTEGER vs BIGINT)
-                if not _types_compatible(parquet_type, table_type):
-                    type_mismatches.append(f"{col_name}: parquet={parquet_type}, table={table_type}")
-        
-        if type_mismatches:
-            return f"Column type mismatches: {'; '.join(type_mismatches)}", warning_message
-        
-        # All validations passed
-        return None, warning_message
-        
-    except Exception as e:
-        return f"Schema validation failed: {str(e)}", None
 
 def _normalize_sql_type(sql_type: str) -> str:
     """Normalize SQL types by removing parameters and handling synonyms"""
@@ -559,27 +337,6 @@ def create_problem(
                 detail="Invalid topic_id"
             )
     
-    # Schema enforcement: validate consistency between table schema and parquet data
-    if problem_data.question.parquet_data_source and problem_data.question.tables:
-        table_data = [
-            {
-                "name": table.name,
-                "columns": [{"name": col.name, "type": col.type} for col in table.columns]
-            }
-            for table in problem_data.question.tables
-        ]
-        
-        schema_error, schema_warning = _validate_schema_consistency(table_data, problem_data.question.parquet_data_source)
-        if schema_error:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Schema validation failed: {schema_error}"
-            )
-        
-        # Log warning if present (could be enhanced to return to frontend)
-        if schema_warning:
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Schema validation warning for problem creation: {schema_warning}")
     
     # Convert AdminQuestionData to the format expected by the database
     question_data = {
@@ -598,15 +355,6 @@ def create_problem(
         "expectedOutput": problem_data.question.expected_output
     }
     
-    # Prepare parquet data source if provided
-    parquet_data_source_data = None
-    if problem_data.question.parquet_data_source:
-        parquet_data_source_data = {
-            "git_repo_url": problem_data.question.parquet_data_source.git_repo_url,
-            "file_path": problem_data.question.parquet_data_source.file_path,
-            "table_name": problem_data.question.parquet_data_source.table_name,
-            "description": problem_data.question.parquet_data_source.description
-        }
     
     # Create the problem
     problem = Problem(
@@ -614,7 +362,6 @@ def create_problem(
         title=problem_data.title,
         difficulty=problem_data.difficulty,
         question=question_data,
-        parquet_data_source=parquet_data_source_data,
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
