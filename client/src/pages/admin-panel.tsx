@@ -29,7 +29,6 @@ interface QuestionData {
   description: string;
   tables: TableData[];
   expectedOutput: Record<string, any>[];
-  parquet_data_source?: ParquetDataSource;
   s3_data_source?: S3DatasetSource;
 }
 
@@ -72,29 +71,7 @@ interface SolutionCreate {
   is_official: boolean;
 }
 
-interface ParquetDataSource {
-  git_repo_url: string;
-  file_path: string;
-  table_name: string;
-  description: string;
-}
 
-interface ParquetValidationResponse {
-  success: boolean;
-  message: string;
-  table_schema?: Array<{column: string; type: string}>;
-  sample_data?: Record<string, any>[];
-  row_count?: number;
-  parquet_url?: string;
-  error?: string;
-  // New fields for schema enforcement
-  suggested_table_schema?: Array<{
-    name: string;
-    columns: Array<{name: string; type: string; description: string}>;
-    sample_data: Record<string, any>[];
-  }>;
-  table_name?: string;
-}
 
 // S3 Dataset interfaces
 interface S3DatasetSource {
@@ -156,18 +133,8 @@ export default function AdminPanel() {
   const [sampleDataJson, setSampleDataJson] = useState<string[]>([]);
   const [expectedOutputRows, setExpectedOutputRows] = useState<Record<string, any>[]>([]);
 
-  // Parquet validation state
-  const [parquetSource, setParquetSource] = useState<ParquetDataSource>({
-    git_repo_url: 'https://raw.githubusercontent.com/mahesh12d/GymSql-problems_et/main',
-    file_path: '',
-    table_name: 'problem_data',
-    description: ''
-  });
-  const [parquetValidation, setParquetValidation] = useState<ParquetValidationResponse | null>(null);
-  const [isValidatingParquet, setIsValidatingParquet] = useState(false);
 
   // S3 dataset state
-  const [dataSourceType, setDataSourceType] = useState<'git' | 's3'>('git');
   const [s3Source, setS3Source] = useState<S3DatasetSource>({
     bucket: '',
     key: '',
@@ -384,55 +351,6 @@ export default function AdminPanel() {
     }
   }, [selectedProblemId, editingSolution]);
 
-  // Parquet validation function
-  const validateParquetFile = async () => {
-    if (!parquetSource.file_path.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "File path is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsValidatingParquet(true);
-    setParquetValidation(null);
-
-    try {
-      const response = await fetch('/api/admin/validate-parquet', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminKey}`,
-        },
-        body: JSON.stringify(parquetSource),
-      });
-
-      const result = await response.json();
-      setParquetValidation(result);
-
-      if (result.success) {
-        toast({
-          title: "Validation Success",
-          description: `Found ${result.row_count} rows with ${result.table_schema?.length} columns`,
-        });
-      } else {
-        toast({
-          title: "Validation Failed",
-          description: result.error || "Unknown error occurred",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to validate parquet file",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidatingParquet(false);
-    }
-  };
 
   // S3 dataset validation function
   const validateS3Dataset = async () => {
@@ -484,51 +402,6 @@ export default function AdminPanel() {
     }
   };
 
-  // Use validated parquet in problem creation with auto-population
-  const useParquetInProblem = () => {
-    if (!parquetValidation?.success || !parquetValidation.suggested_table_schema) {
-      toast({
-        title: "Error",
-        description: "No validated parquet data to use",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Auto-populate table schema from validated parquet data
-    const suggestedTables = parquetValidation.suggested_table_schema.map(table => ({
-      name: table.name,
-      columns: table.columns.map(col => ({
-        name: col.name,
-        type: col.type,
-        description: col.description || `${col.name} column (${col.type})`
-      })),
-      sample_data: table.sample_data || []
-    }));
-
-    // Update sample data JSON strings for the UI
-    const newSampleDataJson = suggestedTables.map(table => 
-      JSON.stringify(table.sample_data, null, 2)
-    );
-
-    setProblemData(prev => ({
-      ...prev,
-      question: {
-        ...prev.question,
-        tables: suggestedTables,
-        parquet_data_source: parquetSource
-      }
-    }));
-
-    // Update the sample data JSON state for the form
-    setSampleDataJson(newSampleDataJson);
-
-    setActiveTab('create');
-    toast({
-      title: "Parquet Data Added",
-      description: "Parquet data source has been added to problem creation form",
-    });
-  };
 
   // Use validated S3 dataset in problem creation with auto-population
   const useS3InProblem = () => {
@@ -793,7 +666,6 @@ export default function AdminPanel() {
           ...problemData.question,
           tables: problemData.question.tables,
           expectedOutput: expectedOutputRows,
-          parquet_data_source: problemData.question.parquet_data_source,
           s3_data_source: problemData.question.s3_data_source
         }
       };
@@ -893,7 +765,7 @@ export default function AdminPanel() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="create" data-testid="tab-create">Create Question</TabsTrigger>
-          <TabsTrigger value="parquet" data-testid="tab-datasets">Data Sources</TabsTrigger>
+          <TabsTrigger value="datasets" data-testid="tab-datasets">Data Sources</TabsTrigger>
           <TabsTrigger value="solutions" data-testid="tab-solutions">Solutions</TabsTrigger>
           <TabsTrigger value="schema" data-testid="tab-schema">Schema Info</TabsTrigger>
           <TabsTrigger value="example" data-testid="tab-example">Example</TabsTrigger>
@@ -903,14 +775,6 @@ export default function AdminPanel() {
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
-              {problemData.question.parquet_data_source && (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    📊 Git data source attached: {problemData.question.parquet_data_source.table_name} from {problemData.question.parquet_data_source.file_path}
-                  </AlertDescription>
-                </Alert>
-              )}
               {problemData.question.s3_data_source && (
                 <Alert>
                   <Info className="h-4 w-4" />
@@ -1355,7 +1219,7 @@ export default function AdminPanel() {
           </div>
         </TabsContent>
 
-        <TabsContent value="parquet" className="space-y-6">
+        <TabsContent value="datasets" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1363,161 +1227,151 @@ export default function AdminPanel() {
                 Dataset Configuration & Validator
               </CardTitle>
               <CardDescription>
-                Configure and validate dataset sources from Git repositories or S3 buckets. 
-                S3 is the recommended approach for new datasets.
+                Configure and validate dataset sources from S3 buckets for problem creation.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Data Source Type Selector */}
-              <div className="space-y-4">
-                <Label>Dataset Source Type</Label>
-                <Tabs value={dataSourceType} onValueChange={(value: 'git' | 's3') => setDataSourceType(value)}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="git" data-testid="tab-git-source">Git Repository</TabsTrigger>
-                    <TabsTrigger value="s3" data-testid="tab-s3-source">S3 Bucket</TabsTrigger>
-                  </TabsList>
+              {/* S3 Dataset Configuration */}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-lg font-semibold">S3 Dataset Source</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Configure and validate parquet files from S3 buckets
+                  </p>
+                </div>
                   
-                  <TabsContent value="git" className="space-y-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Load parquet files from Git repositories (legacy method)
-                      </p>
-                    </div>
-                    
-                    {/* Git Source Configuration */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="git-repo-url">Git Repository Base URL</Label>
-                  <Input
-                    id="git-repo-url"
-                    value={parquetSource.git_repo_url}
-                    onChange={(e) => setParquetSource(prev => ({ ...prev, git_repo_url: e.target.value }))}
-                    placeholder="https://raw.githubusercontent.com/user/repo/main"
-                    data-testid="input-git-repo-url"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Use raw.githubusercontent.com format for security. Example: https://raw.githubusercontent.com/user/repo/main
-                  </p>
-                </div>
+                {/* S3 Source Configuration */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="s3-bucket">S3 Bucket Name</Label>
+                    <Input
+                      id="s3-bucket"
+                      value={s3Source.bucket}
+                      onChange={(e) => setS3Source(prev => ({ ...prev, bucket: e.target.value }))}
+                      placeholder="my-datasets-bucket"
+                      data-testid="input-s3-bucket"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      S3 bucket containing the parquet file
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="file-path">Parquet File Path</Label>
-                  <Input
-                    id="file-path"
-                    value={parquetSource.file_path}
-                    onChange={(e) => setParquetSource(prev => ({ ...prev, file_path: e.target.value }))}
-                    placeholder="data/sales.parquet"
-                    data-testid="input-file-path"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Path to the .parquet file within the repository
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s3-key">S3 Object Key</Label>
+                    <Input
+                      id="s3-key"
+                      value={s3Source.key}
+                      onChange={(e) => setS3Source(prev => ({ ...prev, key: e.target.value }))}
+                      placeholder="datasets/sales.parquet"
+                      data-testid="input-s3-key"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Path to the .parquet file in the S3 bucket
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="table-name">Table Name in DuckDB</Label>
-                  <Input
-                    id="table-name"
-                    value={parquetSource.table_name}
-                    onChange={(e) => setParquetSource(prev => ({ ...prev, table_name: e.target.value }))}
-                    placeholder="problem_data"
-                    data-testid="input-table-name"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Name for the table when loaded into DuckDB sandbox
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s3-table-name">Table Name in DuckDB</Label>
+                    <Input
+                      id="s3-table-name"
+                      value={s3Source.table_name}
+                      onChange={(e) => setS3Source(prev => ({ ...prev, table_name: e.target.value }))}
+                      placeholder="problem_data"
+                      data-testid="input-s3-table-name"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Name for the table when loaded into DuckDB sandbox
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Input
-                    id="description"
-                    value={parquetSource.description}
-                    onChange={(e) => setParquetSource(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Dataset description"
-                    data-testid="input-description"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional description of the dataset
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s3-description">Description (Optional)</Label>
+                    <Input
+                      id="s3-description"
+                      value={s3Source.description}
+                      onChange={(e) => setS3Source(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Dataset description"
+                      data-testid="input-s3-description"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Optional description of the dataset
+                    </p>
+                  </div>
               </div>
 
-              {/* URL Preview */}
-              <div className="space-y-2">
-                <Label>Full Parquet URL Preview</Label>
-                <div className="p-3 bg-muted rounded border font-mono text-sm break-all">
-                  {parquetSource.git_repo_url.replace(/\/$/, '')}/{parquetSource.file_path.replace(/^\//, '')}
+              {/* S3 Preview and Validation */}
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <strong>S3 Data Source:</strong> s3://{s3Source.bucket}/{s3Source.key}
+                  </p>
                 </div>
-              </div>
 
-              {/* Validation Actions */}
-              <div className="flex gap-4">
-                <Button
-                  onClick={validateParquetFile}
-                  disabled={isValidatingParquet || !parquetSource.file_path.trim()}
-                  data-testid="button-validate-parquet"
-                >
-                  {isValidatingParquet ? 'Validating...' : 'Validate Parquet File'}
-                </Button>
-
-                {parquetValidation?.success && (
+                <div className="flex gap-2">
                   <Button
-                    variant="default"
-                    onClick={useParquetInProblem}
-                    data-testid="button-use-in-problem"
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                    onClick={validateS3Dataset}
+                    disabled={isValidatingS3 || !s3Source.bucket.trim() || !s3Source.key.trim()}
+                    data-testid="button-validate-s3"
                   >
-                    ✨ Auto-Populate Problem Schema
+                    {isValidatingS3 ? 'Validating...' : 'Validate S3 Dataset'}
                   </Button>
-                )}
+
+                  {s3Validation?.success && (
+                    <Button
+                      onClick={useS3InProblem}
+                      variant="secondary"
+                      data-testid="button-use-s3-in-problem"
+                    >
+                      Use in Problem Creation
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {/* Validation Results */}
-              {parquetValidation && (
+              {/* S3 Validation Results */}
+              {s3Validation && (
                 <div className="space-y-4">
                   <Separator />
                   
-                  {parquetValidation.success ? (
+                  {s3Validation.success ? (
                     <div className="space-y-4">
                       <Alert>
-                        <Info className="h-4 w-4" />
                         <AlertDescription>
-                          ✅ Validation successful! Found {parquetValidation.row_count} rows with {parquetValidation.table_schema?.length} columns.
+                          ✅ S3 dataset validation successful! Found {s3Validation.row_count?.toLocaleString()} rows with {s3Validation.table_schema?.length} columns.
                         </AlertDescription>
                       </Alert>
 
-                      {/* Auto-populate Information */}
-                      {parquetValidation.suggested_table_schema && (
-                        <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-                          <Info className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-800 dark:text-green-200">
-                            <strong>Ready for Auto-Population!</strong> The "Auto-Populate Problem Schema" button will automatically create a table named "{parquetValidation.table_name}" with {parquetValidation.suggested_table_schema[0]?.columns?.length} columns, including sample data. This eliminates manual schema entry and ensures consistency between your parquet data and problem definition.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      {/* Schema Information */}
-                      {parquetValidation.table_schema && (
+                      {/* Schema Display */}
+                      {s3Validation.table_schema && s3Validation.table_schema.length > 0 && (
                         <Card>
                           <CardHeader>
                             <CardTitle className="text-lg">Table Schema</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {parquetValidation.table_schema.map((col, index) => (
-                                <div key={index} className="p-2 border rounded bg-gray-50 dark:bg-gray-800">
-                                  <div className="font-semibold text-sm">{col.column}</div>
-                                  <div className="text-xs text-muted-foreground">{col.type}</div>
-                                </div>
-                              ))}
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse border border-gray-300 dark:border-gray-600">
+                                <thead>
+                                  <tr className="bg-gray-100 dark:bg-gray-700">
+                                    <th className="border border-gray-300 px-4 py-2 text-left">Column Name</th>
+                                    <th className="border border-gray-300 px-4 py-2 text-left">Data Type</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {s3Validation.table_schema.map((col, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                      <td className="border border-gray-300 px-4 py-2 font-mono text-sm">{col.column}</td>
+                                      <td className="border border-gray-300 px-4 py-2 text-sm">{col.type}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                           </CardContent>
                         </Card>
                       )}
 
-                      {/* Sample Data */}
-                      {parquetValidation.sample_data && parquetValidation.sample_data.length > 0 && (
+                      {/* Sample Data Display */}
+                      {s3Validation.sample_data && s3Validation.sample_data.length > 0 && (
                         <Card>
                           <CardHeader>
                             <CardTitle className="text-lg">Sample Data (First 5 rows)</CardTitle>
@@ -1527,15 +1381,13 @@ export default function AdminPanel() {
                               <table className="min-w-full border-collapse border border-gray-300">
                                 <thead>
                                   <tr className="bg-gray-100 dark:bg-gray-700">
-                                    {Object.keys(parquetValidation.sample_data[0] || {}).map((key) => (
-                                      <th key={key} className="border border-gray-300 px-2 py-1 text-left text-sm font-semibold">
-                                        {key}
-                                      </th>
+                                    {s3Validation.sample_data[0] && Object.keys(s3Validation.sample_data[0]).map((key) => (
+                                      <th key={key} className="border border-gray-300 px-2 py-1 text-left text-sm font-medium">{key}</th>
                                     ))}
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {parquetValidation.sample_data.map((row, index) => (
+                                  {s3Validation.sample_data.map((row, index) => (
                                     <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                                       {Object.values(row).map((value, cellIndex) => (
                                         <td key={cellIndex} className="border border-gray-300 px-2 py-1 text-sm">
@@ -1554,194 +1406,13 @@ export default function AdminPanel() {
                   ) : (
                     <Alert variant="destructive">
                       <AlertDescription>
-                        ❌ Validation failed: {parquetValidation.error || parquetValidation.message}
+                        ❌ S3 validation failed: {s3Validation.error || s3Validation.message}
                       </AlertDescription>
                     </Alert>
                   )}
                 </div>
               )}
-                    </TabsContent>
-                    
-                    <TabsContent value="s3" className="space-y-6">
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          Load parquet files from S3 buckets (recommended)
-                        </p>
-                      </div>
-                      
-                      {/* S3 Source Configuration */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="s3-bucket">S3 Bucket Name</Label>
-                          <Input
-                            id="s3-bucket"
-                            value={s3Source.bucket}
-                            onChange={(e) => setS3Source(prev => ({ ...prev, bucket: e.target.value }))}
-                            placeholder="my-datasets-bucket"
-                            data-testid="input-s3-bucket"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            S3 bucket containing the parquet file
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="s3-key">S3 Object Key</Label>
-                          <Input
-                            id="s3-key"
-                            value={s3Source.key}
-                            onChange={(e) => setS3Source(prev => ({ ...prev, key: e.target.value }))}
-                            placeholder="datasets/sales.parquet"
-                            data-testid="input-s3-key"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Path to the .parquet file in the S3 bucket
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="s3-table-name">Table Name in DuckDB</Label>
-                          <Input
-                            id="s3-table-name"
-                            value={s3Source.table_name}
-                            onChange={(e) => setS3Source(prev => ({ ...prev, table_name: e.target.value }))}
-                            placeholder="problem_data"
-                            data-testid="input-s3-table-name"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Name for the table when loaded into DuckDB sandbox
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="s3-description">Description (Optional)</Label>
-                          <Input
-                            id="s3-description"
-                            value={s3Source.description}
-                            onChange={(e) => setS3Source(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="Dataset description"
-                            data-testid="input-s3-description"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Optional description of the dataset
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* S3 Preview and Validation */}
-                      <div className="space-y-4">
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            <strong>S3 Data Source:</strong> s3://{s3Source.bucket}/{s3Source.key}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={validateS3Dataset}
-                            disabled={isValidatingS3 || !s3Source.bucket.trim() || !s3Source.key.trim()}
-                            data-testid="button-validate-s3"
-                          >
-                            {isValidatingS3 ? 'Validating...' : 'Validate S3 Dataset'}
-                          </Button>
-
-                          {s3Validation?.success && (
-                            <Button
-                              onClick={useS3InProblem}
-                              variant="secondary"
-                              data-testid="button-use-s3-in-problem"
-                            >
-                              Use in Problem Creation
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* S3 Validation Results */}
-                      {s3Validation && (
-                        <div className="space-y-4">
-                          {s3Validation.success ? (
-                            <div className="space-y-4">
-                              <Alert>
-                                <AlertDescription>
-                                  ✅ S3 dataset validation successful! Found {s3Validation.row_count?.toLocaleString()} rows with {s3Validation.table_schema?.length} columns.
-                                </AlertDescription>
-                              </Alert>
-
-                              {/* Schema Display */}
-                              {s3Validation.table_schema && s3Validation.table_schema.length > 0 && (
-                                <Card>
-                                  <CardHeader>
-                                    <CardTitle className="text-lg">Table Schema</CardTitle>
-                                  </CardHeader>
-                                  <CardContent>
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full border-collapse border border-gray-300 dark:border-gray-600">
-                                        <thead>
-                                          <tr className="bg-gray-100 dark:bg-gray-700">
-                                            <th className="border border-gray-300 px-4 py-2 text-left">Column Name</th>
-                                            <th className="border border-gray-300 px-4 py-2 text-left">Data Type</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {s3Validation.table_schema.map((column, index) => (
-                                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                              <td className="border border-gray-300 px-4 py-2 font-mono">{column.column}</td>
-                                              <td className="border border-gray-300 px-4 py-2 font-mono text-blue-600 dark:text-blue-400">{column.type}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              )}
-
-                              {/* Sample Data Display */}
-                              {s3Validation.sample_data && s3Validation.sample_data.length > 0 && (
-                                <Card>
-                                  <CardHeader>
-                                    <CardTitle className="text-lg">Sample Data</CardTitle>
-                                  </CardHeader>
-                                  <CardContent>
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full border-collapse border border-gray-300 dark:border-gray-600">
-                                        <thead>
-                                          <tr className="bg-gray-100 dark:bg-gray-700">
-                                            {s3Validation.sample_data[0] && Object.keys(s3Validation.sample_data[0]).map((key) => (
-                                              <th key={key} className="border border-gray-300 px-2 py-1 text-left text-sm font-medium">{key}</th>
-                                            ))}
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {s3Validation.sample_data.map((row, index) => (
-                                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                              {Object.values(row).map((value, cellIndex) => (
-                                                <td key={cellIndex} className="border border-gray-300 px-2 py-1 text-sm">
-                                                  {value !== null && value !== undefined ? String(value) : 'NULL'}
-                                                </td>
-                                              ))}
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              )}
-                            </div>
-                          ) : (
-                            <Alert variant="destructive">
-                              <AlertDescription>
-                                ❌ S3 validation failed: {s3Validation.error || s3Validation.message}
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
