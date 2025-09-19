@@ -330,7 +330,30 @@ class SecureQueryExecutor:
         query: str,
         db: Session
     ) -> List[Dict[str, Any]]:
-        """Execute query against all test cases"""
+        """Execute query against all test cases with enhanced S3 hash validation"""
+        from .models import Problem
+        
+        # Get problem details to check for enhanced S3 validation
+        problem = db.query(Problem).filter(Problem.id == problem_id).first()
+        if not problem:
+            return [{
+                'test_case_id': 'unknown',
+                'test_case_name': 'Problem not found',
+                'is_hidden': False,
+                'is_correct': False,
+                'score': 0.0,
+                'feedback': ['Problem not found in database'],
+                'execution_time_ms': 0,
+                'execution_status': ExecutionStatus.ERROR.value,
+                'validation_details': {}
+            }]
+        
+        # Check if this is an enhanced S3-based question with hash validation
+        if problem.expected_hash and problem.s3_data_source:
+            logger.info(f"Using enhanced S3 hash validation for problem {problem_id}")
+            return await self._execute_s3_hash_validation(problem, query, db)
+        
+        # Fall back to traditional test case validation
         test_cases = db.query(TestCase).filter(
             TestCase.problem_id == problem_id
         ).order_by(TestCase.order_index).all()
@@ -398,6 +421,132 @@ class SecureQueryExecutor:
                 })
         
         return results
+    
+    async def _execute_s3_hash_validation(
+        self, problem: "Problem", query: str, db: Session
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute user query against S3 dataset and validate using hash comparison
+        
+        This implements the enhanced S3 workflow:
+        1. User query → run on same dataset (DuckDB)
+        2. Hash result → compare with stored expected_hash
+        3. Return ✅ / ❌
+        """
+        from .s3_service import s3_service
+        import duckdb
+        import time
+        import os
+        
+        start_time = time.time()
+        
+        try:
+            # Extract S3 data source info
+            s3_data = problem.s3_data_source
+            bucket = s3_data.get('bucket')
+            key = s3_data.get('key')
+            
+            if not bucket or not key:
+                return [{
+                    'test_case_id': 'hash_validation',
+                    'test_case_name': 'S3 Hash Validation',
+                    'is_hidden': False,
+                    'is_correct': False,
+                    'score': 0.0,
+                    'feedback': ['Invalid S3 data source configuration'],
+                    'execution_time_ms': 0,
+                    'execution_status': ExecutionStatus.ERROR.value,
+                    'validation_details': {}
+                }]
+            
+            logger.info(f"Executing user query against S3 dataset: s3://{bucket}/{key}")
+            
+            # Download dataset to temporary file
+            temp_dataset_path = s3_service.download_to_temp_file(bucket, key)
+            
+            try:
+                # Create DuckDB connection and load dataset
+                conn = duckdb.connect(":memory:")
+                conn.execute("CREATE TABLE dataset AS SELECT * FROM read_parquet(?)", [temp_dataset_path])
+                
+                # Execute user query
+                result = conn.execute(query).fetchall()
+                columns = [desc[0] for desc in conn.description]
+                
+                # Convert to list of dictionaries
+                user_results = [dict(zip(columns, row)) for row in result]
+                
+                # Generate hash from user results
+                user_hash = s3_service.generate_expected_result_hash(user_results)
+                
+                # Compare with expected hash
+                is_correct = user_hash == problem.expected_hash
+                execution_time_ms = int((time.time() - start_time) * 1000)
+                
+                logger.info(f"Hash comparison - Expected: {problem.expected_hash}, User: {user_hash}, Match: {is_correct}")
+                
+                # Generate feedback
+                if is_correct:
+                    feedback = ["🎉 Perfect! Your query produces the exact expected results."]
+                    score = 100.0
+                else:
+                    preview_rows = problem.preview_rows or []
+                    feedback = [
+                        "❌ Your query results don't match the expected output.",
+                        f"Expected {len(preview_rows)} sample rows (showing first 3):"
+                    ]
+                    # Add first 3 preview rows for context
+                    for i, row in enumerate(preview_rows[:3]):
+                        feedback.append(f"Row {i+1}: {row}")
+                    feedback.append(f"Your query returned {len(user_results)} rows.")
+                    if len(user_results) <= 5:
+                        feedback.append("Your results:")
+                        for i, row in enumerate(user_results):
+                            feedback.append(f"Row {i+1}: {row}")
+                    score = 0.0
+                
+                return [{
+                    'test_case_id': 'hash_validation',
+                    'test_case_name': 'S3 Hash Validation',
+                    'is_hidden': False,
+                    'is_correct': is_correct,
+                    'score': score,
+                    'feedback': feedback,
+                    'execution_time_ms': execution_time_ms,
+                    'execution_status': ExecutionStatus.SUCCESS.value,
+                    'validation_details': {
+                        'hash_match': is_correct,
+                        'expected_hash': problem.expected_hash,
+                        'user_hash': user_hash,
+                        'result_count': len(user_results)
+                    },
+                    'user_output': user_results[:5],  # Show first 5 rows for debugging
+                    'expected_output': problem.preview_rows or [],
+                    'output_matches': is_correct
+                }]
+                
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_dataset_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            execution_time_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"S3 hash validation failed for problem {problem.id}: {e}")
+            
+            return [{
+                'test_case_id': 'hash_validation',
+                'test_case_name': 'S3 Hash Validation',
+                'is_hidden': False,
+                'is_correct': False,
+                'score': 0.0,
+                'feedback': [f'Query execution failed: {str(e)}'],
+                'execution_time_ms': execution_time_ms,
+                'execution_status': ExecutionStatus.ERROR.value,
+                'validation_details': {'error': str(e)}
+            }]
     
     async def _execute_test_cases(
         self,
