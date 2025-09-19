@@ -47,7 +47,7 @@ function AppRouter() {
             <Route path="/leaderboard" component={Leaderboard} />
             <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
-            <Route path="/admin" component={AdminPanel} />
+            <Route path="/admin-panel" component={AdminPanel} />
           </>
         )}
         <Route component={NotFound} />
