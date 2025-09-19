@@ -1,0 +1,14 @@
+# Migration script requirements
+# Install with: pip install -r scripts/requirements.txt
+
+# Database connectivity with JSONB support
+psycopg2-binary==2.9.7
+
+# AWS S3 client with retry configuration
+boto3==1.34.0
+botocore>=1.34.0
+
+# Python standard library (already included):
+# - os, sys, json, argparse, logging, time
+# - tempfile, urllib.request, urllib.parse, urllib.error
+# - typing
