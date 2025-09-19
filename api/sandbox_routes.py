@@ -586,6 +586,28 @@ async def cleanup_duckdb_sandbox(
             detail=f"Failed to cleanup DuckDB sandbox: {str(e)}"
         )
 
+@sandbox_router.get("/duckdb/{problem_id}/capabilities", response_model=Dict[str, Any])
+async def get_duckdb_capabilities(
+    problem_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get DuckDB sandbox capabilities information"""
+    try:
+        # Create temporary sandbox to get capabilities
+        with DuckDBSandbox() as temp_sandbox:
+            capabilities = temp_sandbox.get_sandbox_capabilities()
+            return {
+                "success": True,
+                "problem_id": problem_id,
+                "sandbox_type": "duckdb",
+                **capabilities
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get DuckDB capabilities: {str(e)}"
+        )
+
 @sandbox_router.post("/duckdb/{problem_id}/test", response_model=Dict[str, Any])
 async def test_duckdb_connection(
     problem_id: str,
