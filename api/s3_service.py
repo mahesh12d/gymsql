@@ -342,36 +342,51 @@ class S3AnswerService:
         bucket: str,
         key: str,
         content_type: str = 'application/octet-stream',
-        expires_in: int = 3600
-    ) -> str:
+        expires_in: int = 300,  # 5 minutes for security
+        max_file_size: int = MAX_FILE_SIZE_MB * 1024 * 1024
+    ) -> Dict[str, Any]:
         """
-        Generate presigned URL for uploading files to S3
+        Generate secure presigned POST for uploading files to S3 with strict policies
         
         Args:
             bucket: S3 bucket name
             key: S3 object key
             content_type: MIME type of the file
-            expires_in: URL expiration time in seconds (default 1 hour)
+            expires_in: URL expiration time in seconds (default 5 minutes)
+            max_file_size: Maximum file size in bytes
             
         Returns:
-            Presigned upload URL
+            Dictionary with 'url' and 'fields' for secure POST upload
         """
         try:
-            url = self.s3_client.generate_presigned_url(
-                'put_object',
-                Params={
-                    'Bucket': bucket,
-                    'Key': key,
-                    'ContentType': content_type
-                },
+            # Create secure POST policy with strict conditions
+            conditions = [
+                {'bucket': bucket},
+                {'key': key},
+                {'Content-Type': content_type},
+                {'x-amz-server-side-encryption': 'AES256'},  # Require encryption
+                ['content-length-range', 1, max_file_size]  # File size limits
+            ]
+            
+            fields = {
+                'Content-Type': content_type,
+                'x-amz-server-side-encryption': 'AES256'
+            }
+            
+            # Generate presigned POST with policy
+            response = self.s3_client.generate_presigned_post(
+                Bucket=bucket,
+                Key=key,
+                Fields=fields,
+                Conditions=conditions,
                 ExpiresIn=expires_in
             )
             
-            logger.info(f"Generated presigned upload URL for {bucket}/{key}")
-            return url
+            logger.info(f"Generated secure presigned POST for {bucket}/{key} (expires in {expires_in}s)")
+            return response
             
         except Exception as e:
-            logger.error(f"Failed to generate presigned URL: {e}")
+            logger.error(f"Failed to generate presigned POST: {e}")
             raise
 
 # Global S3 service instance

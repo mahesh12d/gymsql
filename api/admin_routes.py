@@ -10,9 +10,11 @@ import duckdb
 import logging
 
 from .database import get_db
-from .models import Problem, Topic, Solution, User
+from .models import Problem, Topic, Solution, User, TestCase
 from .auth import verify_admin_access, verify_admin_user_access
-from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse
+from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse, S3AnswerSource
+from .s3_service import s3_service
+from .file_processor import file_processor
 
 # Create admin router
 admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -795,3 +797,296 @@ def delete_solution(
     db.commit()
     
     return {"success": True, "message": "Solution deleted successfully"}
+
+
+# ======= S3 Answer File Management Endpoints =======
+
+class S3UploadRequest(BaseModel):
+    """Request model for S3 upload URL generation"""
+    bucket: str = Field(..., description="S3 bucket name")
+    key_prefix: str = Field(..., description="S3 key prefix (folder path)")
+    filename: str = Field(..., description="Original filename")
+    content_type: str = Field(default="text/csv", description="MIME type of the file")
+    
+class S3UploadResponse(BaseModel):
+    """Response model for S3 upload POST"""
+    upload_url: str = Field(..., description="Presigned POST URL")
+    upload_fields: Dict[str, str] = Field(..., description="Form fields for POST upload")
+    bucket: str = Field(..., description="S3 bucket name")
+    key: str = Field(..., description="Full S3 object key")
+    expires_in: int = Field(..., description="URL expiration time in seconds")
+
+class TestCaseS3ConfigRequest(BaseModel):
+    """Request model for configuring S3 answer source for test case"""
+    bucket: str = Field(..., description="S3 bucket name")
+    key: str = Field(..., description="S3 object key (file path)")
+    format: str = Field(..., description="File format (csv, json, parquet)")
+    display_limit: int = Field(default=10, description="Number of rows to show in preview")
+    force_refresh: bool = Field(default=False, description="Force refresh from S3 even if cached")
+
+class TestCaseS3ConfigResponse(BaseModel):
+    """Response model for S3 configuration result"""
+    success: bool
+    message: str
+    test_case_id: str
+    s3_config: Optional[S3AnswerSource] = None
+    preview_rows: int = 0
+    total_rows: int = 0
+    error: Optional[str] = None
+
+class S3ValidationResponse(BaseModel):
+    """Response model for S3 configuration validation"""
+    valid: bool
+    accessible: bool
+    file_format: Optional[str] = None
+    file_size_mb: Optional[float] = None
+    row_count: Optional[int] = None
+    columns: Optional[List[str]] = None
+    sample_data: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
+
+@admin_router.post("/s3/upload-url", response_model=S3UploadResponse)
+def generate_s3_upload_url(
+    request: S3UploadRequest,
+    _: bool = Depends(verify_admin_user_access)
+):
+    """Generate presigned URL for uploading answer files to S3"""
+    try:
+        # Validate bucket name (basic security check)
+        allowed_bucket_prefixes = ["sql-learning-answers", "sqlplatform-answers"]
+        if not any(request.bucket.startswith(prefix) for prefix in allowed_bucket_prefixes):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Bucket must start with one of: {allowed_bucket_prefixes}"
+            )
+        
+        # Validate file format
+        allowed_formats = ["csv", "json", "parquet"]
+        file_extension = request.filename.lower().split('.')[-1]
+        if file_extension not in allowed_formats:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File format must be one of: {allowed_formats}"
+            )
+        
+        # Generate safe S3 key
+        import time
+        timestamp = int(time.time())
+        safe_filename = request.filename.replace(" ", "_").replace("/", "_")
+        s3_key = f"{request.key_prefix.strip('/')}/{timestamp}_{safe_filename}"
+        
+        # Generate secure presigned POST with policy
+        upload_data = s3_service.get_presigned_upload_url(
+            bucket=request.bucket,
+            key=s3_key,
+            content_type=request.content_type,
+            expires_in=300  # 5 minutes for security
+        )
+        
+        return S3UploadResponse(
+            upload_url=upload_data['url'],
+            upload_fields=upload_data['fields'],
+            bucket=request.bucket,
+            key=s3_key,
+            expires_in=300
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to generate S3 upload URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate upload URL: {str(e)}"
+        )
+
+@admin_router.post("/s3/validate", response_model=S3ValidationResponse)
+def validate_s3_configuration(
+    s3_config: S3AnswerSource,
+    _: bool = Depends(verify_admin_user_access)
+):
+    """Validate S3 configuration and preview file content"""
+    try:
+        # Validate S3 access
+        is_valid, error_msg = file_processor.validate_s3_configuration(s3_config)
+        if not is_valid:
+            return S3ValidationResponse(
+                valid=False,
+                accessible=False,
+                error=error_msg
+            )
+        
+        # Try to fetch and process the file
+        full_data, preview_data, etag, error = file_processor.process_s3_answer_file(
+            s3_config=s3_config,
+            preview_limit=5  # Small preview for validation
+        )
+        
+        if error:
+            return S3ValidationResponse(
+                valid=True,
+                accessible=True,
+                error=error
+            )
+        
+        # Get data summary
+        summary = file_processor.get_data_summary(full_data)
+        
+        return S3ValidationResponse(
+            valid=True,
+            accessible=True,
+            file_format=s3_config.format,
+            row_count=summary['row_count'],
+            columns=summary['columns'],
+            sample_data=preview_data,
+            error=None
+        )
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to validate S3 configuration: {e}")
+        return S3ValidationResponse(
+            valid=False,
+            accessible=False,
+            error=f"Validation failed: {str(e)}"
+        )
+
+@admin_router.post("/test-cases/{test_case_id}/s3-config", response_model=TestCaseS3ConfigResponse)
+def configure_test_case_s3_source(
+    test_case_id: str,
+    request: TestCaseS3ConfigRequest,
+    _: bool = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """Configure S3 answer source for a test case"""
+    try:
+        # Verify test case exists
+        test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Test case not found"
+            )
+        
+        # Create S3 configuration
+        s3_config = S3AnswerSource(
+            bucket=request.bucket,
+            key=request.key,
+            format=request.format
+        )
+        
+        # Process S3 file to get full and preview data
+        full_data, preview_data, etag, error = file_processor.process_s3_answer_file(
+            s3_config=s3_config,
+            preview_limit=request.display_limit
+        )
+        
+        if error:
+            return TestCaseS3ConfigResponse(
+                success=False,
+                message="Failed to process S3 file",
+                test_case_id=test_case_id,
+                error=error
+            )
+        
+        # Update test case with S3 configuration
+        s3_config.etag = etag  # Store ETag for caching
+        test_case.expected_output_source = s3_config.dict()
+        test_case.preview_expected_output = preview_data
+        test_case.display_limit = request.display_limit
+        
+        # Keep backward compatibility - store preview in expected_output too
+        test_case.expected_output = preview_data
+        
+        db.commit()
+        db.refresh(test_case)
+        
+        return TestCaseS3ConfigResponse(
+            success=True,
+            message=f"S3 source configured successfully. {len(full_data)} total rows, {len(preview_data)} preview rows.",
+            test_case_id=test_case_id,
+            s3_config=s3_config,
+            preview_rows=len(preview_data),
+            total_rows=len(full_data)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to configure S3 source for test case {test_case_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to configure S3 source: {str(e)}"
+        )
+
+@admin_router.post("/test-cases/{test_case_id}/s3-refresh", response_model=TestCaseS3ConfigResponse)
+def refresh_test_case_s3_data(
+    test_case_id: str,
+    _: bool = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """Refresh S3 answer data for a test case (bypass cache)"""
+    try:
+        # Verify test case exists and has S3 configuration
+        test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Test case not found"
+            )
+        
+        if not test_case.expected_output_source:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Test case does not have S3 configuration"
+            )
+        
+        # Parse existing S3 configuration
+        s3_config = S3AnswerSource(**test_case.expected_output_source)
+        
+        # Force refresh by not passing ETag
+        s3_config.etag = None
+        
+        # Process S3 file to get updated data
+        full_data, preview_data, new_etag, error = file_processor.process_s3_answer_file(
+            s3_config=s3_config,
+            preview_limit=test_case.display_limit or 10
+        )
+        
+        if error:
+            return TestCaseS3ConfigResponse(
+                success=False,
+                message="Failed to refresh S3 data",
+                test_case_id=test_case_id,
+                error=error
+            )
+        
+        # Update test case with fresh data
+        s3_config.etag = new_etag
+        test_case.expected_output_source = s3_config.dict()
+        test_case.preview_expected_output = preview_data
+        test_case.expected_output = preview_data  # Backward compatibility
+        
+        db.commit()
+        db.refresh(test_case)
+        
+        return TestCaseS3ConfigResponse(
+            success=True,
+            message=f"S3 data refreshed successfully. {len(full_data)} total rows, {len(preview_data)} preview rows.",
+            test_case_id=test_case_id,
+            s3_config=s3_config,
+            preview_rows=len(preview_data),
+            total_rows=len(full_data)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to refresh S3 data for test case {test_case_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to refresh S3 data: {str(e)}"
+        )

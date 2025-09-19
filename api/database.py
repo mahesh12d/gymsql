@@ -200,6 +200,35 @@ def run_schema_migrations():
             print("Premium column added to users table")
         
         print("Premium feature migration completed!")
+        
+        # S3 Answer Source migrations for test_cases table
+        print("Checking S3 answer source columns for test_cases table...")
+        
+        # Check if test_cases table exists
+        if 'test_cases' in inspector.get_table_names():
+            test_cases_columns = [col['name'] for col in inspector.get_columns('test_cases')]
+            
+            # Add expected_output_source column for S3 configuration
+            if 'expected_output_source' not in test_cases_columns:
+                print("Adding expected_output_source column to test_cases table...")
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN expected_output_source JSONB NULL"))
+                print("expected_output_source column added to test_cases table")
+            
+            # Add preview_expected_output column for limited frontend display
+            if 'preview_expected_output' not in test_cases_columns:
+                print("Adding preview_expected_output column to test_cases table...")
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN preview_expected_output JSONB NULL"))
+                print("preview_expected_output column added to test_cases table")
+            
+            # Add display_limit column for preview row count
+            if 'display_limit' not in test_cases_columns:
+                print("Adding display_limit column to test_cases table...")
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN display_limit INTEGER DEFAULT 10"))
+                print("display_limit column added to test_cases table")
+        else:
+            print("test_cases table doesn't exist yet, S3 columns will be created by create_tables()")
+        
+        print("S3 answer source migration completed!")
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -213,6 +242,9 @@ def create_tables():
     # Then create all tables
     Base.metadata.create_all(bind=engine)
     print("SUCCESS: All database tables created successfully")
+    
+    # Run schema migrations (always run for idempotent migrations)
+    run_schema_migrations()
     
     # Initialize enhanced schema with sample data
     initialize_enhanced_schema()
