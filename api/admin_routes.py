@@ -930,3 +930,241 @@ def validate_s3_dataset(
             success=False,
             error=f"Validation failed: {str(e)}"
         )
+
+@admin_router.post("/create_question", response_model=EnhancedQuestionCreateResponse)
+def create_question_enhanced(
+    request: EnhancedQuestionCreateRequest,
+    _: bool = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """
+    Enhanced question creation with S3 dataset and solution workflow
+    
+    This endpoint implements the full AWS S3 integration:
+    1. Admin uploads dataset.parquet and solution.sql to S3
+    2. Backend loads dataset from S3 → DuckDB
+    3. Execute solution SQL on dataset → get expected answer
+    4. Store metadata in Postgres with expected hash and preview rows
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Validate difficulty
+        valid_difficulties = ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"]
+        if request.difficulty not in valid_difficulties:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Invalid difficulty. Must be one of: {valid_difficulties}",
+                problem_id=request.problem_id,
+                error="Invalid difficulty level"
+            )
+        
+        # Parse S3 paths
+        def parse_s3_path(s3_path: str) -> tuple:
+            """Parse s3://bucket/key format"""
+            if not s3_path.startswith('s3://'):
+                raise ValueError(f"Invalid S3 path format: {s3_path}")
+            path_parts = s3_path[5:].split('/', 1)  # Remove 's3://'
+            if len(path_parts) != 2:
+                raise ValueError(f"Invalid S3 path format: {s3_path}")
+            return path_parts[0], path_parts[1]  # bucket, key
+        
+        try:
+            dataset_bucket, dataset_key = parse_s3_path(request.dataset_path)
+            solution_bucket, solution_key = parse_s3_path(request.solution_path)
+        except ValueError as e:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=str(e),
+                problem_id=request.problem_id,
+                error="Invalid S3 path format"
+            )
+        
+        # Step 1: Validate and load dataset from S3
+        logger.info(f"Loading dataset from S3: {request.dataset_path}")
+        dataset_validation = s3_service.validate_dataset_file(
+            bucket=dataset_bucket,
+            key=dataset_key,
+            table_name="dataset"
+        )
+        
+        if not dataset_validation["success"]:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Dataset validation failed: {dataset_validation['error']}",
+                problem_id=request.problem_id,
+                error=dataset_validation["error"]
+            )
+        
+        # Step 2: Fetch solution SQL from S3
+        logger.info(f"Fetching solution SQL from S3: {request.solution_path}")
+        solution_result = s3_service.fetch_solution_sql(
+            bucket=solution_bucket,
+            key=solution_key
+        )
+        
+        if not solution_result["success"]:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Solution SQL fetch failed: {solution_result['error']}",
+                problem_id=request.problem_id,
+                error=solution_result["error"]
+            )
+        
+        solution_sql = solution_result["sql_content"]
+        
+        # Step 3: Execute solution SQL on dataset using DuckDB
+        logger.info(f"Executing solution SQL on dataset")
+        import duckdb
+        import tempfile
+        
+        try:
+            # Download dataset to temporary file
+            temp_dataset_path = s3_service.download_to_temp_file(dataset_bucket, dataset_key)
+            
+            # Create DuckDB connection and load dataset
+            conn = duckdb.connect(":memory:")
+            conn.execute("CREATE TABLE dataset AS SELECT * FROM read_parquet(?)", [temp_dataset_path])
+            
+            # Execute solution SQL
+            result = conn.execute(solution_sql).fetchall()
+            columns = [desc[0] for desc in conn.description]
+            
+            # Convert to list of dictionaries
+            expected_results = [dict(zip(columns, row)) for row in result]
+            
+            # Clean up temporary file
+            try:
+                os.unlink(temp_dataset_path)
+            except:
+                pass
+                
+        except Exception as e:
+            logger.error(f"Failed to execute solution SQL: {e}")
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Solution execution failed: {str(e)}",
+                problem_id=request.problem_id,
+                error=f"SQL execution error: {str(e)}"
+            )
+        
+        # Step 4: Generate expected hash and preview rows
+        try:
+            expected_hash = s3_service.generate_expected_result_hash(expected_results)
+            preview_rows = expected_results[:5]  # First 5 rows
+            total_rows = len(expected_results)
+            
+            logger.info(f"Generated hash: {expected_hash}, Total rows: {total_rows}, Preview rows: {len(preview_rows)}")
+            
+        except Exception as e:
+            logger.error(f"Failed to generate hash: {e}")
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Hash generation failed: {str(e)}",
+                problem_id=request.problem_id,
+                error=f"Hash generation error: {str(e)}"
+            )
+        
+        # Step 5: Store metadata in Postgres
+        try:
+            # Check if problem already exists
+            existing_problem = db.query(Problem).filter(Problem.id == request.problem_id).first()
+            if existing_problem:
+                return EnhancedQuestionCreateResponse(
+                    success=False,
+                    message=f"Problem with ID '{request.problem_id}' already exists",
+                    problem_id=request.problem_id,
+                    error="Problem ID already exists"
+                )
+            
+            # Validate topic if provided
+            if request.topic_id:
+                topic = db.query(Topic).filter(Topic.id == request.topic_id).first()
+                if not topic:
+                    return EnhancedQuestionCreateResponse(
+                        success=False,
+                        message="Invalid topic_id",
+                        problem_id=request.problem_id,
+                        error="Invalid topic_id"
+                    )
+            
+            # Create S3 data source configuration
+            s3_data_source = {
+                "bucket": dataset_bucket,
+                "key": dataset_key,
+                "table_name": "dataset",
+                "description": f"Dataset for problem {request.problem_id}",
+                "etag": dataset_validation.get("etag")
+            }
+            
+            # Create question data structure
+            question_data = {
+                "description": request.description or f"# {request.title}\n\nSolve this SQL problem using the provided dataset.",
+                "tables": [
+                    {
+                        "name": "dataset",
+                        "columns": [
+                            {"name": col["column"], "type": col["type"]}
+                            for col in dataset_validation["schema"]
+                        ],
+                        "sampleData": dataset_validation["sample_data"]
+                    }
+                ],
+                "expectedOutput": preview_rows
+            }
+            
+            # Create the problem
+            problem = Problem(
+                id=request.problem_id,
+                title=request.title,
+                difficulty=request.difficulty,
+                question=question_data,
+                tags=request.tags,
+                company=request.company,
+                hints=request.hints,
+                premium=request.premium,
+                topic_id=request.topic_id,
+                s3_data_source=s3_data_source,
+                expected_hash=expected_hash,
+                preview_rows=preview_rows
+            )
+            
+            db.add(problem)
+            db.commit()
+            db.refresh(problem)
+            
+            logger.info(f"Successfully created problem: {request.problem_id}")
+            
+            return EnhancedQuestionCreateResponse(
+                success=True,
+                message=f"Question '{request.title}' created successfully with {total_rows} expected result rows",
+                problem_id=request.problem_id,
+                expected_hash=expected_hash,
+                preview_rows=preview_rows,
+                row_count=total_rows,
+                dataset_info={
+                    "schema": dataset_validation["schema"],
+                    "sample_data": dataset_validation["sample_data"],
+                    "row_count": dataset_validation["row_count"],
+                    "s3_path": request.dataset_path
+                }
+            )
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create problem in database: {e}")
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Database error: {str(e)}",
+                problem_id=request.problem_id,
+                error=f"Database storage failed: {str(e)}"
+            )
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in create_question_enhanced: {e}")
+        return EnhancedQuestionCreateResponse(
+            success=False,
+            message=f"Unexpected error: {str(e)}",
+            problem_id=request.problem_id,
+            error=f"Internal server error: {str(e)}"
+        )

@@ -91,6 +91,10 @@ class Problem(Base):
     question = Column(JSONB, nullable=False)  # description, schema, expected_output
     s3_data_source = Column(JSONB, nullable=True)  # bucket, key, table_name, description, etag
     premium = Column(Boolean, nullable=True, default=None)  # null = free, True = premium
+    
+    # Enhanced fields for AWS S3 integration
+    expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results
+    preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
