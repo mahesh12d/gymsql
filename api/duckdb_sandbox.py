@@ -29,7 +29,7 @@ class DuckDBSandbox:
     ]
     TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
     
-    def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 256):
+    def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 128):
         """
         Initialize DuckDB sandbox with memory and time limits
         
