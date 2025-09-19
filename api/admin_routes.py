@@ -53,6 +53,39 @@ class SchemaInfo(BaseModel):
     difficulty_options: List[str]
     available_topics: List[Dict[str, str]]
 
+# Enhanced AWS S3 Question Creation Schemas
+class S3SolutionSource(BaseModel):
+    """Schema for S3 solution SQL file configuration"""
+    bucket: str
+    key: str  # S3 object key (file path) - must be .sql
+    description: Optional[str] = None
+    etag: Optional[str] = None  # For cache validation
+
+class EnhancedQuestionCreateRequest(BaseModel):
+    """Enhanced request model for creating questions with S3 dataset and solution"""
+    problem_id: str = Field(..., description="Unique problem identifier (e.g., 'q101')")
+    title: str = Field(..., description="Problem title")
+    difficulty: str = Field(..., description="Difficulty level: BEGINNER, EASY, MEDIUM, HARD, EXPERT")
+    tags: List[str] = Field(default=[], description="Problem tags (e.g., ['window-function', 'ranking'])")
+    dataset_path: str = Field(..., description="S3 path to dataset (e.g., 's3://bucket/problems/q101/dataset.parquet')")
+    solution_path: str = Field(..., description="S3 path to solution SQL (e.g., 's3://bucket/problems/q101/solution.sql')")
+    description: Optional[str] = Field(None, description="Problem description in markdown")
+    hints: List[str] = Field(default=[], description="Helpful hints for solving the problem")
+    company: Optional[str] = Field(None, description="Company name associated with the problem")
+    premium: bool = Field(default=False, description="Whether this is a premium problem")
+    topic_id: Optional[str] = Field(None, description="Topic ID to categorize the problem")
+
+class EnhancedQuestionCreateResponse(BaseModel):
+    """Response model for enhanced question creation"""
+    success: bool
+    message: str
+    problem_id: str
+    expected_hash: Optional[str] = None  # MD5 hash of sorted expected results
+    preview_rows: List[Dict[str, Any]] = Field(default=[], description="First 5 rows of expected output")
+    row_count: Optional[int] = None  # Total number of rows in expected output
+    dataset_info: Optional[Dict[str, Any]] = None  # Dataset schema and sample data
+    error: Optional[str] = None
+
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
     _: bool = Depends(verify_admin_user_access),
