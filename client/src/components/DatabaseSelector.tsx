@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,10 +10,19 @@ import {
 
 interface DatabaseSelectorProps {
   className?: string;
+  problem?: any;
 }
 
-const DatabaseSelector = memo(function DatabaseSelector({ className }: DatabaseSelectorProps) {
-  const [selectedDatabase, setSelectedDatabase] = useState("PostgreSQL 14");
+const DatabaseSelector = memo(function DatabaseSelector({ className, problem }: DatabaseSelectorProps) {
+  // Determine database type based on parquet data
+  const databaseType = problem?.parquet_data_source ? "DuckDB" : "PostgreSQL 14";
+  const [selectedDatabase, setSelectedDatabase] = useState(databaseType);
+
+  // Update database type when problem changes
+  useEffect(() => {
+    const newDatabaseType = problem?.parquet_data_source ? "DuckDB" : "PostgreSQL 14";
+    setSelectedDatabase(newDatabaseType);
+  }, [problem?.parquet_data_source]);
 
   const databases = [
     "PostgreSQL 14",

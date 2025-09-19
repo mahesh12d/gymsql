@@ -45,11 +45,21 @@ export default function ProblemDetail() {
     enabled: !!problemId && !!user,
   });
 
-  // Memoized run query mutation
+  // Memoized run query mutation with DuckDB/PostgreSQL detection
   const runQueryMutation = useMutation({
     mutationFn: async (query: string) => {
       if (!problemId) throw new Error("No problem selected");
-      return submissionsApi.testQuery(problemId, query);
+      
+      // Check if problem has parquet data source to determine which endpoint to use
+      const hasParquetData = problem?.parquet_data_source !== null && problem?.parquet_data_source !== undefined;
+      
+      if (hasParquetData) {
+        // Use DuckDB endpoint for parquet data
+        return submissionsApi.testDuckDBQuery(problemId, query);
+      } else {
+        // Use PostgreSQL endpoint for regular problems
+        return submissionsApi.testQuery(problemId, query);
+      }
     },
     onError: (error) => {
       toast({

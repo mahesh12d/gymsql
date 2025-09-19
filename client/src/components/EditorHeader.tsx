@@ -11,6 +11,7 @@ interface EditorHeaderProps {
   onCompanyClick: (company: string) => void;
   onDifficultyClick: (difficulty: string) => void;
   className?: string;
+  problem?: any;
 }
 
 const EditorHeader = memo(function EditorHeader({
@@ -19,6 +20,7 @@ const EditorHeader = memo(function EditorHeader({
   onCompanyClick,
   onDifficultyClick,
   className,
+  problem,
 }: EditorHeaderProps) {
   return (
     <CardHeader className={`bg-muted/50 px-4 py-2 flex-shrink-0 ${className || ''}`}>
@@ -50,7 +52,7 @@ const EditorHeader = memo(function EditorHeader({
           <TimerControls />
 
           {/* Database Selector */}
-          <DatabaseSelector />
+          <DatabaseSelector problem={problem} />
         </div>
       </div>
     </CardHeader>

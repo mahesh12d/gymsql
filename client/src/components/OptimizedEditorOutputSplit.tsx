@@ -108,6 +108,7 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
         difficulty={selectedDifficulty}
         onCompanyClick={onCompanyClick}
         onDifficultyClick={onDifficultyClick}
+        problem={problem}
       />
       <div className="flex-1 min-h-0">
         <CodeEditor

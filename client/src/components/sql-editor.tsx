@@ -16,6 +16,7 @@ interface SQLEditorProps {
   onSubmitSolution: (query: string) => Promise<any>;
   hints?: string[];
   className?: string;
+  problem?: any; // Add problem prop to determine database type
 }
 
 export default function SQLEditor({ 
@@ -23,7 +24,8 @@ export default function SQLEditor({
   onRunQuery,
   onSubmitSolution,
   hints = [],
-  className = '' 
+  className = '',
+  problem
 }: SQLEditorProps) {
   const [query, setQuery] = useState(initialQuery);
   const [result, setResult] = useState<any>(null);
@@ -184,7 +186,7 @@ export default function SQLEditor({
                 <h3 className="text-base font-semibold text-foreground">Training Zone</h3>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <span>PostgreSQL 14</span>
+                <span>{problem?.parquet_data_source ? 'DuckDB' : 'PostgreSQL 14'}</span>
                 <ChevronDown className="h-4 w-4" />
               </div>
             </div>
