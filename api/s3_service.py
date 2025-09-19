@@ -25,8 +25,8 @@ except ImportError:
     logger.warning("pandas not available - CSV and Parquet parsing will be limited")
 
 # Configuration from environment with defaults
-MAX_FILE_SIZE_MB = int(os.getenv('S3_MAX_FILE_SIZE_MB', '100'))  # Maximum file size in MB
-MAX_ROWS = int(os.getenv('S3_MAX_ROWS', '50000'))  # Maximum number of rows to parse
+MAX_FILE_SIZE_MB = int(os.getenv('S3_MAX_FILE_SIZE_MB', '5'))  # Maximum file size in MB
+MAX_ROWS = int(os.getenv('S3_MAX_ROWS', '1000'))  # Maximum number of rows to parse
 MAX_CACHE_ENTRIES = int(os.getenv('S3_MAX_CACHE_ENTRIES', '1000'))  # Maximum cache entries
 
 class CacheResult:
