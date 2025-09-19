@@ -25,6 +25,7 @@ const DatabaseSelector = memo(function DatabaseSelector({ className, problem }: 
   }, [problem?.parquet_data_source]);
 
   const databases = [
+    "DuckDB",
     "PostgreSQL 14",
     "PostgreSQL 15", 
     "PostgreSQL 16",
