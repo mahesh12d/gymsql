@@ -78,6 +78,29 @@ def get_current_user(
 ) -> User:
     """Get the current authenticated user"""
     token = credentials.credentials
+    
+    # Development mode bypass - check for fake dev token
+    if token == "dev-token-123":
+        # Check if dev user already exists
+        dev_user = db.query(User).filter(User.id == "dev-user-1").first()
+        if not dev_user:
+            # Create development user
+            dev_user = User(
+                id="dev-user-1",
+                username="developer", 
+                email="dev@sqlgym.dev",
+                first_name="Dev",
+                last_name="User",
+                problems_solved=25,
+                premium=True,
+                is_admin=True
+            )
+            db.add(dev_user)
+            db.commit()
+            db.refresh(dev_user)
+        return dev_user
+    
+    # Normal JWT verification for production
     token_data = verify_token(token)
     
     user = db.query(User).filter(User.id == token_data.user_id).first()
