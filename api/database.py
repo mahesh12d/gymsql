@@ -81,7 +81,7 @@ def parse_tabular_data(tabular_string: str) -> list:
 
 def run_schema_migrations():
     """
-    Idempotent schema migration to handle JSONB question field transition
+    Idempotent schema migration to handle JSONB question field transition and S3 answer sources
     """
     with engine.begin() as conn:
         inspector = inspect(engine)
@@ -140,6 +140,20 @@ def run_schema_migrations():
             # Make question NOT NULL
             conn.execute(text("ALTER TABLE problems ALTER COLUMN question SET NOT NULL"))
             print("Schema migration completed successfully!")
+        
+        # Migrate test_cases table for S3 answer sources
+        if 'test_cases' in inspector.get_table_names():
+            test_case_columns = [col['name'] for col in inspector.get_columns('test_cases')]
+            
+            # Add S3 answer source fields if they don't exist
+            if 'expected_output_source' not in test_case_columns:
+                print("Adding S3 answer source fields to test_cases table...")
+                
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN expected_output_source JSONB NULL"))
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN preview_expected_output JSONB NULL"))
+                conn.execute(text("ALTER TABLE test_cases ADD COLUMN display_limit INTEGER DEFAULT 10"))
+                
+                print("S3 answer source migration completed successfully!")
         else:
             # Check if we need to fix existing data with incorrect expectedOutput format
             result = conn.execute(text("""

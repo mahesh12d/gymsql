@@ -217,12 +217,18 @@ class TestCase(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text)
     input_data = Column(JSONB, nullable=False)  # Schema and sample data
-    expected_output = Column(JSONB, nullable=False)  # Expected query results
+    expected_output = Column(JSONB, nullable=False)  # Expected query results (backward compatibility)
     validation_rules = Column(JSONB, default=dict)  # Custom validation logic
     is_hidden = Column(Boolean, default=False)  # Hidden test cases for evaluation
     order_index = Column(Integer, default=0)
     timeout_seconds = Column(Integer, default=30)
     memory_limit_mb = Column(Integer, default=256)
+    
+    # S3 Answer Source Support
+    expected_output_source = Column(JSONB, nullable=True)  # S3 bucket, key, format, etag for full dataset
+    preview_expected_output = Column(JSONB, nullable=True)  # Limited rows for frontend display
+    display_limit = Column(Integer, default=10)  # Number of rows to show in preview
+    
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     

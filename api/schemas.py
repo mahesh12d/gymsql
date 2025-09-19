@@ -34,6 +34,21 @@ class CamelCaseModel(BaseModel):
         from_attributes=True
     )
 
+# S3 Answer Source schemas
+class S3AnswerSource(BaseModel):
+    """Schema for S3 answer source configuration"""
+    bucket: str
+    key: str  # S3 object key (file path)
+    format: str  # csv, json, parquet
+    etag: Optional[str] = None  # For cache validation
+    last_modified: Optional[datetime] = None
+    description: Optional[str] = None
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
+
 # User schemas
 class UserBase(CamelCaseModel):
     username: str
@@ -209,12 +224,17 @@ class TestCaseBase(CamelCaseModel):
     name: str
     description: Optional[str] = None
     input_data: Dict[str, Any]
-    expected_output: List[Dict[str, Any]]
+    expected_output: List[Dict[str, Any]]  # Backward compatibility - full dataset or fallback
     validation_rules: Dict[str, Any] = {}
     is_hidden: bool = False
     order_index: int = 0
     timeout_seconds: int = 30
     memory_limit_mb: int = 256
+    
+    # S3 Answer Source Support
+    expected_output_source: Optional[S3AnswerSource] = None  # S3 source for full dataset
+    preview_expected_output: Optional[List[Dict[str, Any]]] = None  # Limited rows for frontend
+    display_limit: int = 10  # Number of rows to show in preview
 
 class TestCaseCreate(TestCaseBase):
     pass
