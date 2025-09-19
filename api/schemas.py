@@ -49,6 +49,20 @@ class S3AnswerSource(BaseModel):
         from_attributes=True
     )
 
+# S3 Dataset Source schemas (for problem datasets)
+class S3DatasetSource(BaseModel):
+    """Schema for S3 dataset source configuration"""
+    bucket: str
+    key: str  # S3 object key (file path) - must be .parquet
+    table_name: str  # Table name for DuckDB
+    description: Optional[str] = None
+    etag: Optional[str] = None  # For cache validation
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
+
 # User schemas
 class UserBase(CamelCaseModel):
     username: str
@@ -109,7 +123,8 @@ class ProblemBase(CamelCaseModel):
     company: Optional[str] = None
     hints: List[str] = []
     premium: Optional[bool] = None  # null = free, True = premium
-    parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data
+    parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data (legacy)
+    s3_data_source: Optional[S3DatasetSource] = None  # S3 dataset source configuration (preferred)
 
 class ProblemCreate(ProblemBase):
     pass

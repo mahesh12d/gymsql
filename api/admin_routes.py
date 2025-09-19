@@ -834,6 +834,24 @@ class TestCaseS3ConfigResponse(BaseModel):
     total_rows: int = 0
     error: Optional[str] = None
 
+class S3DatasetValidationRequest(BaseModel):
+    """Request model for S3 dataset validation"""
+    bucket: str = Field(..., description="S3 bucket name")
+    key: str = Field(..., description="S3 object key (file path) - must be .parquet")
+    table_name: str = Field(..., description="Desired table name for DuckDB")
+
+class S3DatasetValidationResponse(BaseModel):
+    """Response model for S3 dataset validation"""
+    success: bool
+    message: str = ""
+    table_schema: Optional[List[Dict[str, str]]] = None
+    sample_data: Optional[List[Dict[str, Any]]] = None
+    row_count: Optional[int] = None
+    etag: Optional[str] = None
+    table_name: Optional[str] = None
+    data_source: Optional[str] = None
+    error: Optional[str] = None
+
 class S3ValidationResponse(BaseModel):
     """Response model for S3 configuration validation"""
     valid: bool
@@ -1089,4 +1107,46 @@ def refresh_test_case_s3_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to refresh S3 data: {str(e)}"
+        )
+
+@admin_router.post("/validate-dataset-s3", response_model=S3DatasetValidationResponse)
+def validate_s3_dataset(
+    request: S3DatasetValidationRequest,
+    _: bool = Depends(verify_admin_access)
+):
+    """Validate S3 dataset file and extract schema information"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Use S3 service to validate the dataset file
+        validation_result = s3_service.validate_dataset_file(
+            bucket=request.bucket,
+            key=request.key,
+            table_name=request.table_name
+        )
+        
+        if validation_result["success"]:
+            logger.info(f"S3 dataset validation successful: s3://{request.bucket}/{request.key}")
+            return S3DatasetValidationResponse(
+                success=True,
+                message=f"Dataset validation successful. {validation_result['row_count']:,} rows found.",
+                table_schema=validation_result.get("schema", []),
+                sample_data=validation_result.get("sample_data", []),
+                row_count=validation_result.get("row_count", 0),
+                etag=validation_result.get("etag"),
+                table_name=validation_result.get("table_name"),
+                data_source=f"s3://{request.bucket}/{request.key}"
+            )
+        else:
+            logger.warning(f"S3 dataset validation failed: {validation_result.get('error', 'Unknown error')}")
+            return S3DatasetValidationResponse(
+                success=False,
+                error=validation_result.get("error", "Validation failed")
+            )
+            
+    except Exception as e:
+        logger.error(f"Exception during S3 dataset validation: {e}")
+        return S3DatasetValidationResponse(
+            success=False,
+            error=f"Validation failed: {str(e)}"
         )

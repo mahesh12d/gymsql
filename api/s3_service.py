@@ -29,6 +29,11 @@ MAX_FILE_SIZE_MB = int(os.getenv('S3_MAX_FILE_SIZE_MB', '5'))  # Maximum file si
 MAX_ROWS = int(os.getenv('S3_MAX_ROWS', '1000'))  # Maximum number of rows to parse
 MAX_CACHE_ENTRIES = int(os.getenv('S3_MAX_CACHE_ENTRIES', '1000'))  # Maximum cache entries
 
+# Dataset-specific configuration
+S3_DATASET_MAX_FILE_SIZE_MB = int(os.getenv('S3_DATASET_MAX_FILE_SIZE_MB', '100'))  # Max dataset file size
+S3_DATASET_MAX_ROWS = int(os.getenv('S3_DATASET_MAX_ROWS', '1000000'))  # Max dataset rows
+S3_ALLOWED_BUCKETS = os.getenv('S3_ALLOWED_BUCKETS', 'sql-learning-datasets,sql-learning-answers,sqlplatform-datasets,sqlplatform-answers').split(',')
+
 class CacheResult:
     """Structured result for cached file operations"""
     def __init__(self, status: str, data: List[Dict[str, Any]] = None, 
@@ -388,6 +393,145 @@ class S3AnswerService:
         except Exception as e:
             logger.error(f"Failed to generate presigned POST: {e}")
             raise
+
+    def download_to_temp_file(self, bucket: str, key: str) -> str:
+        """
+        Download S3 file to a temporary file and return the path
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key
+            
+        Returns:
+            Path to temporary file
+            
+        Raises:
+            ValueError: If bucket not allowed or file too large
+            ClientError: If S3 operation fails
+        """
+        import tempfile
+        
+        # Validate bucket allowlist
+        if not self._validate_dataset_bucket(bucket):
+            raise ValueError(f"Bucket '{bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}")
+        
+        try:
+            # Check file size before downloading
+            response = self.s3_client.head_object(Bucket=bucket, Key=key)
+            file_size_mb = response['ContentLength'] / (1024 * 1024)
+            
+            if file_size_mb > S3_DATASET_MAX_FILE_SIZE_MB:
+                raise ValueError(f"File size {file_size_mb:.1f}MB exceeds limit of {S3_DATASET_MAX_FILE_SIZE_MB}MB")
+            
+            # Create temporary file
+            suffix = os.path.splitext(key)[1] or '.tmp'
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            
+            # Download to temporary file
+            self.s3_client.download_fileobj(bucket, key, temp_file)
+            temp_file.close()
+            
+            logger.info(f"Downloaded {bucket}/{key} ({file_size_mb:.1f}MB) to {temp_file.name}")
+            return temp_file.name
+            
+        except ClientError as e:
+            logger.error(f"Failed to download {bucket}/{key}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error downloading dataset file {bucket}/{key}: {e}")
+            raise
+    
+    def validate_dataset_file(self, bucket: str, key: str, table_name: str) -> Dict[str, Any]:
+        """
+        Validate S3 dataset file and extract schema information
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key
+            table_name: Desired table name for DuckDB
+            
+        Returns:
+            Dict with validation result, schema, sample data, row count, etag
+        """
+        try:
+            # Validate bucket
+            if not self._validate_dataset_bucket(bucket):
+                return {
+                    "success": False,
+                    "error": f"Bucket '{bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}"
+                }
+            
+            # Validate table name pattern (same as DuckDB sandbox)
+            import re
+            table_pattern = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
+            if not table_pattern.match(table_name):
+                return {
+                    "success": False,
+                    "error": f"Invalid table name: {table_name}. Must start with letter/underscore, contain only alphanumeric/underscore, max 64 chars."
+                }
+            
+            # Download to temporary file for analysis
+            temp_file_path = self.download_to_temp_file(bucket, key)
+            
+            try:
+                # Use DuckDB to analyze the file
+                import duckdb
+                conn = duckdb.connect(":memory:")
+                
+                # Get file extension to determine type
+                file_ext = os.path.splitext(key)[1].lower()
+                
+                if file_ext == '.parquet':
+                    # Analyze parquet file
+                    result = conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [temp_file_path]).fetchone()
+                    row_count = result[0] if result else 0
+                    
+                    # Get schema
+                    schema_result = conn.execute("DESCRIBE SELECT * FROM read_parquet(?)", [temp_file_path]).fetchall()
+                    schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+                    
+                    # Get sample data
+                    sample_result = conn.execute("SELECT * FROM read_parquet(?) LIMIT 5", [temp_file_path]).fetchall()
+                    column_names = [desc[0] for desc in conn.description]
+                    sample_data = [dict(zip(column_names, row)) for row in sample_result]
+                    
+                else:
+                    return {"success": False, "error": f"Unsupported file format: {file_ext}. Only .parquet files are supported for datasets."}
+                
+                # Validate row count
+                if row_count > S3_DATASET_MAX_ROWS:
+                    return {
+                        "success": False, 
+                        "error": f"Dataset has {row_count:,} rows, exceeds limit of {S3_DATASET_MAX_ROWS:,}"
+                    }
+                
+                # Get ETag for caching
+                head_response = self.s3_client.head_object(Bucket=bucket, Key=key)
+                etag = head_response.get('ETag', '').strip('"')
+                
+                return {
+                    "success": True,
+                    "schema": schema,
+                    "sample_data": sample_data,
+                    "row_count": row_count,
+                    "etag": etag,
+                    "table_name": table_name
+                }
+                
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"Dataset validation failed for {bucket}/{key}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def _validate_dataset_bucket(self, bucket: str) -> bool:
+        """Validate that bucket is in the allowed list for datasets"""
+        return bucket in S3_ALLOWED_BUCKETS
 
 # Global S3 service instance
 s3_service = S3AnswerService()

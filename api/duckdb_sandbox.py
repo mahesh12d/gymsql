@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from .s3_service import s3_service
 
 logger = logging.getLogger(__name__)
 
@@ -87,82 +88,149 @@ class DuckDBSandbox:
             logger.error(f"Failed to initialize DuckDB connection: {e}")
             raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
     
-    async def setup_problem_data(self, problem_id: str, parquet_data_source: Dict[str, str] = None) -> Dict[str, Any]:
+    async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, parquet_data_source: Dict[str, str] = None) -> Dict[str, Any]:
         """
-        Load problem dataset from parquet file into DuckDB
+        Load problem dataset from parquet file into DuckDB (S3 or Git fallback)
         
         Args:
             problem_id: Unique identifier for the problem
-            parquet_data_source: Optional dict containing git_repo_url, file_path, table_name, description
+            s3_data_source: Optional dict containing bucket, key, table_name, description, etag (preferred)
+            parquet_data_source: Optional dict containing git_repo_url, file_path, table_name, description (legacy)
             
         Returns:
             Dict with success status and any error messages
         """
         try:
-            if parquet_data_source:
+            # Check for S3 data source first (preferred approach)
+            if s3_data_source:
+                # Use S3 data source
+                bucket = s3_data_source.get('bucket', '')
+                key = s3_data_source.get('key', '')
+                table_name = s3_data_source.get('table_name', 'problem_data')
+                description = s3_data_source.get('description', '')
+                etag = s3_data_source.get('etag', '')
+                
+                logger.info(f"Loading problem data from S3: s3://{bucket}/{key}")
+                
+                # Security validation
+                if not self._validate_table_name(table_name):
+                    return {"success": False, "error": f"Invalid table name: {table_name}"}
+                
+                # Use S3 service to download to temporary file
+                try:
+                    temp_file_path = s3_service.download_to_temp_file(bucket, key)
+                    
+                    try:
+                        # Load parquet from local temp file (no remote access needed)
+                        escaped_table_name = self._escape_identifier(table_name)
+                        
+                        # Test if parquet file is readable
+                        result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [temp_file_path]).fetchone()
+                        
+                        if result is None:
+                            return {"success": False, "error": f"Parquet file not readable: s3://{bucket}/{key}"}
+                        
+                        # Drop table if it exists and create new one
+                        self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
+                        self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [temp_file_path])
+                        
+                        # Get table schema for user reference
+                        schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
+                        schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+                        
+                        row_count = result[0] if result else 0
+                        
+                        # Track loaded table for security validation
+                        self.loaded_table_names.add(table_name)
+                        
+                        return {
+                            "success": True,
+                            "message": f"Problem data loaded successfully from S3 into {table_name}",
+                            "schema": schema,
+                            "row_count": row_count,
+                            "data_source": f"s3://{bucket}/{key}",
+                            "table_name": table_name,
+                            "etag": etag
+                        }
+                        
+                    finally:
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
+                            
+                except Exception as e:
+                    logger.error(f"Failed to load from S3: {e}")
+                    return {"success": False, "error": f"Failed to load S3 dataset: {str(e)}"}
+            
+            # Fall back to legacy Git-based loading for backward compatibility
+            elif parquet_data_source:
                 # Use custom parquet data source
                 git_repo_url = parquet_data_source.get('git_repo_url', '').rstrip('/')
                 file_path = parquet_data_source.get('file_path', '').lstrip('/')
                 table_name = parquet_data_source.get('table_name', 'problem_data')
                 parquet_url = f"{git_repo_url}/{file_path}"
-                logger.info(f"Loading problem data from custom source: {parquet_url}")
+                logger.info(f"Loading problem data from legacy Git source: {parquet_url}")
             else:
                 # Fallback to legacy pattern for backward compatibility
                 parquet_url = f"{self.github_repo_base}/problems/{problem_id}.parquet"
                 table_name = "problem_data"
-                logger.info(f"Loading problem data from legacy source: {parquet_url}")
+                logger.info(f"Loading problem data from legacy Git source: {parquet_url}")
             
-            # Security validation
-            if not self._validate_table_name(table_name):
-                return {"success": False, "error": f"Invalid table name: {table_name}"}
-            
-            if not self._validate_parquet_url(parquet_url):
-                return {"success": False, "error": f"Invalid or insecure parquet URL: {parquet_url}"}
-            
-            # Use parameterized query for parquet URL and escaped identifier for table name
-            escaped_table_name = self._escape_identifier(table_name)
-            
-            # Temporarily load httpfs ONLY for setup, then remove it for security
-            try:
-                self.conn.execute("INSTALL httpfs")
-                self.conn.execute("LOAD httpfs")
+            # Legacy Git loading logic (only if no S3 source)
+            if not s3_data_source:
+                # Security validation
+                if not self._validate_table_name(table_name):
+                    return {"success": False, "error": f"Invalid table name: {table_name}"}
                 
-                # Test if parquet file exists and is accessible using parameterized query
-                result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
+                if not self._validate_parquet_url(parquet_url):
+                    return {"success": False, "error": f"Invalid or insecure parquet URL: {parquet_url}"}
                 
-                if result is None:
-                    return {"success": False, "error": f"Parquet file not found or inaccessible: {parquet_url}"}
+                # Use parameterized query for parquet URL and escaped identifier for table name
+                escaped_table_name = self._escape_identifier(table_name)
                 
-                # Drop table if it exists and create new one using escaped identifiers
-                self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
-                self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [parquet_url])
-                
-                # Get table schema for user reference
-                schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
-                schema = [{"column": row[0], "type": row[1]} for row in schema_result]
-                
-                row_count = result[0] if result else 0
-                
-            finally:
-                # CRITICAL: Remove httpfs after setup to prevent SSRF in user queries
+                # Temporarily load httpfs ONLY for setup, then remove it for security
                 try:
-                    # Note: DuckDB doesn't have UNLOAD, but we can create a new connection without httpfs
-                    # for user queries. The setup data is now in memory tables.
-                    pass  # httpfs remains loaded but user queries are blocked via forbidden_patterns
-                except:
-                    pass
-            
-            # Track loaded table for security validation
-            self.loaded_table_names.add(table_name)
-            
-            return {
-                "success": True,
-                "message": f"Problem data loaded successfully into {table_name}",
-                "schema": schema,
-                "row_count": row_count,
-                "parquet_url": parquet_url,
-                "table_name": table_name
-            }
+                    self.conn.execute("INSTALL httpfs")
+                    self.conn.execute("LOAD httpfs")
+                    
+                    # Test if parquet file exists and is accessible using parameterized query
+                    result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
+                    
+                    if result is None:
+                        return {"success": False, "error": f"Parquet file not found or inaccessible: {parquet_url}"}
+                    
+                    # Drop table if it exists and create new one using escaped identifiers
+                    self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
+                    self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [parquet_url])
+                    
+                    # Get table schema for user reference
+                    schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
+                    schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+                    
+                    row_count = result[0] if result else 0
+                    
+                finally:
+                    # CRITICAL: Remove httpfs after setup to prevent SSRF in user queries
+                    try:
+                        # Note: DuckDB doesn't have UNLOAD, but we can create a new connection without httpfs
+                        # for user queries. The setup data is now in memory tables.
+                        pass  # httpfs remains loaded but user queries are blocked via forbidden_patterns
+                    except:
+                        pass
+                
+                # Track loaded table for security validation
+                self.loaded_table_names.add(table_name)
+                
+                return {
+                    "success": True,
+                    "message": f"Problem data loaded successfully into {table_name}",
+                    "schema": schema,
+                    "row_count": row_count,
+                    "parquet_url": parquet_url,
+                    "table_name": table_name
+                }
             
         except Exception as e:
             error_msg = f"Failed to load problem data for {problem_id}: {str(e)}"
