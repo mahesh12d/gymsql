@@ -94,6 +94,7 @@ class ProblemBase(CamelCaseModel):
     company: Optional[str] = None
     hints: List[str] = []
     premium: Optional[bool] = None  # null = free, True = premium
+    parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data
 
 class ProblemCreate(ProblemBase):
     pass
