@@ -141,6 +141,12 @@ def run_schema_migrations():
             conn.execute(text("ALTER TABLE problems ALTER COLUMN question SET NOT NULL"))
             print("Schema migration completed successfully!")
         
+        # Add s3_data_source column if it doesn't exist
+        if 's3_data_source' not in columns:
+            print("Adding s3_data_source JSONB column to problems table...")
+            conn.execute(text("ALTER TABLE problems ADD COLUMN s3_data_source JSONB NULL"))
+            print("S3 data source migration completed successfully!")
+        
         # Migrate test_cases table for S3 answer sources
         if 'test_cases' in inspector.get_table_names():
             test_case_columns = [col['name'] for col in inspector.get_columns('test_cases')]
