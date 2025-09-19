@@ -381,51 +381,8 @@ async def submit_solution(problem_id: str,
     return result
 
 
-@app.get("/api/problems/{problem_id}/sandbox")
-async def get_or_create_sandbox(problem_id: str,
-                                current_user: User = Depends(get_current_user),
-                                db: Session = Depends(get_db)):
-    """Get or create user sandbox for a problem"""
-    from .sandbox_manager import create_user_sandbox
-    from .models import UserSandbox, SandboxStatus
-
-    # Check if problem exists and is accessible
-    problem = db.query(Problem).filter(Problem.id == problem_id).first()
-    if not problem:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Problem not found")
-    
-    # Check if problem is premium and user doesn't have premium access
-    if problem.premium is True and not current_user.premium:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Premium subscription required to access sandbox for this problem")
-
-    # Check for existing active sandbox
-    existing_sandbox = db.query(UserSandbox).filter(
-        UserSandbox.user_id == current_user.id,
-        UserSandbox.problem_id == problem_id,
-        UserSandbox.status == SandboxStatus.ACTIVE.value).first()
-
-    if existing_sandbox:
-        return {
-            "sandbox_id": existing_sandbox.id,
-            "status": existing_sandbox.status,
-            "expires_at": existing_sandbox.expires_at.isoformat(),
-            "created_at": existing_sandbox.created_at.isoformat()
-        }
-
-    # Create new sandbox
-    try:
-        sandbox = await create_user_sandbox(current_user.id, problem_id)
-        return {
-            "sandbox_id": sandbox.id,
-            "status": sandbox.status,
-            "expires_at": sandbox.expires_at.isoformat(),
-            "created_at": sandbox.created_at.isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to create sandbox: {str(e)}")
+# PostgreSQL sandbox functionality removed - using DuckDB only
+# Redirect to DuckDB sandbox endpoints in /api/sandbox/duckdb/
 
 
 @app.post("/api/problems/{problem_id}/test")

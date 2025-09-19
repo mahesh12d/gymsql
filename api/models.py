@@ -72,7 +72,6 @@ class User(Base):
     community_posts = relationship("CommunityPost", back_populates="user")
     post_likes = relationship("PostLike", back_populates="user")
     post_comments = relationship("PostComment", back_populates="user")
-    sandboxes = relationship("UserSandbox", back_populates="user")
     progress = relationship("UserProgress", back_populates="user")
     user_badges = relationship("UserBadge", back_populates="user")
 
@@ -102,7 +101,6 @@ class Problem(Base):
     submissions = relationship("Submission", back_populates="problem")
     test_cases = relationship("TestCase", back_populates="problem")
     schemas = relationship("ProblemSchema", back_populates="problem")
-    sandboxes = relationship("UserSandbox", back_populates="problem")
     community_posts = relationship("CommunityPost", back_populates="problem")
     solutions = relationship("Solution", back_populates="problem")
     topic = relationship("Topic", back_populates="problems")
@@ -266,7 +264,7 @@ class ExecutionResult(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     submission_id = Column(String, ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
     test_case_id = Column(String, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False)
-    user_sandbox_id = Column(String, ForeignKey("user_sandboxes.id", ondelete="CASCADE"), nullable=False)
+    # user_sandbox_id removed - PostgreSQL sandbox functionality removed
     
     # Execution details
     status = Column(execution_status_enum, nullable=False)
@@ -290,45 +288,8 @@ class ExecutionResult(Base):
     # Relationships
     submission = relationship("Submission", back_populates="execution_results")
     test_case = relationship("TestCase", back_populates="execution_results")
-    user_sandbox = relationship("UserSandbox", back_populates="execution_results")
+    # user_sandbox relationship removed - PostgreSQL sandbox functionality removed
 
-class UserSandbox(Base):
-    """Manage temporary database instances for users"""
-    __tablename__ = "user_sandboxes"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
-    
-    # Sandbox details
-    database_name = Column(String(100), unique=True, nullable=False)
-    # Remove connection_string for security - use database_name with environment config instead
-    # connection_string = Column(Text, nullable=False)  # REMOVED: Security risk
-    status = Column(sandbox_status_enum, default=SandboxStatus.ACTIVE.value, nullable=False)
-    
-    # Resource limits
-    max_execution_time_seconds = Column(Integer, default=30)
-    max_memory_mb = Column(Integer, default=256)
-    max_connections = Column(Integer, default=5)
-    
-    # Lifecycle management
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    last_accessed_at = Column(DateTime, default=func.now(), nullable=False)
-    expires_at = Column(DateTime, nullable=False)  # Auto-cleanup after expiry
-    cleanup_scheduled_at = Column(DateTime)
-    
-    # Relationships
-    user = relationship("User", back_populates="sandboxes")
-    problem = relationship("Problem", back_populates="sandboxes")
-    execution_results = relationship("ExecutionResult", back_populates="user_sandbox")
-    
-    # Indexes for performance
-    __table_args__ = (
-        Index('idx_user_sandboxes_user_id', 'user_id'),
-        Index('idx_user_sandboxes_problem_id', 'problem_id'),
-        Index('idx_user_sandboxes_status', 'status'),
-        Index('idx_user_sandboxes_expires_at', 'expires_at'),
-    )
 
 class UserProgress(Base):
     """Track user statistics and problem-solving progress"""

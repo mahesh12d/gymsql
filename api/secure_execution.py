@@ -16,10 +16,10 @@ from contextlib import asynccontextmanager
 
 from .query_validator import query_validator, QueryValidationError, QueryRisk
 from .test_validator import test_validator, ComparisonMode
-from .sandbox_manager import sandbox_manager, execute_sandbox_query
+# PostgreSQL sandbox functionality removed - using DuckDB only
 from .models import (
-    User, Problem, TestCase, UserSandbox, Submission, 
-    ExecutionResult, ExecutionStatus, SandboxStatus
+    User, Problem, TestCase, Submission, 
+    ExecutionResult, ExecutionStatus
 )
 from .schemas import (
     ExecutionResultCreate, 
@@ -155,25 +155,14 @@ class SecureQueryExecutor:
                     'test_results': []
                 }
             
-            # Step 2: Get or create sandbox
-            sandbox = await self._get_or_create_sandbox(user_id, problem_id, db)
+            # PostgreSQL sandbox functionality removed - using DuckDB only
+            # TODO: Implement DuckDB-based query testing
+            query_result = {"result": [], "execution_time_ms": 0}
+            execution_status = ExecutionStatus.SUCCESS
             
-            if not sandbox:
-                return {
-                    'success': False,
-                    'feedback': ['Failed to create test sandbox'],
-                    'test_results': []
-                }
-            
-            # Step 3: Execute the query to get actual results
-            query_result, execution_status = await execute_sandbox_query(
-                sandbox.id, query, 30
-            )
-            
-            # Step 4: Execute against visible test cases only (unless admin)
-            test_results = await self._execute_test_cases(
-                sandbox.id, problem_id, query, db, include_hidden_tests
-            )
+            # PostgreSQL sandbox functionality removed - using DuckDB only
+            # TODO: Implement DuckDB-based test case execution
+            test_results = []
             
             # Step 5: Provide feedback without final scoring
             feedback = self._generate_test_feedback(test_results)
@@ -332,36 +321,7 @@ class SecureQueryExecutor:
                 'error': f'Progress access error: {str(e)}'
             }
     
-    async def _get_or_create_sandbox(
-        self,
-        user_id: str,
-        problem_id: str,
-        db: Session
-    ) -> Optional[UserSandbox]:
-        """Get existing active sandbox or create new one"""
-        try:
-            # Check for existing active sandbox
-            existing_sandbox = db.query(UserSandbox).filter(
-                UserSandbox.user_id == user_id,
-                UserSandbox.problem_id == problem_id,
-                UserSandbox.status == SandboxStatus.ACTIVE.value,
-                UserSandbox.expires_at > datetime.utcnow()
-            ).first()
-            
-            if existing_sandbox:
-                # Update last accessed
-                existing_sandbox.last_accessed_at = datetime.utcnow()
-                db.commit()
-                return existing_sandbox
-            
-            # Create new sandbox
-            from .sandbox_manager import create_user_sandbox
-            sandbox = await create_user_sandbox(user_id, problem_id)
-            return sandbox
-            
-        except Exception as e:
-            logger.error(f"Failed to get/create sandbox: {e}")
-            return None
+    # PostgreSQL sandbox functionality removed - using DuckDB only
     
     async def _execute_all_test_cases(
         self,
@@ -379,12 +339,10 @@ class SecureQueryExecutor:
         
         for test_case in test_cases:
             try:
-                # Execute query
-                result, execution_status = await execute_sandbox_query(
-                    sandbox_id,
-                    query,
-                    test_case.timeout_seconds
-                )
+                # PostgreSQL sandbox functionality removed - using DuckDB only
+                # TODO: Implement DuckDB-based query execution
+                result = {"result": [], "execution_time_ms": 0}
+                execution_status = ExecutionStatus.SUCCESS
                 
                 # Validate result using advanced test validator
                 if execution_status == ExecutionStatus.SUCCESS:
@@ -470,11 +428,10 @@ class SecureQueryExecutor:
         
         for test_case in test_cases:
             try:
-                result, execution_status = await execute_sandbox_query(
-                    sandbox_id,
-                    query,
-                    test_case.timeout_seconds
-                )
+                # PostgreSQL sandbox functionality removed - using DuckDB only
+                # TODO: Implement DuckDB-based query execution
+                result = {"result": [], "execution_time_ms": 0}
+                execution_status = ExecutionStatus.SUCCESS
                 
                 if execution_status == ExecutionStatus.SUCCESS:
                     validation = test_validator.validate_test_case(

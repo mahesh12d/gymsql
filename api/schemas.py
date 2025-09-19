@@ -280,7 +280,7 @@ class ProblemSchemaResponse(ProblemSchemaBase):
 class ExecutionResultBase(CamelCaseModel):
     submission_id: str
     test_case_id: str
-    user_sandbox_id: str
+    # user_sandbox_id removed - PostgreSQL sandbox functionality removed
     status: ExecutionStatus
     execution_time_ms: Optional[int] = None
     memory_used_mb: Optional[float] = None
@@ -300,26 +300,7 @@ class ExecutionResultResponse(ExecutionResultBase):
     id: str
     created_at: datetime
 
-# User sandbox schemas
-class UserSandboxBase(CamelCaseModel):
-    user_id: str
-    problem_id: str
-    database_name: str
-    connection_string: str
-    status: SandboxStatus = SandboxStatus.ACTIVE
-    max_execution_time_seconds: int = 30
-    max_memory_mb: int = 256
-    max_connections: int = 5
-    expires_at: datetime
-
-class UserSandboxCreate(UserSandboxBase):
-    pass
-
-class UserSandboxResponse(UserSandboxBase):
-    id: str
-    created_at: datetime
-    last_accessed_at: datetime
-    cleanup_scheduled_at: Optional[datetime] = None
+# User sandbox schemas removed - PostgreSQL sandbox functionality removed
 
 # User progress schemas
 class UserProgressBase(CamelCaseModel):

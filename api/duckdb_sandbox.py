@@ -1,7 +1,7 @@
 """
 DuckDB Sandbox Service for SQL Learning Platform
 ===============================================
-Handles SQL execution against parquet datasets from GitHub for secure sandbox environments.
+Handles SQL execution against parquet datasets from S3 for secure sandbox environments.
 """
 
 import duckdb
@@ -25,8 +25,7 @@ class DuckDBSandbox:
     
     # Security constants  
     ALLOWED_DOMAINS = [
-        'raw.githubusercontent.com',
-        'githubusercontent.com'
+        # S3 domains only - removed GitHub domains
     ]
     TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
     
@@ -41,7 +40,7 @@ class DuckDBSandbox:
         self.timeout_seconds = timeout_seconds
         self.memory_limit_mb = memory_limit_mb
         self.conn = None
-        self.github_repo_base = "https://github.com/mahesh12d/GymSql-problems_et/raw/main"
+        # GitHub repository removed - using S3 only
         self.loaded_table_names = set()  # Track loaded table names for security
         
         # Initialize DuckDB connection
@@ -51,18 +50,7 @@ class DuckDBSandbox:
         """Validate table name against SQL injection patterns"""
         return bool(self.TABLE_NAME_PATTERN.match(table_name))
     
-    def _validate_parquet_url(self, url: str) -> bool:
-        """Validate parquet URL for security"""
-        try:
-            parsed = urlparse(url)
-            if parsed.scheme not in ['https']:
-                return False
-            if not any(parsed.netloc.endswith(domain) or parsed.netloc == domain 
-                      for domain in self.ALLOWED_DOMAINS):
-                return False
-            return True
-        except Exception:
-            return False
+    # URL validation removed - using S3 only, no external URL access
     
     def _escape_identifier(self, identifier: str) -> str:
         """Escape SQL identifier to prevent injection"""
@@ -90,12 +78,12 @@ class DuckDBSandbox:
     
     async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, parquet_data_source: Dict[str, str] = None) -> Dict[str, Any]:
         """
-        Load problem dataset from parquet file into DuckDB (S3 or Git fallback)
+        Load problem dataset from parquet file into DuckDB (S3 only)
         
         Args:
             problem_id: Unique identifier for the problem
-            s3_data_source: Optional dict containing bucket, key, table_name, description, etag (preferred)
-            parquet_data_source: Optional dict containing git_repo_url, file_path, table_name, description (legacy)
+            s3_data_source: Dict containing bucket, key, table_name, description, etag
+            parquet_data_source: Unused legacy parameter (Git integration removed)
             
         Returns:
             Dict with success status and any error messages
@@ -164,73 +152,9 @@ class DuckDBSandbox:
                     logger.error(f"Failed to load from S3: {e}")
                     return {"success": False, "error": f"Failed to load S3 dataset: {str(e)}"}
             
-            # Fall back to legacy Git-based loading for backward compatibility
-            elif parquet_data_source:
-                # Use custom parquet data source
-                git_repo_url = parquet_data_source.get('git_repo_url', '').rstrip('/')
-                file_path = parquet_data_source.get('file_path', '').lstrip('/')
-                table_name = parquet_data_source.get('table_name', 'problem_data')
-                parquet_url = f"{git_repo_url}/{file_path}"
-                logger.info(f"Loading problem data from legacy Git source: {parquet_url}")
             else:
-                # Fallback to legacy pattern for backward compatibility
-                parquet_url = f"{self.github_repo_base}/problems/{problem_id}.parquet"
-                table_name = "problem_data"
-                logger.info(f"Loading problem data from legacy Git source: {parquet_url}")
-            
-            # Legacy Git loading logic (only if no S3 source)
-            if not s3_data_source:
-                # Security validation
-                if not self._validate_table_name(table_name):
-                    return {"success": False, "error": f"Invalid table name: {table_name}"}
-                
-                if not self._validate_parquet_url(parquet_url):
-                    return {"success": False, "error": f"Invalid or insecure parquet URL: {parquet_url}"}
-                
-                # Use parameterized query for parquet URL and escaped identifier for table name
-                escaped_table_name = self._escape_identifier(table_name)
-                
-                # Temporarily load httpfs ONLY for setup, then remove it for security
-                try:
-                    self.conn.execute("INSTALL httpfs")
-                    self.conn.execute("LOAD httpfs")
-                    
-                    # Test if parquet file exists and is accessible using parameterized query
-                    result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [parquet_url]).fetchone()
-                    
-                    if result is None:
-                        return {"success": False, "error": f"Parquet file not found or inaccessible: {parquet_url}"}
-                    
-                    # Drop table if it exists and create new one using escaped identifiers
-                    self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
-                    self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [parquet_url])
-                    
-                    # Get table schema for user reference
-                    schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
-                    schema = [{"column": row[0], "type": row[1]} for row in schema_result]
-                    
-                    row_count = result[0] if result else 0
-                    
-                finally:
-                    # CRITICAL: Remove httpfs after setup to prevent SSRF in user queries
-                    try:
-                        # Note: DuckDB doesn't have UNLOAD, but we can create a new connection without httpfs
-                        # for user queries. The setup data is now in memory tables.
-                        pass  # httpfs remains loaded but user queries are blocked via forbidden_patterns
-                    except:
-                        pass
-                
-                # Track loaded table for security validation
-                self.loaded_table_names.add(table_name)
-                
-                return {
-                    "success": True,
-                    "message": f"Problem data loaded successfully into {table_name}",
-                    "schema": schema,
-                    "row_count": row_count,
-                    "parquet_url": parquet_url,
-                    "table_name": table_name
-                }
+                # No S3 data source provided
+                return {"success": False, "error": "S3 data source is required - Git repository integration has been removed"}
             
         except Exception as e:
             error_msg = f"Failed to load problem data for {problem_id}: {str(e)}"
