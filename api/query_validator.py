@@ -120,9 +120,13 @@ class SecureSQLValidator:
             'WITH', 'RECURSIVE'
         }
         
-    def validate_query(self, query: str) -> Dict[str, Any]:
+    def validate_query(self, query: str, loaded_tables: Optional[Set[str]] = None) -> Dict[str, Any]:
         """
         Comprehensive query validation
+        
+        Args:
+            query: SQL query string to validate
+            loaded_tables: Set of table names that are loaded in the sandbox (optional)
         
         Returns:
             Dict with validation results including:
@@ -170,6 +174,12 @@ class SecureSQLValidator:
             result['warnings'].extend(security_result['warnings'])
             result['blocked_operations'] = security_result['blocked_operations']
             result['allowed_operations'] = security_result['allowed_operations']
+            
+            # Semantic validation (if loaded tables are provided)
+            if loaded_tables is not None:
+                semantic_result = self._validate_semantics(query_info, loaded_tables)
+                result['errors'].extend(semantic_result['errors'])
+                result['warnings'].extend(semantic_result['warnings'])
             
             # Determine final risk level
             if result['errors']:
@@ -266,7 +276,10 @@ class SecureSQLValidator:
             for sub_token in token.tokens:
                 self._walk_token_tree(sub_token, all_keywords, blocked_found)
         else:
-            if token.ttype is tokens.Keyword:
+            # Check for all types of keywords including DML and DDL
+            if (token.ttype is tokens.Keyword or 
+                token.ttype is tokens.Keyword.DML or 
+                token.ttype is tokens.Keyword.DDL):
                 keyword = token.value.upper()
                 all_keywords.add(keyword)
                 
@@ -381,6 +394,53 @@ class SecureSQLValidator:
         if 'LIKE' in query_upper and '%' in query and query.index('%') == query.index('LIKE') + 5:
             result['warnings'].append("Leading wildcard in LIKE pattern may cause slow performance")
             
+        return result
+    
+    def _validate_semantics(self, query_info: Dict[str, Any], loaded_tables: Set[str]) -> Dict[str, Any]:
+        """
+        Validate semantic correctness of query against loaded dataset
+        
+        Args:
+            query_info: Extracted query information
+            loaded_tables: Set of table names loaded in the sandbox
+            
+        Returns:
+            Dict with semantic validation results
+        """
+        result = {
+            'errors': [],
+            'warnings': []
+        }
+        
+        query_tables = query_info.get('tables', [])
+        
+        # Check if query has no tables (likely a constant-only query)
+        if not query_tables:
+            if query_info.get('statement_type') == 'SELECT':
+                result['errors'].append("Query must reference at least one table from the loaded dataset. Constant-only queries are not allowed for dataset problems.")
+            return result
+        
+        # Check if all referenced tables are in the loaded dataset
+        missing_tables = []
+        for table in query_tables:
+            # Convert to lowercase for case-insensitive comparison
+            if table.lower() not in {t.lower() for t in loaded_tables}:
+                missing_tables.append(table)
+        
+        if missing_tables:
+            available_tables = ', '.join(sorted(loaded_tables))
+            result['errors'].append(
+                f"Query references unknown table(s): {', '.join(missing_tables)}. "
+                f"Available tables: {available_tables}"
+            )
+        
+        # Warning for queries that don't use all available tables (optional enhancement)
+        unused_tables = set(loaded_tables) - {t.lower() for t in query_tables}
+        if len(unused_tables) > 0 and len(loaded_tables) > 1:
+            result['warnings'].append(
+                f"Query doesn't use all available tables. Unused: {', '.join(sorted(unused_tables))}"
+            )
+        
         return result
     
     def get_safe_query_suggestions(self, query: str) -> List[str]:

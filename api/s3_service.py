@@ -32,7 +32,7 @@ MAX_CACHE_ENTRIES = int(os.getenv('S3_MAX_CACHE_ENTRIES', '1000'))  # Maximum ca
 # Dataset-specific configuration
 S3_DATASET_MAX_FILE_SIZE_MB = int(os.getenv('S3_DATASET_MAX_FILE_SIZE_MB', '100'))  # Max dataset file size
 S3_DATASET_MAX_ROWS = int(os.getenv('S3_DATASET_MAX_ROWS', '1000000'))  # Max dataset rows
-S3_ALLOWED_BUCKETS = os.getenv('S3_ALLOWED_BUCKETS', 'sql-learning-datasets,sql-learning-answers,sqlplatform-datasets,sqlplatform-answers').split(',')
+S3_ALLOWED_BUCKETS = [bucket.strip().lower() for bucket in os.getenv('S3_ALLOWED_BUCKETS', 'sql-learning-datasets,sql-learning-answers,sqlplatform-datasets,sqlplatform-answers').split(',')]
 
 class CacheResult:
     """Structured result for cached file operations"""
@@ -72,8 +72,9 @@ class S3AnswerService:
         self,
         bucket: str,
         key: str,
-        file_format: str,
-        etag: Optional[str] = None
+        file_format: str = None,
+        etag: Optional[str] = None,
+        format: str = None  # Backward compatibility alias
     ) -> CacheResult:
         """
         Fetch and parse answer file from S3 with ETag-based caching
@@ -91,6 +92,24 @@ class S3AnswerService:
             ClientError: If S3 operation fails
             ValueError: If file format is unsupported or parsing fails
         """
+        # Handle backward compatibility for format parameter
+        if file_format is None and format is not None:
+            file_format = format
+        elif file_format is None and format is None:
+            # Auto-detect format from file extension
+            if key.endswith('.csv'):
+                file_format = 'csv'
+            elif key.endswith('.json'):
+                file_format = 'json'
+            elif key.endswith('.parquet'):
+                file_format = 'parquet'
+            else:
+                raise ValueError(f"Cannot determine file format for key '{key}'. Please specify file_format parameter.")
+        
+        # Validate bucket is in allowlist for security
+        if bucket.lower() not in S3_ALLOWED_BUCKETS:
+            raise ValueError(f"Bucket '{bucket}' not allowed. Allowed buckets: {', '.join(S3_ALLOWED_BUCKETS)}")
+        
         cache_key = (bucket, key)
         
         try:

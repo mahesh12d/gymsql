@@ -53,20 +53,7 @@ class SecureQueryExecutor:
             Complete submission result with scoring and feedback
         """
         try:
-            # Step 1: Validate query security
-            validation_result = query_validator.validate_query(query)
-            
-            if not validation_result['is_valid']:
-                return {
-                    'success': False,
-                    'is_correct': False,
-                    'score': 0.0,
-                    'feedback': validation_result['errors'],
-                    'security_violations': validation_result['blocked_operations'],
-                    'submission_id': None
-                }
-            
-            # Step 2: Get or create sandbox
+            # Step 1: Get or create sandbox to access loaded table names
             sandbox = await self._get_or_create_sandbox(user_id, problem_id, db)
             
             if not sandbox:
@@ -75,6 +62,19 @@ class SecureQueryExecutor:
                     'is_correct': False,
                     'score': 0.0,
                     'feedback': ['Failed to create execution sandbox'],
+                    'submission_id': None
+                }
+            
+            # Step 2: Validate query security with semantic validation
+            validation_result = query_validator.validate_query(query, sandbox.loaded_table_names)
+            
+            if not validation_result['is_valid']:
+                return {
+                    'success': False,
+                    'is_correct': False,
+                    'score': 0.0,
+                    'feedback': validation_result['errors'],
+                    'security_violations': validation_result['blocked_operations'],
                     'submission_id': None
                 }
             
@@ -146,24 +146,24 @@ class SecureQueryExecutor:
             Test results without creating submission
         """
         try:
-            # Step 1: Quick validation
-            validation_result = query_validator.validate_query(query)
-            
-            if not validation_result['is_valid']:
-                return {
-                    'success': False,
-                    'feedback': validation_result['errors'],
-                    'security_violations': validation_result['blocked_operations'],
-                    'test_results': []
-                }
-            
-            # Step 2: Get or create sandbox
+            # Step 1: Get or create sandbox to access loaded table names
             sandbox = await self._get_or_create_sandbox(user_id, problem_id, db)
             
             if not sandbox:
                 return {
                     'success': False,
                     'feedback': ['Failed to create execution sandbox'],
+                    'test_results': []
+                }
+            
+            # Step 2: Quick validation with semantic validation
+            validation_result = query_validator.validate_query(query, sandbox.loaded_table_names)
+            
+            if not validation_result['is_valid']:
+                return {
+                    'success': False,
+                    'feedback': validation_result['errors'],
+                    'security_violations': validation_result['blocked_operations'],
                     'test_results': []
                 }
             
