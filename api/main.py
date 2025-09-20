@@ -541,7 +541,118 @@ def get_problem_solutions(problem_id: str, db: Session = Depends(get_db)):
          response_model=SolutionResponse,
          response_model_by_alias=True)
 def get_official_solution(problem_id: str, db: Session = Depends(get_db)):
-    """Get the official solution for a specific problem (returns single solution)"""
+    """Get the official solution for a specific problem with hybrid validation"""
+    from .s3_service import s3_service
+    import logging
+    from pathlib import Path
+    
+    logger = logging.getLogger(__name__)
+    
+    # First get the problem to check S3 configuration and dataset row count
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Problem not found"
+        )
+    
+    # Check if we should use S3-based solution validation (hybrid logic)
+    should_use_s3_solution = False
+    dataset_row_count = 0
+    
+    if problem.s3_data_source:
+        try:
+            # Get actual dataset row count from parquet metadata
+            s3_data = problem.s3_data_source
+            bucket = s3_data.get('bucket')
+            dataset_key = s3_data.get('key')
+            
+            if bucket and dataset_key:
+                logger.info(f"Checking dataset row count from s3://{bucket}/{dataset_key}")
+                
+                # Use S3 service to get dataset info
+                validation_result = s3_service.validate_dataset_file(bucket, dataset_key, 'dataset')
+                if validation_result and validation_result.get('success'):
+                    dataset_row_count = validation_result.get('row_count', 0)
+                    logger.info(f"Dataset has {dataset_row_count} rows")
+                    
+                    # Apply hybrid logic: if rows > 20, use S3 solution.parquet
+                    should_use_s3_solution = dataset_row_count > 20
+                
+        except Exception as e:
+            logger.warning(f"Failed to check dataset row count for problem {problem_id}: {e}")
+    
+    # Hybrid logic: if dataset has > 20 rows, try to get solution from solution.parquet file
+    if should_use_s3_solution:
+        logger.info(f"Dataset row count ({dataset_row_count}) > 20, attempting to fetch solution validation from solution.parquet")
+        
+        try:
+            # Extract S3 data source info
+            s3_data = problem.s3_data_source
+            bucket = s3_data.get('bucket')
+            dataset_key = s3_data.get('key')
+            
+            # Construct solution.parquet path in the same folder as the dataset
+            dataset_path = Path(dataset_key)
+            solution_key = str(dataset_path.parent / "solution.parquet")
+            
+            logger.info(f"Looking for solution validation data at s3://{bucket}/{solution_key}")
+            
+            # Check if solution.parquet exists and get its info
+            try:
+                validation_result = s3_service.validate_dataset_file(bucket, solution_key, 'solution')
+                if validation_result and validation_result.get('success'):
+                    solution_row_count = validation_result.get('row_count', 0)
+                    sample_data = validation_result.get('sample_data', [])
+                    
+                    # Create a synthetic user for S3-based solutions
+                    synthetic_creator = UserResponse(
+                        id="system",
+                        username="system",
+                        email="system@platform.com",
+                        firstName="System",
+                        lastName="Generated",
+                        profileImageUrl=None
+                    )
+                    
+                    # Create solution content showing the expected results
+                    content_parts = [
+                        f"This problem uses automated validation against a solution dataset with {solution_row_count} expected result rows.",
+                        "\nExpected results structure (sample):"
+                    ]
+                    
+                    if sample_data:
+                        for i, row in enumerate(sample_data[:3]):  # Show first 3 rows
+                            content_parts.append(f"Row {i+1}: {row}")
+                    
+                    content = "\n".join(content_parts)
+                    
+                    solution_response = SolutionResponse(
+                        id=f"s3_{problem_id}",
+                        problemId=problem_id,
+                        createdBy="system",
+                        title="Official Solution (S3 Validated)",
+                        content=content,
+                        sqlCode="-- This problem is validated against solution.parquet\n-- Write your query to match the expected results structure shown above",
+                        isOfficial=True,
+                        createdAt=problem.created_at,
+                        updatedAt=problem.updated_at,
+                        creator=synthetic_creator
+                    )
+                    
+                    logger.info(f"Successfully created solution response from S3 validation data for problem {problem_id}")
+                    return solution_response
+                    
+            except Exception as e:
+                logger.warning(f"Failed to validate solution.parquet for problem {problem_id}: {e}")
+                # Fall through to database solution
+                
+        except Exception as e:
+            logger.warning(f"Failed to process S3 solution for problem {problem_id}: {e}")
+            # Fall through to database solution
+            
+    # Fall back to original database-based solution lookup
+    logger.info(f"Using database-based solution lookup for problem {problem_id}")
     solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
         Solution.problem_id == problem_id,
         Solution.is_official == True
