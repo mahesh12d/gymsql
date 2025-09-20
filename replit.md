@@ -89,3 +89,17 @@ This project has comprehensive .replit configuration
 All modules, workflows, and integrations pre-configured
 Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
+
+## Recent Changes
+- **September 20, 2025**: Successfully imported GitHub project and configured for Replit environment
+- **Application Status**: ✅ Running correctly - Frontend on port 5000, Backend on port 8000, Database connected
+- **Deployment**: ✅ Configured for autoscale deployment
+- **Workflows**: ✅ Configured with webview output for frontend development
+
+## Known Issues
+### Critical: "kumbhar" Question Data Mismatch
+- **Problem ID**: `30ff47d8-e9a6-4b13-810d-cbea2915d73d`
+- **Issue**: Question asks for "sales data analysis by region" but dataset is Titanic passenger data
+- **Impact**: All user submissions fail validation regardless of correctness
+- **Root Cause**: Question description and expected output don't match the actual loaded dataset
+- **Fix Required**: Either update question to match Titanic data OR load correct sales dataset
