@@ -1120,52 +1120,180 @@ export default function AdminPanel() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Expected Output</CardTitle>
-              <CardDescription>Define the expected query result structure</CardDescription>
+              <CardTitle>Solution Source Configuration</CardTitle>
+              <CardDescription>Choose how the solution will be validated</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <div className="flex gap-2 mb-4">
-                  <Input
-                    placeholder="Add field name (e.g., total_sales, region)"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        const input = e.target as HTMLInputElement;
-                        if (input.value.trim()) {
+                <Label>Solution Source</Label>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      problemData.solution_source === 'neon'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setProblemData(prev => ({ ...prev, solution_source: 'neon' }))}
+                    data-testid="option-solution-source-neon"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        problemData.solution_source === 'neon' ? 'border-primary bg-primary' : 'border-border'
+                      }`}>
+                        {problemData.solution_source === 'neon' && (
+                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium">Neon Database</div>
+                        <div className="text-sm text-muted-foreground">Input expected results in table format</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      problemData.solution_source === 's3'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setProblemData(prev => ({ ...prev, solution_source: 's3' }))}
+                    data-testid="option-solution-source-s3"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        problemData.solution_source === 's3' ? 'border-primary bg-primary' : 'border-border'
+                      }`}>
+                        {problemData.solution_source === 's3' && (
+                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium">S3 Parquet File</div>
+                        <div className="text-sm text-muted-foreground">Validate against parquet solution file</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* S3 Configuration - only show when S3 is selected */}
+              {problemData.solution_source === 's3' && (
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <div>
+                    <Label>S3 Bucket</Label>
+                    <Input
+                      value={problemData.s3_solution_source?.bucket || ''}
+                      onChange={(e) => setProblemData(prev => ({
+                        ...prev,
+                        s3_solution_source: {
+                          ...prev.s3_solution_source,
+                          bucket: e.target.value,
+                          key: prev.s3_solution_source?.key || '',
+                          description: prev.s3_solution_source?.description || ''
+                        }
+                      }))}
+                      placeholder="e.g., sql-learning-datasets"
+                      data-testid="input-s3-solution-bucket"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>S3 Key (File Path)</Label>
+                    <Input
+                      value={problemData.s3_solution_source?.key || ''}
+                      onChange={(e) => setProblemData(prev => ({
+                        ...prev,
+                        s3_solution_source: {
+                          ...prev.s3_solution_source,
+                          bucket: prev.s3_solution_source?.bucket || '',
+                          key: e.target.value,
+                          description: prev.s3_solution_source?.description || ''
+                        }
+                      }))}
+                      placeholder="e.g., problems/q101/solution.parquet"
+                      data-testid="input-s3-solution-key"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>Description (Optional)</Label>
+                    <Input
+                      value={problemData.s3_solution_source?.description || ''}
+                      onChange={(e) => setProblemData(prev => ({
+                        ...prev,
+                        s3_solution_source: {
+                          ...prev.s3_solution_source,
+                          bucket: prev.s3_solution_source?.bucket || '',
+                          key: prev.s3_solution_source?.key || '',
+                          description: e.target.value
+                        }
+                      }))}
+                      placeholder="Optional description for the solution file"
+                      data-testid="input-s3-solution-description"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {problemData.solution_source === 'neon' ? 'Expected Output (Neon)' : 'Solution File Info (S3)'}
+              </CardTitle>
+              <CardDescription>
+                {problemData.solution_source === 'neon' 
+                  ? 'Define the expected query result structure in table format'
+                  : 'S3 solution file will be used for validation - no manual input needed'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {problemData.solution_source === 'neon' ? (
+                <div>
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="Add field name (e.g., total_sales, region)"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          const input = e.target as HTMLInputElement;
+                          if (input.value.trim()) {
+                            addFieldToExpectedOutput(input.value.trim());
+                            input.value = '';
+                          }
+                        }
+                      }}
+                      data-testid="input-add-output-field"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const input = document.querySelector('[data-testid="input-add-output-field"]') as HTMLInputElement;
+                        if (input?.value.trim()) {
                           addFieldToExpectedOutput(input.value.trim());
                           input.value = '';
                         }
-                      }
-                    }}
-                    data-testid="input-add-output-field"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const input = document.querySelector('[data-testid="input-add-output-field"]') as HTMLInputElement;
-                      if (input?.value.trim()) {
-                        addFieldToExpectedOutput(input.value.trim());
-                        input.value = '';
-                      }
-                    }}
-                    data-testid="button-add-output-field"
-                  >
-                    Add Field
-                  </Button>
-                </div>
-                
-                <div className="flex justify-between items-center mb-2">
-                  <Label>Expected Output Rows</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addExpectedOutputRow}
-                    data-testid="button-add-output-row"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Row
-                  </Button>
-                </div>
+                      }}
+                      data-testid="button-add-output-field"
+                    >
+                      Add Field
+                    </Button>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-2">
+                    <Label>Expected Output Rows</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addExpectedOutputRow}
+                      data-testid="button-add-output-row"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Row
+                    </Button>
+                  </div>
                 
                 {getExpectedOutputFieldNames().length === 0 ? (
                   <div className="text-sm text-muted-foreground p-4 border rounded-md">
@@ -1214,20 +1342,46 @@ export default function AdminPanel() {
                     )}
                   </div>
                 )}
-              </div>
-              
-              <Separator />
-              
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm font-medium mb-2">JSON Preview (Advanced)</summary>
-                <Textarea
-                  value={JSON.stringify(expectedOutputRows, null, 2)}
-                  readOnly
-                  rows={6}
-                  className="font-mono text-xs bg-muted"
-                  data-testid="textarea-expected-output-preview"
-                />
-              </details>
+                
+                  <Separator />
+                  
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-sm font-medium mb-2">JSON Preview (Advanced)</summary>
+                    <Textarea
+                      value={JSON.stringify(expectedOutputRows, null, 2)}
+                      readOnly
+                      rows={6}
+                      className="font-mono text-xs bg-muted"
+                      data-testid="textarea-expected-output-preview"
+                    />
+                  </details>
+                </div>
+              ) : (
+                <div className="p-6 text-center border rounded-lg bg-muted/20">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="p-3 bg-primary/10 rounded-full">
+                      <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium text-foreground">S3 Solution File</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
+                        When using S3 solution validation, the expected results are read directly from the parquet file. 
+                        Make sure your S3 solution file contains the expected query results in parquet format.
+                      </p>
+                      {problemData.s3_solution_source?.bucket && problemData.s3_solution_source?.key && (
+                        <div className="mt-4 p-3 bg-muted rounded-lg">
+                          <p className="text-sm font-medium text-foreground">Solution Path:</p>
+                          <p className="text-sm text-muted-foreground font-mono">
+                            s3://{problemData.s3_solution_source.bucket}/{problemData.s3_solution_source.key}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -424,11 +424,11 @@ def create_problem(
                 detail="S3 solution source requires both bucket and key"
             )
         
-        # Validate .sql extension
-        if not s3_config.key.lower().endswith('.sql'):
+        # Validate .parquet extension for solution files
+        if not s3_config.key.lower().endswith('.parquet'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="S3 solution file must have .sql extension"
+                detail="S3 solution file must have .parquet extension"
             )
         
         # Validate bucket allowlist (import S3_ALLOWED_BUCKETS)
