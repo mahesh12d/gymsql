@@ -37,6 +37,11 @@ class AdminQuestionData(BaseModel):
     expected_output: List[Dict[str, Any]] = Field(..., alias="expectedOutput")
     s3_data_source: Optional[S3DatasetSource] = None
 
+class AdminS3SolutionSource(BaseModel):
+    bucket: str
+    key: str
+    description: Optional[str] = None
+
 class AdminProblemCreate(BaseModel):
     title: str
     difficulty: str
@@ -46,6 +51,8 @@ class AdminProblemCreate(BaseModel):
     hints: List[str] = []
     premium: bool = False
     topic_id: str = ""
+    solution_source: str = "neon"  # 'neon' or 's3'
+    s3_solution_source: Optional[AdminS3SolutionSource] = None
 
 class SchemaInfo(BaseModel):
     """Response model for schema information"""
@@ -399,6 +406,15 @@ def create_problem(
             "description": problem_data.question.s3_data_source.description
         }
     
+    # Extract S3 solution source if present
+    s3_solution_source = None
+    if problem_data.s3_solution_source:
+        s3_solution_source = {
+            "bucket": problem_data.s3_solution_source.bucket,
+            "key": problem_data.s3_solution_source.key,
+            "description": problem_data.s3_solution_source.description
+        }
+
     # Create the problem
     problem = Problem(
         id=str(uuid.uuid4()),
@@ -410,7 +426,9 @@ def create_problem(
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
         premium=problem_data.premium,
-        topic_id=problem_data.topic_id if problem_data.topic_id else None
+        topic_id=problem_data.topic_id if problem_data.topic_id else None,
+        solution_source=problem_data.solution_source,
+        s3_solution_source=s3_solution_source
     )
     
     db.add(problem)

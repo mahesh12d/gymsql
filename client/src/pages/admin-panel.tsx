@@ -41,6 +41,12 @@ interface ProblemData {
   hints: string[];
   premium: boolean;
   topic_id: string;
+  solution_source: 'neon' | 's3';
+  s3_solution_source?: {
+    bucket: string;
+    key: string;
+    description?: string;
+  } | null;
 }
 
 interface SchemaInfo {
@@ -114,7 +120,9 @@ export default function AdminPanel() {
     company: '',
     hints: [],
     premium: false,
-    topic_id: ''
+    topic_id: '',
+    solution_source: 'neon',
+    s3_solution_source: null
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -832,6 +840,106 @@ export default function AdminPanel() {
                     data-testid="checkbox-premium"
                   />
                   <span>Requires premium subscription</span>
+                </div>
+              </div>
+
+              <div>
+                <Label>Solution Verification Method</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="solution-neon"
+                      name="solution-source"
+                      value="neon"
+                      checked={problemData.solution_source === 'neon'}
+                      onChange={(e) => setProblemData(prev => ({ ...prev, solution_source: e.target.value as 'neon' | 's3' }))}
+                      data-testid="radio-solution-neon"
+                    />
+                    <Label htmlFor="solution-neon">Neon Database (Expected Output)</Label>
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 ml-6">
+                    Use the expected output defined in the problem for verification
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="solution-s3"
+                      name="solution-source"
+                      value="s3"
+                      checked={problemData.solution_source === 's3'}
+                      onChange={(e) => setProblemData(prev => ({ ...prev, solution_source: e.target.value as 'neon' | 's3' }))}
+                      data-testid="radio-solution-s3"
+                    />
+                    <Label htmlFor="solution-s3">S3 Solutions File</Label>
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 ml-6">
+                    Use a solutions.sql file stored in S3 for verification
+                  </div>
+
+                  {problemData.solution_source === 's3' && (
+                    <div className="ml-6 space-y-3 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <h4 className="font-medium">S3 Solution Configuration</h4>
+                      
+                      <div>
+                        <Label htmlFor="s3-solution-bucket">S3 Bucket</Label>
+                        <Input
+                          id="s3-solution-bucket"
+                          value={problemData.s3_solution_source?.bucket || ''}
+                          onChange={(e) => setProblemData(prev => ({
+                            ...prev,
+                            s3_solution_source: {
+                              ...prev.s3_solution_source,
+                              bucket: e.target.value,
+                              key: prev.s3_solution_source?.key || '',
+                              description: prev.s3_solution_source?.description || ''
+                            }
+                          }))}
+                          placeholder="e.g., sql-learning-solutions"
+                          data-testid="input-s3-solution-bucket"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="s3-solution-key">S3 Key (File Path)</Label>
+                        <Input
+                          id="s3-solution-key"
+                          value={problemData.s3_solution_source?.key || ''}
+                          onChange={(e) => setProblemData(prev => ({
+                            ...prev,
+                            s3_solution_source: {
+                              ...prev.s3_solution_source,
+                              bucket: prev.s3_solution_source?.bucket || '',
+                              key: e.target.value,
+                              description: prev.s3_solution_source?.description || ''
+                            }
+                          }))}
+                          placeholder="e.g., problems/prob001/solution.sql"
+                          data-testid="input-s3-solution-key"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="s3-solution-description">Description (Optional)</Label>
+                        <Input
+                          id="s3-solution-description"
+                          value={problemData.s3_solution_source?.description || ''}
+                          onChange={(e) => setProblemData(prev => ({
+                            ...prev,
+                            s3_solution_source: {
+                              ...prev.s3_solution_source,
+                              bucket: prev.s3_solution_source?.bucket || '',
+                              key: prev.s3_solution_source?.key || '',
+                              description: e.target.value
+                            }
+                          }))}
+                          placeholder="e.g., Official solution for titanic dataset analysis"
+                          data-testid="input-s3-solution-description"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
