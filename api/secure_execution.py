@@ -171,22 +171,31 @@ class SecureQueryExecutor:
             query_result = sandbox.execute_query(query)
             execution_status = ExecutionStatus.SUCCESS if query_result.get('success') else ExecutionStatus.ERROR
             
-            # Step 4: Execute test case validation if the query succeeded
+            # Step 4: Execute test case validation using hybrid approach
             test_results = []
             if query_result.get('success'):
                 problem = db.query(Problem).filter(Problem.id == problem_id).first()
-                if problem and problem.question:
-                    expected_output = problem.question.get('expectedOutput', [])
-                    if expected_output:
-                        # Compare results with expected output
-                        actual_results = query_result.get('result', [])
-                        test_results.append({
-                            'test_case_id': f"{problem_id}_main",
-                            'passed': actual_results == expected_output,
-                            'expected': expected_output,
-                            'actual': actual_results,
-                            'is_hidden': False
-                        })
+                if problem:
+                    # Use hybrid verification approach based on solution_source
+                    if problem.solution_source == 's3' and problem.s3_solution_source:
+                        # Use S3 solution verification
+                        test_results = await self._verify_with_s3_solution(
+                            sandbox, problem, query, query_result.get('result', [])
+                        )
+                    else:
+                        # Use Neon database verification (default)
+                        if problem.question:
+                            expected_output = problem.question.get('expectedOutput', [])
+                            if expected_output:
+                                # Compare results with expected output
+                                actual_results = query_result.get('result', [])
+                                test_results.append({
+                                    'test_case_id': f"{problem_id}_main",
+                                    'passed': actual_results == expected_output,
+                                    'expected': expected_output,
+                                    'actual': actual_results,
+                                    'is_hidden': False
+                                })
             
             # Step 5: Provide feedback without final scoring
             feedback = self._generate_test_feedback(test_results)
@@ -256,6 +265,218 @@ class SecureQueryExecutor:
         except Exception as e:
             logger.error(f"Failed to get or create sandbox for user {user_id}, problem {problem_id}: {e}")
             return None
+    
+    async def _verify_with_s3_solution(
+        self,
+        sandbox: DuckDBSandbox,
+        problem: Problem,
+        user_query: str,
+        user_results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Verify user query results against S3 solution file
+        
+        Args:
+            sandbox: DuckDB sandbox instance
+            problem: Problem object with S3 solution configuration
+            user_query: User's SQL query
+            user_results: Results from user's query
+            
+        Returns:
+            List of test results
+        """
+        try:
+            s3_solution = problem.s3_solution_source
+            if not s3_solution:
+                return [{
+                    'test_case_id': f"{problem.id}_s3_solution",
+                    'passed': False,
+                    'expected': [],
+                    'actual': user_results,
+                    'is_hidden': False,
+                    'error': 'S3 solution source not configured'
+                }]
+            
+            # Download solution.sql file from S3
+            from .s3_service import s3_service
+            logger.info(f"Downloading S3 solution from s3://{s3_solution['bucket']}/{s3_solution['key']}")
+            
+            try:
+                solution_content = s3_service.download_text_file(s3_solution['bucket'], s3_solution['key'])
+            except Exception as e:
+                logger.error(f"Failed to download S3 solution file: {e}")
+                return [{
+                    'test_case_id': f"{problem.id}_s3_solution",
+                    'passed': False,
+                    'expected': [],
+                    'actual': user_results,
+                    'is_hidden': False,
+                    'error': f'Failed to download solution file: {str(e)}'
+                }]
+            
+            # Validate and execute official solution in sandbox with security constraints
+            # Apply same security validation as user queries
+            validation_result = query_validator.validate_query(solution_content.strip())
+            
+            if not validation_result['is_valid']:
+                logger.error(f"Official solution contains invalid SQL: {validation_result['errors']}")
+                return [{
+                    'test_case_id': f"{problem.id}_s3_solution",
+                    'passed': False,
+                    'expected': [],
+                    'actual': user_results,
+                    'is_hidden': False,
+                    'error': f'Official solution contains invalid SQL: {", ".join(validation_result["errors"])}'
+                }]
+            
+            # Handle multi-statement SQL solutions by splitting safely
+            sql_statements = self._split_sql_statements(solution_content.strip())
+            official_result = None
+            
+            # Execute each statement, keeping only the last result (typical pattern for solutions)
+            for i, statement in enumerate(sql_statements):
+                if statement.strip():
+                    temp_result = sandbox.execute_query(statement.strip())
+                    if not temp_result.get('success'):
+                        logger.error(f"Official solution statement {i+1} failed: {temp_result.get('error')}")
+                        return [{
+                            'test_case_id': f"{problem.id}_s3_solution",
+                            'passed': False,
+                            'expected': [],
+                            'actual': user_results,
+                            'is_hidden': False,
+                            'error': f'Official solution statement {i+1} failed: {temp_result.get("error")}'
+                        }]
+                    official_result = temp_result  # Keep last successful result
+            
+            if not official_result:
+                return [{
+                    'test_case_id': f"{problem.id}_s3_solution",
+                    'passed': False,
+                    'expected': [],
+                    'actual': user_results,
+                    'is_hidden': False,
+                    'error': 'No valid statements found in official solution'
+                }]
+            
+            expected_results = official_result.get('result', [])
+            
+            # Compare user results with official solution results
+            results_match = self._compare_query_results(user_results, expected_results)
+            
+            return [{
+                'test_case_id': f"{problem.id}_s3_solution",
+                'passed': results_match,
+                'expected': expected_results,
+                'actual': user_results,
+                'is_hidden': False,
+                'verification_method': 's3_solution'
+            }]
+            
+        except Exception as e:
+            logger.error(f"S3 solution verification failed for problem {problem.id}: {e}")
+            return [{
+                'test_case_id': f"{problem.id}_s3_solution",
+                'passed': False,
+                'expected': [],
+                'actual': user_results,
+                'is_hidden': False,
+                'error': f'Verification error: {str(e)}'
+            }]
+    
+    def _compare_query_results(self, actual: List[Dict[str, Any]], expected: List[Dict[str, Any]]) -> bool:
+        """
+        Compare two query result sets for equivalence
+        
+        Args:
+            actual: Results from user query
+            expected: Results from official solution
+            
+        Returns:
+            True if results match, False otherwise
+        """
+        try:
+            # Handle empty results
+            if not actual and not expected:
+                return True
+            if not actual or not expected:
+                return False
+                
+            # Check row count
+            if len(actual) != len(expected):
+                return False
+                
+            # Sort both result sets for comparison (handle unordered results)
+            def normalize_row(row):
+                """Convert row values to comparable format"""
+                normalized = {}
+                for key, value in row.items():
+                    if value is None:
+                        normalized[key] = None
+                    elif isinstance(value, (int, float)):
+                        normalized[key] = value
+                    else:
+                        normalized[key] = str(value)
+                return normalized
+            
+            actual_normalized = [normalize_row(row) for row in actual]
+            expected_normalized = [normalize_row(row) for row in expected]
+            
+            # Sort by string representation for consistent comparison
+            actual_sorted = sorted(actual_normalized, key=lambda x: str(sorted(x.items())))
+            expected_sorted = sorted(expected_normalized, key=lambda x: str(sorted(x.items())))
+            
+            return actual_sorted == expected_sorted
+            
+        except Exception as e:
+            logger.error(f"Error comparing query results: {e}")
+            return False
+    
+    def _split_sql_statements(self, sql_content: str) -> List[str]:
+        """
+        Safely split SQL content into individual statements
+        
+        Args:
+            sql_content: Multi-line SQL content
+            
+        Returns:
+            List of individual SQL statements
+        """
+        try:
+            # Simple but safe approach: split on semicolon followed by newline
+            # This handles most cases while avoiding complex SQL parsing
+            statements = []
+            current_statement = ""
+            
+            lines = sql_content.split('\n')
+            for line in lines:
+                line = line.strip()
+                
+                # Skip empty lines and comments
+                if not line or line.startswith('--') or line.startswith('/*'):
+                    continue
+                
+                current_statement += line + " "
+                
+                # If line ends with semicolon, it's likely end of statement
+                if line.endswith(';'):
+                    statements.append(current_statement.strip())
+                    current_statement = ""
+            
+            # Add any remaining statement without semicolon
+            if current_statement.strip():
+                statements.append(current_statement.strip())
+            
+            # Filter out empty statements
+            statements = [stmt for stmt in statements if stmt and stmt != ';']
+            
+            logger.info(f"Split SQL content into {len(statements)} statements")
+            return statements
+            
+        except Exception as e:
+            logger.error(f"Error splitting SQL statements: {e}")
+            # Fallback: return as single statement
+            return [sql_content.strip()]
     
     async def get_problem_schema(
         self,

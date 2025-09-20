@@ -406,14 +406,47 @@ def create_problem(
             "description": problem_data.question.s3_data_source.description
         }
     
-    # Extract S3 solution source if present
+    # Validate and extract S3 solution source if present
     s3_solution_source = None
-    if problem_data.s3_solution_source:
+    if problem_data.solution_source == 's3':
+        if not problem_data.s3_solution_source:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="S3 solution source configuration is required when solution_source is 's3'"
+            )
+        
+        s3_config = problem_data.s3_solution_source
+        
+        # Validate required fields
+        if not s3_config.bucket or not s3_config.key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="S3 solution source requires both bucket and key"
+            )
+        
+        # Validate .sql extension
+        if not s3_config.key.lower().endswith('.sql'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="S3 solution file must have .sql extension"
+            )
+        
+        # Validate bucket allowlist (import S3_ALLOWED_BUCKETS)
+        from .s3_service import S3_ALLOWED_BUCKETS
+        if s3_config.bucket not in S3_ALLOWED_BUCKETS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"S3 bucket '{s3_config.bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}"
+            )
+        
         s3_solution_source = {
-            "bucket": problem_data.s3_solution_source.bucket,
-            "key": problem_data.s3_solution_source.key,
-            "description": problem_data.s3_solution_source.description
+            "bucket": s3_config.bucket,
+            "key": s3_config.key,
+            "description": s3_config.description
         }
+    elif problem_data.s3_solution_source:
+        # Clear S3 solution source if solution_source is not 's3'
+        s3_solution_source = None
 
     # Create the problem
     problem = Problem(

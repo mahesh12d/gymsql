@@ -441,6 +441,49 @@ class S3AnswerService:
             logger.error(f"Error downloading dataset file {bucket}/{key}: {e}")
             raise
     
+    def download_text_file(self, bucket: str, key: str) -> str:
+        """
+        Download S3 text file and return its content as string
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key
+            
+        Returns:
+            File content as string
+            
+        Raises:
+            ValueError: If bucket not allowed or file too large
+            ClientError: If S3 operation fails
+        """
+        # Validate bucket allowlist
+        if not self._validate_dataset_bucket(bucket):
+            raise ValueError(f"Bucket '{bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}")
+        
+        try:
+            # Check file size before downloading
+            response = self.s3_client.head_object(Bucket=bucket, Key=key)
+            file_size_mb = response['ContentLength'] / (1024 * 1024)
+            
+            # Allow smaller limit for text files like SQL
+            max_text_file_size_mb = 1.0  # 1MB should be enough for SQL files
+            if file_size_mb > max_text_file_size_mb:
+                raise ValueError(f"Text file size {file_size_mb:.1f}MB exceeds limit of {max_text_file_size_mb}MB")
+            
+            # Download file content directly
+            obj_response = self.s3_client.get_object(Bucket=bucket, Key=key)
+            content = obj_response['Body'].read().decode('utf-8')
+            
+            logger.info(f"Downloaded text file {bucket}/{key} ({file_size_mb:.1f}MB)")
+            return content
+            
+        except ClientError as e:
+            logger.error(f"Failed to download text file {bucket}/{key}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error downloading text file {bucket}/{key}: {e}")
+            raise
+    
     def validate_dataset_file(self, bucket: str, key: str, table_name: str) -> Dict[str, Any]:
         """
         Validate S3 dataset file and extract schema information
