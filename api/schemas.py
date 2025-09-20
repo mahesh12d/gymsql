@@ -107,7 +107,7 @@ class TableData(BaseModel):
 class QuestionData(BaseModel):
     description: str
     tables: List[TableData] = []
-    expected_output: List[dict] = Field(..., alias="expectedOutput")
+    expected_output: List[dict] = Field(default=[], alias="expectedOutput")
     
     model_config = ConfigDict(
         populate_by_name=True,

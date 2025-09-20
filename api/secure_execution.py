@@ -663,7 +663,35 @@ class SecureQueryExecutor:
                 # Validate result using advanced test validator
                 if execution_status == ExecutionStatus.SUCCESS:
                     user_output = result.get('result', [])
-                    expected_output = test_case.expected_output
+                    
+                    # Check if test case has S3 expected output source
+                    expected_output = test_case.expected_output  # Default fallback
+                    
+                    if test_case.expected_output_source:
+                        try:
+                            # Parse S3 configuration from JSONB
+                            s3_config = test_case.expected_output_source
+                            if s3_config.get('bucket') and s3_config.get('key') and s3_config.get('format'):
+                                logger.info(f"Fetching expected output from S3: {s3_config['bucket']}/{s3_config['key']}")
+                                
+                                # Fetch data from S3 using the s3_service
+                                from .s3_service import s3_service
+                                from .schemas import S3AnswerSource
+                                
+                                s3_answer_source = S3AnswerSource(**s3_config)
+                                cache_result = s3_service.fetch_answer_file(
+                                    bucket=s3_answer_source.bucket,
+                                    key=s3_answer_source.key,
+                                    format=s3_answer_source.format,
+                                    etag=getattr(s3_answer_source, 'etag', None)
+                                )
+                                
+                                expected_output = cache_result.data
+                                logger.info(f"Successfully fetched {len(expected_output)} rows from S3 expected output")
+                        except Exception as e:
+                            logger.error(f"Failed to fetch S3 expected output for test case {test_case.id}: {e}")
+                            # Continue with fallback expected_output
+                            pass
                     
                     validation = test_validator.validate_test_case(
                         user_output,
