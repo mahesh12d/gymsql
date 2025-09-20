@@ -95,6 +95,10 @@ class Problem(Base):
     # Enhanced fields for AWS S3 integration
     expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results
     preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
+    
+    # Solution verification method control
+    solution_source = Column(String(10), nullable=False, default='neon')  # 'neon' or 's3'
+    s3_solution_source = Column(JSONB, nullable=True)  # S3 bucket, key for solutions.sql file
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
