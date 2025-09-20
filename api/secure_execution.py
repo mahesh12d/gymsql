@@ -8,6 +8,7 @@ for the SQLGym learning platform.
 import asyncio
 import logging
 import json
+import math
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -29,6 +30,30 @@ from .schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+def sanitize_json_data(data: Any) -> Any:
+    """
+    Recursively sanitize data by replacing NaN and infinity values with JSON-safe values
+    
+    Args:
+        data: Data structure that may contain NaN or infinity values
+        
+    Returns:
+        Sanitized data structure safe for JSON serialization
+    """
+    if isinstance(data, dict):
+        return {key: sanitize_json_data(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_json_data(item) for item in data]
+    elif isinstance(data, float):
+        if math.isnan(data):
+            return None  # Convert NaN to null in JSON
+        elif math.isinf(data):
+            return "Infinity" if data > 0 else "-Infinity"  # Convert infinity to string
+        else:
+            return data
+    else:
+        return data
 
 class SecureQueryExecutor:
     """Secure SQL query executor with comprehensive validation"""
@@ -794,8 +819,9 @@ class SecureQueryExecutor:
                 result = conn.execute(query).fetchall()
                 columns = [desc[0] for desc in conn.description]
                 
-                # Convert to list of dictionaries
-                user_results = [dict(zip(columns, row)) for row in result]
+                # Convert to list of dictionaries and sanitize for JSON serialization
+                user_results_raw = [dict(zip(columns, row)) for row in result]
+                user_results = sanitize_json_data(user_results_raw)
                 
                 # Generate hash from user results
                 user_hash = s3_service.generate_expected_result_hash(user_results)
@@ -842,7 +868,7 @@ class SecureQueryExecutor:
                         'result_count': len(user_results)
                     },
                     'user_output': user_results[:5],  # Show first 5 rows for debugging
-                    'expected_output': problem.preview_rows or [],
+                    'expected_output': sanitize_json_data(problem.preview_rows or []),
                     'output_matches': is_correct
                 }]
                 
