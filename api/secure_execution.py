@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from .query_validator import query_validator, QueryValidationError, QueryRisk
 from .test_validator import test_validator, ComparisonMode
 # PostgreSQL sandbox functionality removed - using DuckDB only
+from .duckdb_sandbox import DuckDBSandboxManager, DuckDBSandbox
 from .models import (
     User, Problem, TestCase, Submission, 
     ExecutionResult, ExecutionStatus
@@ -36,6 +37,7 @@ class SecureQueryExecutor:
         self.max_execution_time = 30  # seconds
         self.max_memory_mb = 256
         self.max_result_rows = 10000
+        self.sandbox_manager = DuckDBSandboxManager()
     
     async def submit_solution(
         self,
@@ -155,14 +157,36 @@ class SecureQueryExecutor:
                     'test_results': []
                 }
             
-            # PostgreSQL sandbox functionality removed - using DuckDB only
-            # TODO: Implement DuckDB-based query testing
-            query_result = {"result": [], "execution_time_ms": 0}
-            execution_status = ExecutionStatus.SUCCESS
+            # Step 2: Get or create sandbox
+            sandbox = await self._get_or_create_sandbox(user_id, problem_id, db)
             
-            # PostgreSQL sandbox functionality removed - using DuckDB only
-            # TODO: Implement DuckDB-based test case execution
+            if not sandbox:
+                return {
+                    'success': False,
+                    'feedback': ['Failed to create execution sandbox'],
+                    'test_results': []
+                }
+            
+            # Step 3: Execute query in DuckDB sandbox
+            query_result = sandbox.execute_query(query)
+            execution_status = ExecutionStatus.SUCCESS if query_result.get('success') else ExecutionStatus.ERROR
+            
+            # Step 4: Execute test case validation if the query succeeded
             test_results = []
+            if query_result.get('success'):
+                problem = db.query(Problem).filter(Problem.id == problem_id).first()
+                if problem and problem.question:
+                    expected_output = problem.question.get('expectedOutput', [])
+                    if expected_output:
+                        # Compare results with expected output
+                        actual_results = query_result.get('result', [])
+                        test_results.append({
+                            'test_case_id': f"{problem_id}_main",
+                            'passed': actual_results == expected_output,
+                            'expected': expected_output,
+                            'actual': actual_results,
+                            'is_hidden': False
+                        })
             
             # Step 5: Provide feedback without final scoring
             feedback = self._generate_test_feedback(test_results)
@@ -184,6 +208,54 @@ class SecureQueryExecutor:
                 'feedback': [f'Test execution error: {str(e)}'],
                 'test_results': []
             }
+    
+    async def _get_or_create_sandbox(
+        self,
+        user_id: str,
+        problem_id: str,
+        db: Session
+    ) -> Optional[DuckDBSandbox]:
+        """
+        Get existing sandbox or create a new one for the user and problem
+        
+        Args:
+            user_id: User identifier
+            problem_id: Problem identifier
+            db: Database session
+            
+        Returns:
+            DuckDBSandbox instance or None if creation failed
+        """
+        try:
+            # First, try to get existing sandbox
+            sandbox = self.sandbox_manager.get_sandbox(user_id, problem_id)
+            
+            if sandbox is not None:
+                logger.info(f"Using existing sandbox for user {user_id}, problem {problem_id}")
+                return sandbox
+            
+            # Create new sandbox
+            logger.info(f"Creating new sandbox for user {user_id}, problem {problem_id}")
+            sandbox = await self.sandbox_manager.create_sandbox(user_id, problem_id)
+            
+            # Load problem data if it has S3 data source
+            problem = db.query(Problem).filter(Problem.id == problem_id).first()
+            if problem and problem.s3_data_source:
+                logger.info(f"Loading S3 data for problem {problem_id}")
+                setup_result = await sandbox.setup_problem_data(
+                    problem_id=problem_id,
+                    s3_data_source=problem.s3_data_source
+                )
+                
+                if not setup_result.get('success', False):
+                    logger.error(f"Failed to load problem data: {setup_result.get('error')}")
+                    # Continue anyway - some problems might not need data
+            
+            return sandbox
+            
+        except Exception as e:
+            logger.error(f"Failed to get or create sandbox for user {user_id}, problem {problem_id}: {e}")
+            return None
     
     async def get_problem_schema(
         self,
