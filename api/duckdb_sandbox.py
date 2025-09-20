@@ -29,14 +29,17 @@ class DuckDBSandbox:
     ]
     TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
     
-    def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 128):
+    def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 128, sandbox_id: str = None):
         """
         Initialize DuckDB sandbox with memory and time limits
         
         Args:
             timeout_seconds: Maximum query execution time
             memory_limit_mb: Memory limit for DuckDB instance
+            sandbox_id: Unique identifier for this sandbox instance
         """
+        import uuid
+        self.id = sandbox_id or str(uuid.uuid4())
         self.timeout_seconds = timeout_seconds
         self.memory_limit_mb = memory_limit_mb
         self.conn = None
@@ -496,8 +499,8 @@ class DuckDBSandboxManager:
             self.active_sandboxes[oldest_key].cleanup()
             del self.active_sandboxes[oldest_key]
         
-        # Create new sandbox
-        sandbox = DuckDBSandbox()
+        # Create new sandbox with unique ID
+        sandbox = DuckDBSandbox(sandbox_id=sandbox_key)
         self.active_sandboxes[sandbox_key] = sandbox
         
         return sandbox
