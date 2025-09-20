@@ -50,11 +50,12 @@ export default function ProblemDetail() {
     mutationFn: async (query: string) => {
       if (!problemId) throw new Error("No problem selected");
       
-      // Check if problem has parquet data source to determine which endpoint to use
+      // Check if problem has parquet data source OR S3 data source to determine which endpoint to use
       const hasParquetData = problem?.parquetDataSource !== null && problem?.parquetDataSource !== undefined;
+      const hasS3Data = problem?.s3DataSource !== null && problem?.s3DataSource !== undefined;
       
-      if (hasParquetData) {
-        // Use DuckDB endpoint for parquet data
+      if (hasParquetData || hasS3Data) {
+        // Use DuckDB endpoint for parquet/S3 data
         return submissionsApi.testDuckDBQuery(problemId, query);
       } else {
         // Use PostgreSQL endpoint for regular problems

@@ -12,7 +12,7 @@ import logging
 from .database import get_db
 from .models import Problem, Topic, Solution, User, TestCase
 from .auth import verify_admin_access, verify_admin_user_access
-from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse, S3AnswerSource
+from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse, S3AnswerSource, S3DatasetSource
 from .s3_service import s3_service
 from .file_processor import file_processor
 
@@ -35,6 +35,7 @@ class AdminQuestionData(BaseModel):
     description: str
     tables: List[AdminTableData] = []
     expected_output: List[Dict[str, Any]] = Field(..., alias="expectedOutput")
+    s3_data_source: Optional[S3DatasetSource] = None
 
 class AdminProblemCreate(BaseModel):
     title: str
@@ -388,6 +389,15 @@ def create_problem(
         "expectedOutput": problem_data.question.expected_output
     }
     
+    # Extract S3 data source if present
+    s3_data_source = None
+    if hasattr(problem_data.question, 's3_data_source') and problem_data.question.s3_data_source:
+        s3_data_source = {
+            "bucket": problem_data.question.s3_data_source.bucket,
+            "key": problem_data.question.s3_data_source.key,
+            "table_name": problem_data.question.s3_data_source.table_name,
+            "description": problem_data.question.s3_data_source.description
+        }
     
     # Create the problem
     problem = Problem(
@@ -395,6 +405,7 @@ def create_problem(
         title=problem_data.title,
         difficulty=problem_data.difficulty,
         question=question_data,
+        s3_data_source=s3_data_source,
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
