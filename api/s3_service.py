@@ -302,22 +302,66 @@ class S3AnswerService:
             raise ValueError(f"Invalid text encoding: {e}")
     
     def _parse_parquet(self, content: bytes) -> List[Dict[str, Any]]:
-        """Parse Parquet content to list of dictionaries"""
-        if not PANDAS_AVAILABLE:
-            raise ValueError("Parquet parsing requires pandas and pyarrow. Please install with: pip install pandas pyarrow")
+        """Parse Parquet content to list of dictionaries with fallback to DuckDB"""
+        # Try pandas first if available
+        if PANDAS_AVAILABLE:
+            try:
+                # Use pandas to read Parquet from bytes
+                df = pd.read_parquet(io.BytesIO(content))
+                
+                # Convert to list of dictionaries
+                # Handle NaN values by converting to None
+                data = df.where(pd.notnull(df), None).to_dict('records')
+                
+                logger.info("Successfully parsed parquet using pandas")
+                return data
+                
+            except ImportError as e:
+                logger.warning(f"Pandas/pyarrow import failed, falling back to DuckDB: {e}")
+            except Exception as e:
+                logger.warning(f"Pandas parsing failed, falling back to DuckDB: {e}")
         
+        # Fallback to DuckDB for reliable parquet parsing
         try:
-            # Use pandas to read Parquet from bytes
-            df = pd.read_parquet(io.BytesIO(content))
+            import duckdb
+            import tempfile
+            import os
             
-            # Convert to list of dictionaries
-            # Handle NaN values by converting to None
-            data = df.where(pd.notnull(df), None).to_dict('records')
+            # Write content to temporary file for DuckDB
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
             
-            return data
-            
+            try:
+                # Connect to DuckDB and read parquet
+                conn = duckdb.connect(":memory:")
+                
+                # Read parquet file and convert to list of dictionaries
+                query_result = conn.execute(f"SELECT * FROM read_parquet('{temp_file_path}')").fetchall()
+                column_names = [desc[0] for desc in conn.description]
+                
+                # Convert to list of dictionaries
+                data = []
+                for row in query_result:
+                    row_dict = {}
+                    for i, col_name in enumerate(column_names):
+                        # Handle None values properly
+                        value = row[i] if i < len(row) else None
+                        row_dict[col_name] = value
+                    data.append(row_dict)
+                
+                logger.info(f"Successfully parsed parquet using DuckDB fallback ({len(data)} rows)")
+                return data
+                
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+                    
         except ImportError as e:
-            raise ValueError(f"Parquet parsing requires pyarrow: {e}")
+            raise ValueError(f"Parquet parsing requires either pandas+pyarrow or duckdb: {e}")
         except Exception as e:
             raise ValueError(f"Invalid Parquet format: {e}")
     

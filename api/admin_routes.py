@@ -63,9 +63,9 @@ class SchemaInfo(BaseModel):
 
 # Enhanced AWS S3 Question Creation Schemas
 class S3SolutionSource(BaseModel):
-    """Schema for S3 solution SQL file configuration"""
+    """Schema for S3 solution parquet file configuration"""
     bucket: str
-    key: str  # S3 object key (file path) - must be .sql
+    key: str  # S3 object key (file path) - must be .parquet
     description: Optional[str] = None
     etag: Optional[str] = None  # For cache validation
 
@@ -76,7 +76,7 @@ class EnhancedQuestionCreateRequest(BaseModel):
     difficulty: str = Field(..., description="Difficulty level: BEGINNER, EASY, MEDIUM, HARD, EXPERT")
     tags: List[str] = Field(default=[], description="Problem tags (e.g., ['window-function', 'ranking'])")
     dataset_path: str = Field(..., description="S3 path to dataset (e.g., 's3://bucket/problems/q101/dataset.parquet')")
-    solution_path: str = Field(..., description="S3 path to solution SQL (e.g., 's3://bucket/problems/q101/solution.sql')")
+    solution_path: str = Field(..., description="S3 path to solution parquet (e.g., 's3://bucket/problems/q101/out.parquet')")
     description: Optional[str] = Field(None, description="Problem description in markdown")
     hints: List[str] = Field(default=[], description="Helpful hints for solving the problem")
     company: Optional[str] = Field(None, description="Company name associated with the problem")
