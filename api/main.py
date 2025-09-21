@@ -378,7 +378,10 @@ async def submit_solution(problem_id: str,
 
     # Add console output to submission response
     result['console_output'] = format_console_output(result)
-    return result
+    
+    # Sanitize result to prevent JSON serialization errors
+    from .secure_execution import sanitize_json_data
+    return sanitize_json_data(result)
 
 
 # PostgreSQL sandbox functionality removed - using DuckDB only
@@ -417,7 +420,7 @@ async def test_query(problem_id: str,
     results_data = query_result.get('result', []) if query_result else []
     execution_time = query_result.get('execution_time_ms', 0) if query_result else 0
     
-    return {
+    response_data = {
         "success": result['success'],
         "results": results_data,  # Raw data for table
         "execution_time_ms": execution_time,
@@ -427,6 +430,10 @@ async def test_query(problem_id: str,
         "test_results": result.get('test_results', []),
         "error": result.get('error')
     }
+    
+    # Sanitize result to prevent JSON serialization errors
+    from .secure_execution import sanitize_json_data
+    return sanitize_json_data(response_data)
 
 
 @app.get("/api/user/progress")
@@ -440,7 +447,9 @@ async def get_user_progress(current_user: User = Depends(get_current_user),
                             detail=result.get('error',
                                               'Progress data not found'))
 
-    return result
+    # Sanitize result to prevent JSON serialization errors
+    from .secure_execution import sanitize_json_data
+    return sanitize_json_data(result)
 
 
 # Submission endpoints
