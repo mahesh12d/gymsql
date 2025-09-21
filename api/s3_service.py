@@ -632,7 +632,10 @@ class S3AnswerService:
             
             # Download file content directly
             obj_response = self.s3_client.get_object(Bucket=bucket, Key=key)
-            content = obj_response['Body'].read().decode('utf-8')
+            content_bytes = obj_response['Body'].read()
+            
+            # Use robust encoding detection
+            content = self._decode_content(content_bytes)
             
             logger.info(f"Downloaded text file {bucket}/{key} ({file_size_mb:.1f}MB)")
             return content
