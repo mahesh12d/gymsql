@@ -991,6 +991,22 @@ export default function AdminPanel() {
               </div>
 
               <div>
+                <Label htmlFor="topic">Topic (Optional)</Label>
+                <select
+                  id="topic"
+                  value={problemData.topic_id}
+                  onChange={(e) => setProblemData(prev => ({ ...prev, topic_id: e.target.value }))}
+                  className="w-full p-2 border rounded-md"
+                  data-testid="select-topic"
+                >
+                  <option value="">Select a topic (optional)</option>
+                  {schemaInfo?.available_topics.map(topic => (
+                    <option key={topic.id} value={topic.id}>{topic.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <Label htmlFor="company">Company (Optional)</Label>
                 <Input
                   id="company"
