@@ -448,7 +448,7 @@ export function DataSourceTab() {
                       key: state.solutionVerification?.s3_solution_source?.key || '',
                       description: state.solutionVerification?.s3_solution_source?.description || ''
                     };
-                    actions.verifySolution('s3', newConfig);
+                    actions.updateS3SolutionConfig(newConfig);
                   }}
                   placeholder="my-solutions-bucket"
                   data-testid="input-s3-solution-bucket"
@@ -465,7 +465,7 @@ export function DataSourceTab() {
                       key: e.target.value,
                       description: state.solutionVerification?.s3_solution_source?.description || ''
                     };
-                    actions.verifySolution('s3', newConfig);
+                    actions.updateS3SolutionConfig(newConfig);
                   }}
                   placeholder="solutions/problem001.parquet"
                   data-testid="input-s3-solution-key"
@@ -482,7 +482,7 @@ export function DataSourceTab() {
                       key: state.solutionVerification?.s3_solution_source?.key || '',
                       description: e.target.value
                     };
-                    actions.verifySolution('s3', newConfig);
+                    actions.updateS3SolutionConfig(newConfig);
                   }}
                   placeholder="Solution description"
                   data-testid="input-s3-solution-description"

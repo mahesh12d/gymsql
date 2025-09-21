@@ -137,6 +137,7 @@ type AdminAction =
   | { type: 'SET_VALIDATING_MULTI_TABLE'; payload: boolean }
   | { type: 'SET_SOLUTION_VERIFICATION'; payload: SolutionVerificationResult | null }
   | { type: 'SET_SOLUTION_TYPE'; payload: 'neon' | 's3' }
+  | { type: 'UPDATE_S3_SOLUTION_CONFIG'; payload: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'> }
   | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'APPLY_SINGLE_VALIDATION_TO_DRAFT' }
   | { type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' };
@@ -212,6 +213,14 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
           { verified: true, source: 'neon', s3_solution_source: null } :
           { verified: false, source: 's3', s3_solution_source: null }
       };
+    case 'UPDATE_S3_SOLUTION_CONFIG':
+      return {
+        ...state,
+        solutionVerification: state.solutionVerification ? {
+          ...state.solutionVerification,
+          s3_solution_source: action.payload
+        } : null
+      };
     case 'SET_ACTIVE_TAB':
       return { ...state, activeTab: action.payload };
     case 'APPLY_SINGLE_VALIDATION_TO_DRAFT':
@@ -281,6 +290,7 @@ interface AdminContextType {
     validateS3Dataset: () => Promise<void>;
     validateMultiTableDatasets: (solutionPath: string) => Promise<void>;
     setSolutionType: (source: 'neon' | 's3') => void;
+    updateS3SolutionConfig: (config: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => void;
     verifySolution: (source: 'neon' | 's3', s3Config?: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => Promise<void>;
     applyValidationToDraft: (type: 'single' | 'multi') => void;
     resetDraft: () => void;
@@ -311,6 +321,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
     setSolutionType: (source: 'neon' | 's3') => {
       dispatch({ type: 'SET_SOLUTION_TYPE', payload: source });
+    },
+
+    updateS3SolutionConfig: (config: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => {
+      dispatch({ type: 'UPDATE_S3_SOLUTION_CONFIG', payload: config });
     },
 
     authenticate: async (key: string) => {
