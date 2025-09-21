@@ -35,43 +35,137 @@ from .schemas import (
 
 logger = logging.getLogger(__name__)
 
-def sanitize_json_data(data: Any) -> Any:
-    """Fast JSON sanitization optimized for speed with UTF-8 encoding fix"""
-    if isinstance(data, dict):
-        return {key: sanitize_json_data(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [sanitize_json_data(item) for item in data]
-    elif isinstance(data, float):
-        if math.isnan(data):
-            return None
-        elif math.isinf(data):
-            return "Infinity" if data > 0 else "-Infinity"
-        else:
-            return data
+def sanitize_json_data(data: Any, seen: set = None) -> Any:
+    """Comprehensive JSON sanitization for FastAPI responses with UTF-8 safety"""
+    if seen is None:
+        seen = set()
+    
+    # Cycle detection for nested structures
+    data_id = id(data)
+    if data_id in seen:
+        return None
+    
+    # Handle None first
+    if data is None:
+        return None
+    
+    # Handle basic JSON-safe types
+    if isinstance(data, (bool, int)):
+        return data
     elif isinstance(data, str):
-        # Handle potential UTF-8 encoding issues in string data
+        # Ensure string is UTF-8 safe
         try:
-            # Try to encode/decode to validate UTF-8
             data.encode('utf-8')
             return data
         except UnicodeEncodeError:
-            # Fix encoding issues by replacing problematic characters
             return data.encode('utf-8', errors='replace').decode('utf-8')
-    elif isinstance(data, bytes):
-        # Convert bytes to string with proper encoding handling
-        try:
-            return data.decode('utf-8')
-        except UnicodeDecodeError:
-            # Try multiple encodings before falling back to error replacement
-            for encoding in ['latin-1', 'cp1252', 'ascii']:
+    
+    # Add to seen set for complex types
+    seen.add(data_id)
+    
+    try:
+        # Handle float with NaN/Infinity
+        if isinstance(data, float):
+            if math.isnan(data):
+                return None
+            elif math.isinf(data):
+                return "Infinity" if data > 0 else "-Infinity"
+            else:
+                return data
+        
+        # Handle bytes/bytearray/memoryview - convert to UTF-8 string or base64
+        elif isinstance(data, (bytes, bytearray, memoryview)):
+            if isinstance(data, memoryview):
+                data = data.tobytes()
+            elif isinstance(data, bytearray):
+                data = bytes(data)
+            
+            # Try multiple encodings
+            for encoding in ['utf-8', 'latin-1', 'cp1252', 'ascii']:
                 try:
                     return data.decode(encoding)
                 except UnicodeDecodeError:
                     continue
-            # Final fallback with error replacement
-            return data.decode('utf-8', errors='replace')
-    else:
-        return data
+            
+            # Final fallback: base64 encoding for binary data
+            import base64
+            return f"base64:{base64.b64encode(data).decode('ascii')}"
+        
+        # Handle dict - sanitize keys and values
+        elif isinstance(data, dict):
+            return {str(k): sanitize_json_data(v, seen) for k, v in data.items()}
+        
+        # Handle list/tuple/set - convert to list with sanitized elements
+        elif isinstance(data, (list, tuple, set)):
+            return [sanitize_json_data(item, seen) for item in data]
+        
+        # Handle datetime objects
+        elif hasattr(data, 'isoformat'):  # datetime, date, time
+            try:
+                return data.isoformat()
+            except:
+                return str(data)
+        
+        # Handle Decimal
+        elif hasattr(data, '__class__') and data.__class__.__name__ == 'Decimal':
+            try:
+                if data.is_finite():
+                    return float(data)
+                else:
+                    return str(data)
+            except:
+                return str(data)
+        
+        # Handle UUID
+        elif hasattr(data, '__class__') and data.__class__.__name__ == 'UUID':
+            return str(data)
+        
+        # Handle numpy types if available
+        elif hasattr(data, '__module__') and data.__module__ and 'numpy' in data.__module__:
+            try:
+                # Handle numpy scalars
+                if hasattr(data, 'item'):
+                    return sanitize_json_data(data.item(), seen)
+                # Handle numpy arrays
+                elif hasattr(data, 'tolist'):
+                    return sanitize_json_data(data.tolist(), seen)
+                else:
+                    return str(data)
+            except:
+                return str(data)
+        
+        # Handle pandas types if available
+        elif hasattr(data, '__module__') and data.__module__ and 'pandas' in data.__module__:
+            try:
+                # Handle DataFrame
+                if hasattr(data, 'to_dict'):
+                    return sanitize_json_data(data.to_dict('records'), seen)
+                # Handle Series
+                elif hasattr(data, 'tolist'):
+                    return sanitize_json_data(data.tolist(), seen)
+                # Handle Timestamp/NaT
+                elif hasattr(data, 'isoformat'):
+                    return data.isoformat()
+                else:
+                    return str(data)
+            except:
+                return str(data)
+        
+        # Handle Path-like objects
+        elif hasattr(data, '__fspath__'):
+            return str(data)
+        
+        # Handle Exception objects
+        elif isinstance(data, Exception):
+            return str(data)
+        
+        # Default fallback - convert to string
+        else:
+            return str(data)
+    
+    finally:
+        # Remove from seen set when done processing
+        seen.discard(data_id)
 
 class _FastSecurityChecker:
     """Minimal security checker optimized for speed"""

@@ -67,7 +67,7 @@ async def create_duckdb_sandbox(
         # Get table info for user
         table_info = sandbox.get_table_info()
         
-        return {
+        response_data = {
             "success": True,
             "problem_id": problem_id,
             "sandbox_type": "duckdb",
@@ -79,6 +79,10 @@ async def create_duckdb_sandbox(
             },
             "message": "DuckDB sandbox created successfully"
         }
+        
+        # Sanitize result to prevent JSON serialization errors
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(response_data)
         
     except HTTPException:
         raise
@@ -174,11 +178,15 @@ async def get_duckdb_schema(
         # Get table information
         table_info = sandbox.get_table_info()
         
-        return {
+        response_data = {
             "problem_id": problem_id,
             "sandbox_type": "duckdb",
             **table_info
         }
+        
+        # Sanitize result to prevent JSON serialization errors
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(response_data)
         
     except HTTPException:
         raise
@@ -197,11 +205,15 @@ async def cleanup_duckdb_sandbox(
     try:
         duckdb_sandbox_manager.cleanup_sandbox(current_user.id, problem_id)
         
-        return {
+        response_data = {
             "message": f"DuckDB sandbox for problem {problem_id} cleaned up successfully",
             "problem_id": problem_id,
             "sandbox_type": "duckdb"
         }
+        
+        # Sanitize result to prevent JSON serialization errors
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(response_data)
         
     except Exception as e:
         raise HTTPException(

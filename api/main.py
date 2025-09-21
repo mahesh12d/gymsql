@@ -63,6 +63,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global exception handler for UTF-8 encoding issues
+from fastapi.responses import JSONResponse
+@app.exception_handler(UnicodeDecodeError)
+async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
+    """Handle UTF-8 encoding errors by returning sanitized JSON response"""
+    from .secure_execution import sanitize_json_data
+    error_data = {
+        "error": "Encoding error occurred",
+        "detail": "The response contains non-UTF-8 data that has been sanitized",
+        "status_code": 500
+    }
+    return JSONResponse(
+        status_code=500,
+        content=sanitize_json_data(error_data),
+        headers={"Content-Type": "application/json; charset=utf-8"}
+    )
+
 # Include routers
 app.include_router(sandbox_router)
 app.include_router(admin_router)
