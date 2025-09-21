@@ -639,12 +639,36 @@ class SecureQueryExecutor:
         
         results = []
         
+        # Extract user_id and problem_id from sandbox_id (format: "user_id_problem_id") 
+        try:
+            user_id, extracted_problem_id = sandbox_id.rsplit('_', 1)
+            # Verify the problem_id matches
+            if extracted_problem_id != problem_id:
+                logger.warning(f"Problem ID mismatch: {extracted_problem_id} != {problem_id}")
+            sandbox = self.sandbox_manager.get_sandbox(user_id, problem_id)
+        except ValueError:
+            logger.error(f"Invalid sandbox_id format: {sandbox_id}")
+            sandbox = None
+            
+        if not sandbox:
+            logger.error(f"Sandbox not found for {sandbox_id}")
+            return [{
+                'test_case_id': 'error',
+                'test_case_name': 'Execution Error',
+                'is_hidden': False,
+                'is_correct': False,
+                'score': 0.0,
+                'feedback': ['Sandbox not found'],
+                'execution_time_ms': 0,
+                'execution_status': ExecutionStatus.ERROR.value,
+                'validation_details': {}
+            }]
+        
         for test_case in test_cases:
             try:
-                # PostgreSQL sandbox functionality removed - using DuckDB only
-                # TODO: Implement DuckDB-based query execution
-                result = {"result": [], "execution_time_ms": 0}
-                execution_status = ExecutionStatus.SUCCESS
+                # Execute query against DuckDB sandbox
+                result = sandbox.execute_query(query)
+                execution_status = ExecutionStatus.SUCCESS if result.get('success', False) else ExecutionStatus.ERROR
                 
                 # Validate result using advanced test validator
                 if execution_status == ExecutionStatus.SUCCESS:
@@ -883,12 +907,39 @@ class SecureQueryExecutor:
         """Execute query against specific test cases"""
         results = []
         
+        # Extract user_id and problem_id from sandbox_id (format: "user_id_problem_id")
+        try:
+            user_id, problem_id = sandbox_id.rsplit('_', 1)
+            sandbox = self.sandbox_manager.get_sandbox(user_id, problem_id)
+        except ValueError:
+            logger.error(f"Invalid sandbox_id format: {sandbox_id}")
+            sandbox = None
+            
+        if not sandbox:
+            logger.error(f"Sandbox not found for {sandbox_id}")
+            return [{
+                'test_case_id': 'error',
+                'test_case_name': 'Execution Error',
+                'is_correct': False,
+                'score': 0.0,
+                'feedback': ['Sandbox not found'],
+                'execution_time_ms': 0,
+                'validation_details': {}
+            }]
+        
         for test_case in test_cases:
             try:
-                # PostgreSQL sandbox functionality removed - using DuckDB only
-                # TODO: Implement DuckDB-based query execution
-                result = {"result": [], "execution_time_ms": 0}
-                execution_status = ExecutionStatus.SUCCESS
+                # Use transaction isolation to prevent queries from affecting other tests
+                # For SELECT queries, execute normally since they don't modify data
+                if query.strip().upper().startswith(('SELECT', 'WITH')):
+                    result = sandbox.execute_query(query)
+                else:
+                    # For DDL/DML queries, use transaction isolation (BEGIN...ROLLBACK)
+                    # This prevents data modifications from affecting subsequent tests
+                    isolated_query = f"BEGIN; {query}; ROLLBACK;"
+                    result = sandbox.execute_query(isolated_query)
+                
+                execution_status = ExecutionStatus.SUCCESS if result.get('success', False) else ExecutionStatus.ERROR
                 
                 if execution_status == ExecutionStatus.SUCCESS:
                     validation = test_validator.validate_test_case(
