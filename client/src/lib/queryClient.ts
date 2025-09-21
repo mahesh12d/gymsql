@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 // API Base URL - Use proxy in development, environment variable in production
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -13,6 +13,10 @@ async function throwIfResNotOk(res: Response) {
 function getFullUrl(url: string): string {
   // If URL is already absolute, return as-is
   if (url.startsWith('http')) {
+    return url;
+  }
+  // If URL already starts with /api, return as-is (avoid double /api/api)
+  if (url.startsWith('/api')) {
     return url;
   }
   // Convert relative URLs to absolute using API base URL
