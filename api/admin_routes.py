@@ -1003,9 +1003,9 @@ def create_question_enhanced(
     Enhanced question creation with S3 dataset and solution workflow
     
     This endpoint implements the full AWS S3 integration:
-    1. Admin uploads dataset.parquet and solution.sql to S3
+    1. Admin uploads dataset.parquet and out.parquet to S3
     2. Backend loads dataset from S3 → DuckDB
-    3. Execute solution SQL on dataset → get expected answer
+    3. Load expected results from out.parquet directly
     4. Store metadata in Postgres with expected hash and preview rows
     """
     logger = logging.getLogger(__name__)
