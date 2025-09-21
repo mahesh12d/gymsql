@@ -57,6 +57,7 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
   // Get the first non-hidden test result for main comparison display
   const mainTestResult = result.test_results?.find(test => !test.is_hidden) || result.test_results?.[0];
   const hasOutputMismatch = !result.is_correct && mainTestResult;
+  const hasNoTestCases = !result.test_results || result.test_results.length === 0;
 
   return (
     <div className="h-full bg-gray-50 flex flex-col overflow-auto">
@@ -120,6 +121,19 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
                 <li key={index}>• {message}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Show message when no test cases are available */}
+        {hasNoTestCases && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+              <span className="text-yellow-800 font-medium text-sm">No Test Cases Available</span>
+            </div>
+            <p className="text-yellow-700 text-sm mt-1">
+              This problem doesn't have test cases configured yet. Your query was executed successfully, but we can't compare the results against expected outputs.
+            </p>
           </div>
         )}
 
