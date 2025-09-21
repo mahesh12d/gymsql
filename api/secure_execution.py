@@ -265,7 +265,7 @@ class SecureQueryExecutor:
             sandbox = self.sandbox_manager.get_sandbox(user_id, problem_id)
             if sandbox:
                 # Check if sandbox needs data reloading (from original logic)
-                problem = db.query(Problem.s3_data_source).filter(Problem.id == problem_id).first()
+                problem = db.query(Problem).filter(Problem.id == problem_id).first()
                 if problem and problem.s3_data_source:
                     # Verify table exists
                     table_info = sandbox.get_table_info()
