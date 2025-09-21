@@ -63,6 +63,16 @@ class S3DatasetSource(BaseModel):
         from_attributes=True
     )
 
+class MultiTableS3Source(BaseModel):
+    """Schema for multiple S3 dataset sources in a single question"""
+    datasets: List[S3DatasetSource]  # List of S3 dataset configurations
+    description: Optional[str] = None  # Overall description of the multi-table setup
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
+
 # User schemas
 class UserBase(CamelCaseModel):
     username: str

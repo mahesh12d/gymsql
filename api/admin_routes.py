@@ -94,6 +94,41 @@ class EnhancedQuestionCreateResponse(BaseModel):
     dataset_info: Optional[Dict[str, Any]] = None  # Dataset schema and sample data
     error: Optional[str] = None
 
+# Multi-table S3 schemas
+class MultiTableS3Dataset(BaseModel):
+    """Schema for a single S3 dataset in multi-table configuration"""
+    bucket: str = Field(..., description="S3 bucket name")
+    key: str = Field(..., description="S3 object key (path to parquet file)")
+    table_name: str = Field(..., description="Table name for DuckDB")
+    description: Optional[str] = Field(None, description="Description of the dataset")
+
+class MultiTableQuestionCreateRequest(BaseModel):
+    """Request model for creating questions with multiple S3 datasets"""
+    problem_id: str = Field(..., description="Unique problem identifier")
+    title: str = Field(..., description="Problem title")
+    difficulty: str = Field(..., description="Difficulty level: BEGINNER, EASY, MEDIUM, HARD, EXPERT")
+    tags: List[str] = Field(default=[], description="Problem tags")
+    datasets: List[MultiTableS3Dataset] = Field(..., description="List of S3 datasets for the question")
+    solution_path: str = Field(..., description="S3 path to solution parquet file")
+    description: Optional[str] = Field(None, description="Problem description in markdown")
+    hints: List[str] = Field(default=[], description="Helpful hints")
+    company: Optional[str] = Field(None, description="Company name")
+    premium: bool = Field(default=False, description="Whether this is premium")
+    topic_id: Optional[str] = Field(None, description="Topic ID")
+
+class MultiTableValidationRequest(BaseModel):
+    """Request model for validating multiple S3 datasets"""
+    datasets: List[MultiTableS3Dataset] = Field(..., description="List of S3 datasets to validate")
+
+class MultiTableValidationResponse(BaseModel):
+    """Response model for multi-table S3 validation"""
+    success: bool
+    message: str
+    validated_datasets: List[Dict[str, Any]] = Field(default=[], description="Information about validated datasets")
+    total_tables: int = 0
+    total_rows: int = 0
+    error: Optional[str] = None
+
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
     _: bool = Depends(verify_admin_user_access),
@@ -1227,6 +1262,263 @@ def create_question_enhanced(
         return EnhancedQuestionCreateResponse(
             success=False,
             message=f"Unexpected error: {str(e)}",
+            problem_id=request.problem_id,
+            error=f"Internal server error: {str(e)}"
+        )
+
+# ======= Multi-table S3 Management Endpoints =======
+
+@admin_router.post("/validate-multitable-s3", response_model=MultiTableValidationResponse)
+async def validate_multitable_s3(
+    request: MultiTableValidationRequest,
+    _: bool = Depends(verify_admin_user_access)
+):
+    """Validate multiple S3 datasets for multi-table questions"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        if not request.datasets or len(request.datasets) == 0:
+            return MultiTableValidationResponse(
+                success=False,
+                message="At least one dataset is required",
+                error="No datasets provided"
+            )
+        
+        if len(request.datasets) > 10:  # Limit to prevent abuse
+            return MultiTableValidationResponse(
+                success=False,
+                message="Too many datasets. Maximum allowed: 10",
+                error="Dataset limit exceeded"
+            )
+        
+        validated_datasets = []
+        total_rows = 0
+        
+        # Validate each dataset
+        for i, dataset in enumerate(request.datasets):
+            logger.info(f"Validating dataset {i+1}/{len(request.datasets)}: {dataset.bucket}/{dataset.key}")
+            
+            # Validate the S3 dataset
+            validation_result = s3_service.validate_dataset_file(
+                bucket=dataset.bucket,
+                key=dataset.key,
+                table_name=dataset.table_name
+            )
+            
+            if not validation_result["success"]:
+                return MultiTableValidationResponse(
+                    success=False,
+                    message=f"Dataset {i+1} validation failed: {validation_result['error']}",
+                    error=validation_result["error"]
+                )
+            
+            # Add dataset info to validated list
+            dataset_info = {
+                "table_name": dataset.table_name,
+                "bucket": dataset.bucket,
+                "key": dataset.key,
+                "description": dataset.description,
+                "schema": validation_result["schema"],
+                "sample_data": validation_result["sample_data"][:3],  # Only first 3 rows
+                "row_count": validation_result["row_count"],
+                "etag": validation_result.get("etag")
+            }
+            validated_datasets.append(dataset_info)
+            total_rows += validation_result["row_count"]
+        
+        logger.info(f"Successfully validated {len(validated_datasets)} datasets with {total_rows} total rows")
+        
+        return MultiTableValidationResponse(
+            success=True,
+            message=f"Successfully validated {len(validated_datasets)} datasets",
+            validated_datasets=validated_datasets,
+            total_tables=len(validated_datasets),
+            total_rows=total_rows
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to validate multi-table S3: {e}")
+        return MultiTableValidationResponse(
+            success=False,
+            message=f"Validation failed: {str(e)}",
+            error=f"Internal server error: {str(e)}"
+        )
+
+@admin_router.post("/create-multitable-question", response_model=EnhancedQuestionCreateResponse)
+async def create_multitable_question(
+    request: MultiTableQuestionCreateRequest,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin_user_access)
+):
+    """Create a question with multiple S3 datasets"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Validate difficulty
+        valid_difficulties = ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"]
+        if request.difficulty not in valid_difficulties:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Invalid difficulty. Must be one of: {valid_difficulties}",
+                problem_id=request.problem_id,
+                error="Invalid difficulty level"
+            )
+        
+        # Check if problem_id already exists
+        existing_problem = db.query(Problem).filter(Problem.id == request.problem_id).first()
+        if existing_problem:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Problem ID '{request.problem_id}' already exists",
+                problem_id=request.problem_id,
+                error="Problem ID already exists"
+            )
+        
+        # Validate datasets
+        if not request.datasets or len(request.datasets) == 0:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message="At least one dataset is required",
+                problem_id=request.problem_id,
+                error="No datasets provided"
+            )
+        
+        # Validate all datasets
+        validated_datasets = []
+        question_tables = []
+        
+        for i, dataset in enumerate(request.datasets):
+            # Validate the S3 dataset
+            validation_result = s3_service.validate_dataset_file(
+                bucket=dataset.bucket,
+                key=dataset.key,
+                table_name=dataset.table_name
+            )
+            
+            if not validation_result["success"]:
+                return EnhancedQuestionCreateResponse(
+                    success=False,
+                    message=f"Dataset {i+1} validation failed: {validation_result['error']}",
+                    problem_id=request.problem_id,
+                    error=validation_result["error"]
+                )
+            
+            # Store validated dataset info
+            dataset_info = {
+                "bucket": dataset.bucket,
+                "key": dataset.key,
+                "table_name": dataset.table_name,
+                "description": dataset.description,
+                "etag": validation_result.get("etag")
+            }
+            validated_datasets.append(dataset_info)
+            
+            # Create table definition for question
+            table_def = {
+                "name": dataset.table_name,
+                "columns": [
+                    {"name": col["column"], "type": col["type"]}
+                    for col in validation_result["schema"]
+                ],
+                "sampleData": validation_result["sample_data"][:5]  # First 5 rows
+            }
+            question_tables.append(table_def)
+        
+        # Parse solution path
+        if not request.solution_path.startswith('s3://'):
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Invalid solution S3 path format: {request.solution_path}",
+                problem_id=request.problem_id,
+                error="Invalid S3 path format"
+            )
+        
+        solution_path_parts = request.solution_path[5:].split('/', 1)
+        if len(solution_path_parts) != 2:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Invalid solution S3 path format: {request.solution_path}",
+                problem_id=request.problem_id,
+                error="Invalid S3 path format"
+            )
+        
+        solution_bucket, solution_key = solution_path_parts
+        
+        # Fetch solution SQL or parquet from S3
+        solution_result = s3_service.fetch_solution_sql(
+            bucket=solution_bucket,
+            key=solution_key
+        )
+        
+        if not solution_result["success"]:
+            return EnhancedQuestionCreateResponse(
+                success=False,
+                message=f"Solution fetch failed: {solution_result['error']}",
+                problem_id=request.problem_id,
+                error=solution_result["error"]
+            )
+        
+        # Create question data structure
+        question_data = {
+            "description": request.description or f"# {request.title}\n\nSolve this SQL problem using the provided datasets.",
+            "tables": question_tables,
+            "expectedOutput": []  # Will be populated by solution execution
+        }
+        
+        # Validate topic if provided
+        if request.topic_id:
+            topic = db.query(Topic).filter(Topic.id == request.topic_id).first()
+            if not topic:
+                return EnhancedQuestionCreateResponse(
+                    success=False,
+                    message="Invalid topic_id",
+                    problem_id=request.problem_id,
+                    error="Invalid topic_id"
+                )
+        
+        # Create the problem
+        problem = Problem(
+            id=request.problem_id,
+            title=request.title,
+            difficulty=request.difficulty,
+            question=question_data,
+            tags=request.tags,
+            company=request.company,
+            hints=request.hints,
+            premium=request.premium,
+            topic_id=request.topic_id,
+            s3_data_sources=validated_datasets,  # Store as array for multi-table
+            solution_source='s3',
+            s3_solution_source={
+                "bucket": solution_bucket,
+                "key": solution_key,
+                "description": f"Solution for multi-table problem {request.problem_id}"
+            }
+        )
+        
+        db.add(problem)
+        db.commit()
+        db.refresh(problem)
+        
+        logger.info(f"Successfully created multi-table problem: {request.problem_id}")
+        
+        return EnhancedQuestionCreateResponse(
+            success=True,
+            message=f"Multi-table question '{request.title}' created successfully with {len(validated_datasets)} datasets",
+            problem_id=request.problem_id,
+            dataset_info={
+                "datasets": validated_datasets,
+                "table_count": len(validated_datasets),
+                "solution_path": request.solution_path
+            }
+        )
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create multi-table question: {e}")
+        return EnhancedQuestionCreateResponse(
+            success=False,
+            message=f"Failed to create question: {str(e)}",
             problem_id=request.problem_id,
             error=f"Internal server error: {str(e)}"
         )
