@@ -152,6 +152,18 @@ export default function AdminPanel() {
   const [s3Validation, setS3Validation] = useState<S3DatasetValidationResponse | null>(null);
   const [isValidatingS3, setIsValidatingS3] = useState(false);
 
+  // Multi-table S3 state
+  const [multiTableDatasets, setMultiTableDatasets] = useState<Array<{
+    bucket: string;
+    key: string;
+    table_name: string;
+    description: string;
+  }>>([]);
+  const [multiTableValidation, setMultiTableValidation] = useState<any>(null);
+  const [isValidatingMultiTable, setIsValidatingMultiTable] = useState(false);
+  const [solutionPath, setSolutionPath] = useState('');
+  const [multiTableMode, setMultiTableMode] = useState(false);
+
   // Authentication
   const handleAuthenticate = async () => {
     if (!adminKey.trim()) {
@@ -453,6 +465,165 @@ export default function AdminPanel() {
       title: "S3 Dataset Added",
       description: "S3 dataset source has been added to problem creation form",
     });
+  };
+
+  // Multi-table helper functions
+  const addMultiTableDataset = () => {
+    setMultiTableDatasets(prev => [...prev, {
+      bucket: '',
+      key: '',
+      table_name: '',
+      description: ''
+    }]);
+  };
+
+  const removeMultiTableDataset = (index: number) => {
+    setMultiTableDatasets(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateMultiTableDataset = (index: number, field: string, value: string) => {
+    setMultiTableDatasets(prev => prev.map((dataset, i) => 
+      i === index ? { ...dataset, [field]: value } : dataset
+    ));
+  };
+
+  // Multi-table validation function
+  const validateMultiTableDatasets = async () => {
+    if (multiTableDatasets.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please add at least one dataset",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check that all datasets have required fields
+    for (let i = 0; i < multiTableDatasets.length; i++) {
+      const dataset = multiTableDatasets[i];
+      if (!dataset.bucket.trim() || !dataset.key.trim() || !dataset.table_name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: `Dataset ${i + 1}: Bucket, Key, and Table Name are required`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setIsValidatingMultiTable(true);
+    setMultiTableValidation(null);
+
+    try {
+      const response = await fetch('/api/admin/validate-multitable-s3', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({ datasets: multiTableDatasets }),
+      });
+
+      const result = await response.json();
+      setMultiTableValidation(result);
+
+      if (result.success) {
+        toast({
+          title: "Validation Success",
+          description: `Successfully validated ${result.total_tables} datasets with ${result.total_rows?.toLocaleString()} total rows`,
+        });
+      } else {
+        toast({
+          title: "Validation Failed",
+          description: result.error || result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to validate multi-table datasets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingMultiTable(false);
+    }
+  };
+
+  // Create multi-table question
+  const createMultiTableQuestion = async () => {
+    if (!multiTableValidation?.success) {
+      toast({
+        title: "Error",
+        description: "Please validate datasets first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!solutionPath.trim()) {
+      toast({
+        title: "Error",
+        description: "Solution path is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/admin/create-multitable-question', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          problem_id: `multi-${Date.now()}`, // Generate unique ID
+          title: problemData.title || 'Multi-table Question',
+          difficulty: problemData.difficulty,
+          tags: problemData.tags,
+          datasets: multiTableDatasets,
+          solution_path: solutionPath,
+          description: problemData.question.description,
+          hints: problemData.hints,
+          company: problemData.company,
+          premium: problemData.premium,
+          topic_id: problemData.topic_id
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `Multi-table question created successfully!`,
+        });
+        
+        // Reset multi-table form
+        setMultiTableDatasets([]);
+        setMultiTableValidation(null);
+        setSolutionPath('');
+        setMultiTableMode(false);
+        setActiveTab('create');
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create multi-table question",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Form handlers
@@ -1491,16 +1662,47 @@ export default function AdminPanel() {
               <CardDescription>
                 Configure and validate dataset sources from S3 buckets for problem creation.
               </CardDescription>
+              
+              {/* Mode Toggle */}
+              <div className="flex gap-4 mt-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="single-table"
+                    name="table-mode"
+                    checked={!multiTableMode}
+                    onChange={() => setMultiTableMode(false)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="single-table" className="text-sm font-medium">
+                    Single Table
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="multi-table"
+                    name="table-mode"
+                    checked={multiTableMode}
+                    onChange={() => setMultiTableMode(true)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="multi-table" className="text-sm font-medium">
+                    Multi-table
+                  </label>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* S3 Dataset Configuration */}
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-lg font-semibold">S3 Dataset Source</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Configure and validate parquet files from S3 buckets
-                  </p>
-                </div>
+              {!multiTableMode ? (
+                /* Single Table Configuration */
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-lg font-semibold">S3 Dataset Source</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Configure and validate parquet files from S3 buckets
+                    </p>
+                  </div>
                   
                 {/* S3 Source Configuration */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1674,7 +1876,172 @@ export default function AdminPanel() {
                   )}
                 </div>
               )}
-              </div>
+                </div>
+              ) : (
+                /* Multi-table Configuration */
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-lg font-semibold">Multi-table S3 Configuration</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Configure multiple datasets for multi-table SQL problems
+                    </p>
+                  </div>
+
+                  {/* Multi-table Datasets */}
+                  <div className="space-y-4">
+                    {multiTableDatasets.map((dataset, index) => (
+                      <Card key={index} className="p-4 border-2">
+                        <div className="flex justify-between items-center mb-4">
+                          <h4 className="font-medium">Dataset {index + 1}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeMultiTableDataset(index)}
+                            data-testid={`button-remove-dataset-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>S3 Bucket</Label>
+                            <Input
+                              value={dataset.bucket}
+                              onChange={(e) => updateMultiTableDataset(index, 'bucket', e.target.value)}
+                              placeholder="my-datasets-bucket"
+                              data-testid={`input-multi-bucket-${index}`}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>S3 Key</Label>
+                            <Input
+                              value={dataset.key}
+                              onChange={(e) => updateMultiTableDataset(index, 'key', e.target.value)}
+                              placeholder="datasets/table1.parquet"
+                              data-testid={`input-multi-key-${index}`}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Table Name</Label>
+                            <Input
+                              value={dataset.table_name}
+                              onChange={(e) => updateMultiTableDataset(index, 'table_name', e.target.value)}
+                              placeholder="table1"
+                              data-testid={`input-multi-table-name-${index}`}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Description (Optional)</Label>
+                            <Input
+                              value={dataset.description}
+                              onChange={(e) => updateMultiTableDataset(index, 'description', e.target.value)}
+                              placeholder="Dataset description"
+                              data-testid={`input-multi-description-${index}`}
+                            />
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                    
+                    <Button
+                      variant="outline"
+                      onClick={addMultiTableDataset}
+                      className="w-full"
+                      data-testid="button-add-multi-dataset"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Dataset
+                    </Button>
+                  </div>
+
+                  {/* Solution Path */}
+                  <div className="space-y-2">
+                    <Label>Solution S3 Path</Label>
+                    <Input
+                      value={solutionPath}
+                      onChange={(e) => setSolutionPath(e.target.value)}
+                      placeholder="s3://bucket/solution.parquet"
+                      data-testid="input-solution-path"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      S3 path to the solution parquet file (e.g., s3://bucket/problem/solution.parquet)
+                    </p>
+                  </div>
+
+                  {/* Validation and Creation Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={validateMultiTableDatasets}
+                      disabled={isValidatingMultiTable || multiTableDatasets.length === 0}
+                      data-testid="button-validate-multi-table"
+                    >
+                      {isValidatingMultiTable ? 'Validating...' : 'Validate Datasets'}
+                    </Button>
+
+                    {multiTableValidation?.success && (
+                      <Button
+                        onClick={createMultiTableQuestion}
+                        disabled={loading || !solutionPath.trim()}
+                        variant="secondary"
+                        data-testid="button-create-multi-table-question"
+                      >
+                        {loading ? 'Creating...' : 'Create Multi-table Question'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Multi-table Validation Results */}
+                  {multiTableValidation && (
+                    <div className="space-y-4">
+                      <Separator />
+                      
+                      {multiTableValidation.success ? (
+                        <div className="space-y-4">
+                          <Alert>
+                            <AlertDescription>
+                              ✅ Multi-table validation successful! Validated {multiTableValidation.total_tables} datasets with {multiTableValidation.total_rows?.toLocaleString()} total rows.
+                            </AlertDescription>
+                          </Alert>
+
+                          {/* Validated Datasets Summary */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Validated Datasets</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                {multiTableValidation.validated_datasets?.map((dataset: any, index: number) => (
+                                  <div key={index} className="p-3 border rounded-lg">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium">{dataset.table_name}</span>
+                                      <span className="text-sm text-muted-foreground">
+                                        {dataset.row_count?.toLocaleString()} rows, {dataset.schema?.length} columns
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      s3://{dataset.bucket}/{dataset.key}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      ) : (
+                        <Alert variant="destructive">
+                          <AlertDescription>
+                            ❌ Multi-table validation failed: {multiTableValidation.error || multiTableValidation.message}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
