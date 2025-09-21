@@ -123,16 +123,13 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
           </div>
         )}
 
-        {/* Detailed Result Comparison */}
-        {hasOutputMismatch && mainTestResult?.validation_details && (
+        {/* Detailed Result Comparison - Show for both correct and incorrect submissions */}
+        {mainTestResult?.validation_details && (
           <ResultComparisonTable 
             validationDetails={mainTestResult.validation_details}
             isCorrect={result.is_correct}
           />
         )}
-
-        {/* Submission History */}
-        <SubmissionHistory problemId={problemId} />
       </div>
     </div>
   );
