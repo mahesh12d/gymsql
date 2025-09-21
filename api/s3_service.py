@@ -267,6 +267,64 @@ class S3AnswerService:
         except Exception as e:
             raise ValueError(f"Unable to decode file content with any supported encoding: {e}")
     
+    def _sanitize_sample_data(self, sample_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Sanitize sample data to ensure JSON serializability.
+        
+        Converts problematic data types like binary data, datetime objects,
+        decimal values, and other non-JSON-serializable types to strings.
+        
+        Args:
+            sample_data: Raw sample data from DuckDB query
+            
+        Returns:
+            Sanitized sample data safe for JSON serialization
+        """
+        import decimal
+        import datetime
+        import uuid
+        
+        def sanitize_value(value):
+            """Sanitize a single value for JSON serialization"""
+            if value is None:
+                return None
+            elif isinstance(value, (str, int, float, bool)):
+                return value
+            elif isinstance(value, bytes):
+                # Convert binary data to hex string representation
+                try:
+                    # Try to decode as UTF-8 first
+                    return value.decode('utf-8')
+                except UnicodeDecodeError:
+                    # If that fails, convert to hex
+                    return f"<binary: {value.hex()}>"
+            elif isinstance(value, decimal.Decimal):
+                return float(value)
+            elif isinstance(value, (datetime.date, datetime.datetime, datetime.time)):
+                return value.isoformat()
+            elif isinstance(value, uuid.UUID):
+                return str(value)
+            elif hasattr(value, '__dict__'):
+                # For complex objects, try to convert to string
+                return str(value)
+            else:
+                # For any other type, convert to string
+                return str(value)
+        
+        sanitized_data = []
+        for row in sample_data:
+            sanitized_row = {}
+            for key, value in row.items():
+                try:
+                    sanitized_row[key] = sanitize_value(value)
+                except Exception as e:
+                    # If sanitization fails, use a safe fallback
+                    logger.warning(f"Failed to sanitize value for column {key}: {e}")
+                    sanitized_row[key] = f"<unsupported: {type(value).__name__}>"
+            sanitized_data.append(sanitized_row)
+        
+        return sanitized_data
+    
     def _parse_csv(self, content: bytes) -> List[Dict[str, Any]]:
         """Parse CSV content to list of dictionaries"""
         if not PANDAS_AVAILABLE:
@@ -638,7 +696,10 @@ class S3AnswerService:
                     # Get sample data
                     sample_result = conn.execute("SELECT * FROM read_parquet(?) LIMIT 5", [temp_file_path]).fetchall()
                     column_names = [desc[0] for desc in conn.description]
-                    sample_data = [dict(zip(column_names, row)) for row in sample_result]
+                    raw_sample_data = [dict(zip(column_names, row)) for row in sample_result]
+                    
+                    # Sanitize sample data to ensure JSON serializability
+                    sample_data = self._sanitize_sample_data(raw_sample_data)
                     
                 else:
                     return {"success": False, "error": f"Unsupported file format: {file_ext}. Only .parquet files are supported for datasets."}
