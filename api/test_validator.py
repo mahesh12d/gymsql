@@ -251,12 +251,33 @@ class TestCaseValidator:
         matching_rows = 0
         total_rows = len(expected)
         
+        # Initialize detailed row comparison results
+        row_comparisons = []
+        
         for i, (actual_row, expected_row) in enumerate(zip(actual, expected)):
-            if self._rows_match(actual_row, expected_row):
+            row_matches = self._rows_match(actual_row, expected_row)
+            
+            # Create detailed row comparison info
+            row_comparison = {
+                'row_index': i,
+                'matches': row_matches,
+                'actual_row': actual_row,
+                'expected_row': expected_row
+            }
+            
+            if row_matches:
                 matching_rows += 1
             else:
                 row_diff = self._get_row_differences(actual_row, expected_row)
                 result['feedback'].append(f"Row {i+1} mismatch: {row_diff}")
+                row_comparison['differences'] = row_diff
+            
+            row_comparisons.append(row_comparison)
+        
+        # Add detailed row comparison to result details
+        result['details']['row_comparisons'] = row_comparisons
+        result['details']['matching_row_count'] = matching_rows
+        result['details']['total_row_count'] = total_rows
         
         match_ratio = matching_rows / total_rows if total_rows > 0 else 0.0
         result['details']['data_matches'] = match_ratio > 0.95
@@ -280,6 +301,37 @@ class TestCaseValidator:
         intersection = actual_set & expected_set
         match_ratio = len(intersection) / len(expected_set) if expected_set else 0.0
         
+        # Create detailed row comparison for unordered match
+        row_comparisons = []
+        actual_tuples = [self._row_to_tuple(row) for row in actual]
+        expected_tuples = [self._row_to_tuple(row) for row in expected]
+        
+        for i, expected_row in enumerate(expected):
+            expected_tuple = expected_tuples[i]
+            matches = expected_tuple in actual_tuples
+            
+            row_comparison = {
+                'row_index': i,
+                'matches': matches,
+                'actual_row': expected_row if matches else None,  # We'll find the matching row if needed
+                'expected_row': expected_row
+            }
+            
+            if matches:
+                # Find the matching actual row
+                for j, actual_row in enumerate(actual):
+                    if actual_tuples[j] == expected_tuple:
+                        row_comparison['actual_row'] = actual_row
+                        break
+            else:
+                row_comparison['differences'] = "Row not found in user results"
+            
+            row_comparisons.append(row_comparison)
+        
+        # Add detailed row comparison to result details
+        result['details']['row_comparisons'] = row_comparisons
+        result['details']['matching_row_count'] = len(intersection)
+        result['details']['total_row_count'] = len(expected)
         result['details']['data_matches'] = match_ratio > 0.95
         
         if match_ratio < 1.0:

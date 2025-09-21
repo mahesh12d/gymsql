@@ -377,15 +377,21 @@ class SecureQueryExecutor:
                 }]
             
             # Compare user results with official solution results
-            results_match = self._compare_query_results(user_results, expected_results)
+            comparison = self._compare_query_results(user_results, expected_results)
             
             return [{
                 'test_case_id': f"{problem.id}_s3_solution",
-                'passed': results_match,
+                'passed': comparison['matches'],
                 'expected': expected_results,
                 'actual': user_results,
                 'is_hidden': False,
-                'verification_method': 's3_solution'
+                'verification_method': 's3_solution',
+                'validation_details': {
+                    'row_comparisons': comparison['row_comparisons'],
+                    'matching_row_count': comparison['matching_row_count'],
+                    'total_row_count': comparison['total_row_count'],
+                    'comparison_differences': comparison['differences']
+                }
             }]
             
         except Exception as e:
@@ -399,28 +405,47 @@ class SecureQueryExecutor:
                 'error': f'Verification error: {str(e)}'
             }]
     
-    def _compare_query_results(self, actual: List[Dict[str, Any]], expected: List[Dict[str, Any]]) -> bool:
+    def _compare_query_results(self, actual: List[Dict[str, Any]], expected: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Compare two query result sets for equivalence
+        Compare two query result sets for equivalence with detailed comparison info
         
         Args:
             actual: Results from user query
             expected: Results from official solution
             
         Returns:
-            True if results match, False otherwise
+            Dict with comparison results including detailed row-by-row comparison
         """
+        comparison_result = {
+            'matches': False,
+            'row_comparisons': [],
+            'matching_row_count': 0,
+            'total_row_count': 0,
+            'differences': []
+        }
+        
         try:
             # Handle empty results
             if not actual and not expected:
-                return True
+                comparison_result['matches'] = True
+                return comparison_result
+            
             if not actual or not expected:
-                return False
+                comparison_result['differences'].append(
+                    f"One result set is empty: actual={len(actual or [])}, expected={len(expected or [])}"
+                )
+                return comparison_result
                 
             # Check row count
             if len(actual) != len(expected):
-                return False
+                comparison_result['differences'].append(
+                    f"Row count mismatch: actual={len(actual)}, expected={len(expected)}"
+                )
+                comparison_result['total_row_count'] = len(expected)
+                return comparison_result
                 
+            comparison_result['total_row_count'] = len(expected)
+            
             # Sort both result sets for comparison (handle unordered results)
             def normalize_row(row):
                 """Convert row values to comparable format"""
@@ -437,15 +462,43 @@ class SecureQueryExecutor:
             actual_normalized = [normalize_row(row) for row in actual]
             expected_normalized = [normalize_row(row) for row in expected]
             
-            # Sort by string representation for consistent comparison
-            actual_sorted = sorted(actual_normalized, key=lambda x: str(sorted(x.items())))
-            expected_sorted = sorted(expected_normalized, key=lambda x: str(sorted(x.items())))
+            # Create mapping for detailed row comparison
+            actual_tuples = [tuple(sorted(row.items())) for row in actual_normalized]
+            expected_tuples = [tuple(sorted(row.items())) for row in expected_normalized]
             
-            return actual_sorted == expected_sorted
+            # Create detailed row comparisons
+            for i, expected_row in enumerate(expected):
+                expected_tuple = expected_tuples[i]
+                matches = expected_tuple in actual_tuples
+                
+                row_comparison = {
+                    'row_index': i,
+                    'matches': matches,
+                    'expected_row': expected_row,
+                    'actual_row': None
+                }
+                
+                if matches:
+                    # Find the matching actual row
+                    for j, actual_row in enumerate(actual):
+                        if actual_tuples[j] == expected_tuple:
+                            row_comparison['actual_row'] = actual_row
+                            break
+                    comparison_result['matching_row_count'] += 1
+                else:
+                    row_comparison['differences'] = "Row not found in user results"
+                
+                comparison_result['row_comparisons'].append(row_comparison)
+            
+            # Check if all rows match
+            comparison_result['matches'] = comparison_result['matching_row_count'] == comparison_result['total_row_count']
+            
+            return comparison_result
             
         except Exception as e:
             logger.error(f"Error comparing query results: {e}")
-            return False
+            comparison_result['differences'].append(f"Comparison error: {str(e)}")
+            return comparison_result
     
     def _split_sql_statements(self, sql_content: str) -> List[str]:
         """
