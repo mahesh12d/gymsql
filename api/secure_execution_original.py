@@ -140,7 +140,7 @@ class SecureQueryExecutor:
                 return cached
             
             # STEP 3: Get sandbox (reuse existing if possible)
-            sandbox = await self._get_sandbox_fast(user_id, problem_id, db)
+            sandbox = self._get_sandbox_fast(user_id, problem_id, db)
             if not sandbox:
                 return self._create_error_response('Failed to create execution sandbox')
             
@@ -217,7 +217,7 @@ class SecureQueryExecutor:
                 }
             
             # Get sandbox fast
-            sandbox = await self._get_sandbox_fast(user_id, problem_id, db)
+            sandbox = self._get_sandbox_fast(user_id, problem_id, db)
             if not sandbox:
                 return {
                     'success': False,
@@ -258,7 +258,7 @@ class SecureQueryExecutor:
                 'test_results': []
             }
     
-    async def _get_sandbox_fast(self, user_id: str, problem_id: str, db: Session) -> Optional[DuckDBSandbox]:
+    def _get_sandbox_fast(self, user_id: str, problem_id: str, db: Session) -> Optional[DuckDBSandbox]:
         """Ultra-fast sandbox retrieval with proper S3 data loading"""
         try:
             # Try existing sandbox first
@@ -278,13 +278,20 @@ class SecureQueryExecutor:
                     
                     if not table_exists:
                         logger.info(f"Reloading S3 data for existing sandbox - table {expected_table_name} not found")
-                        # Properly await async operation
-                        setup_result = await sandbox.setup_problem_data(
-                            problem_id=problem_id,
-                            s3_data_source=problem.s3_data_source
-                        )
-                        if not setup_result.get('success', False):
-                            logger.error(f"Failed to reload problem data: {setup_result.get('error')}")
+                        # Run setup synchronously for speed
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            setup_result = loop.run_until_complete(
+                                sandbox.setup_problem_data(
+                                    problem_id=problem_id,
+                                    s3_data_source=problem.s3_data_source
+                                )
+                            )
+                            if not setup_result.get('success', False):
+                                logger.error(f"Failed to reload problem data: {setup_result.get('error')}")
+                        finally:
+                            loop.close()
                 
                 return sandbox
             
@@ -294,21 +301,30 @@ class SecureQueryExecutor:
                 logger.error(f"Problem {problem_id} not found")
                 return None
             
-            # Create sandbox properly with await
-            sandbox = await self.sandbox_manager.create_sandbox(user_id, problem_id)
-            
-            # Load S3 data if needed
-            if problem.s3_data_source:
-                logger.info(f"Loading S3 data for problem {problem_id}")
-                setup_result = await sandbox.setup_problem_data(
-                    problem_id=problem_id,
-                    s3_data_source=problem.s3_data_source
+            # Create sandbox synchronously for speed
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                sandbox = loop.run_until_complete(
+                    self.sandbox_manager.create_sandbox(user_id, problem_id)
                 )
                 
-                if not setup_result.get('success', False):
-                    logger.error(f"Failed to load problem data: {setup_result.get('error')}")
-            
-            return sandbox
+                # Load S3 data if needed
+                if problem.s3_data_source:
+                    logger.info(f"Loading S3 data for problem {problem_id}")
+                    setup_result = loop.run_until_complete(
+                        sandbox.setup_problem_data(
+                            problem_id=problem_id,
+                            s3_data_source=problem.s3_data_source
+                        )
+                    )
+                    
+                    if not setup_result.get('success', False):
+                        logger.error(f"Failed to load problem data: {setup_result.get('error')}")
+                
+                return sandbox
+            finally:
+                loop.close()
                 
         except Exception as e:
             logger.error(f"Fast sandbox creation failed: {e}")
