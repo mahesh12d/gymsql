@@ -1,4 +1,5 @@
 import SubmissionHistory from './SubmissionHistory';
+import ResultComparisonTable from './ResultComparisonTable';
 
 interface SubmissionResult {
   success: boolean;
@@ -120,6 +121,14 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
               ))}
             </ul>
           </div>
+        )}
+
+        {/* Detailed Result Comparison */}
+        {hasOutputMismatch && mainTestResult?.validation_details && (
+          <ResultComparisonTable 
+            validationDetails={mainTestResult.validation_details}
+            isCorrect={result.is_correct}
+          />
         )}
 
         {/* Submission History */}
