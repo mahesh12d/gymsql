@@ -362,6 +362,7 @@ export function DataSourceTab() {
                   ? 'border-primary bg-primary/5' 
                   : 'border-border hover:border-primary/50'
               }`}
+              onClick={() => actions.verifySolution('s3')}
               data-testid="option-solution-source-s3"
             >
               <div className="flex items-center space-x-2">
@@ -375,6 +376,52 @@ export function DataSourceTab() {
               </div>
             </div>
           </div>
+
+          {/* Neon Database Configuration and Guidance */}
+          {state.solutionVerification?.source === 'neon' && (
+            <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start space-x-2">
+                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100">How Neon Database Solution Works</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                      When using Neon database for solution verification, the system will automatically generate and store the expected results.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">Expected Result Structure:</p>
+                      <ul className="mt-1 space-y-1 text-blue-700 dark:text-blue-200 list-disc list-inside">
+                        <li>Results will be stored as JSON in the <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs">expected_output</code> field</li>
+                        <li>Each row represents one record of the expected solution</li>
+                        <li>Column names must match your SQL query's SELECT clause</li>
+                        <li>Data types will be automatically inferred and validated</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">How to Set Expected Results:</p>
+                      <ol className="mt-1 space-y-1 text-blue-700 dark:text-blue-200 list-decimal list-inside">
+                        <li>Create your problem with the dataset(s) above</li>
+                        <li>In the "Create Question" tab, manually enter the expected results in the Expected Output section</li>
+                        <li>Or run your solution SQL query and copy the results</li>
+                        <li>The system will automatically validate submissions against these stored results</li>
+                      </ol>
+                    </div>
+
+                    <div className="text-sm p-2 bg-blue-100 dark:bg-blue-900 rounded">
+                      <p className="font-medium text-blue-900 dark:text-blue-100">💡 Tip:</p>
+                      <p className="text-blue-700 dark:text-blue-200">
+                        Test your SQL query first with the validated dataset above, then copy the exact results as your expected output.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* S3 Solution Configuration */}
           {state.solutionVerification?.source === 's3' && (
