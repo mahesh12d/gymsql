@@ -299,7 +299,7 @@ class SecureQueryExecutor:
         user_results: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        Verify user query results against S3 solution file
+        Verify user query results against S3 solution parquet file (out.parquet)
         
         Args:
             sandbox: DuckDB sandbox instance
@@ -322,69 +322,30 @@ class SecureQueryExecutor:
                     'error': 'S3 solution source not configured'
                 }]
             
-            # Download solution.sql file from S3
+            # Download out.parquet file from S3 (expected results dataset)
             from .s3_service import s3_service
-            logger.info(f"Downloading S3 solution from s3://{s3_solution['bucket']}/{s3_solution['key']}")
+            logger.info(f"Downloading S3 solution results from s3://{s3_solution['bucket']}/{s3_solution['key']}")
             
             try:
-                solution_content = s3_service.download_text_file(s3_solution['bucket'], s3_solution['key'])
+                # Use the new fetch_parquet_solution method to get expected results directly
+                solution_result = s3_service.fetch_parquet_solution(
+                    bucket=s3_solution['bucket'], 
+                    key=s3_solution['key'],
+                    etag=s3_solution.get('etag')
+                )
+                expected_results = solution_result.data
+                logger.info(f"Successfully loaded {len(expected_results)} expected result rows from S3")
+                
             except Exception as e:
-                logger.error(f"Failed to download S3 solution file: {e}")
+                logger.error(f"Failed to download S3 solution parquet file: {e}")
                 return [{
                     'test_case_id': f"{problem.id}_s3_solution",
                     'passed': False,
                     'expected': [],
                     'actual': user_results,
                     'is_hidden': False,
-                    'error': f'Failed to download solution file: {str(e)}'
+                    'error': f'Failed to download solution parquet file: {str(e)}'
                 }]
-            
-            # Validate and execute official solution in sandbox with security constraints
-            # Apply same security validation as user queries
-            validation_result = query_validator.validate_query(solution_content.strip())
-            
-            if not validation_result['is_valid']:
-                logger.error(f"Official solution contains invalid SQL: {validation_result['errors']}")
-                return [{
-                    'test_case_id': f"{problem.id}_s3_solution",
-                    'passed': False,
-                    'expected': [],
-                    'actual': user_results,
-                    'is_hidden': False,
-                    'error': f'Official solution contains invalid SQL: {", ".join(validation_result["errors"])}'
-                }]
-            
-            # Handle multi-statement SQL solutions by splitting safely
-            sql_statements = self._split_sql_statements(solution_content.strip())
-            official_result = None
-            
-            # Execute each statement, keeping only the last result (typical pattern for solutions)
-            for i, statement in enumerate(sql_statements):
-                if statement.strip():
-                    temp_result = sandbox.execute_query(statement.strip())
-                    if not temp_result.get('success'):
-                        logger.error(f"Official solution statement {i+1} failed: {temp_result.get('error')}")
-                        return [{
-                            'test_case_id': f"{problem.id}_s3_solution",
-                            'passed': False,
-                            'expected': [],
-                            'actual': user_results,
-                            'is_hidden': False,
-                            'error': f'Official solution statement {i+1} failed: {temp_result.get("error")}'
-                        }]
-                    official_result = temp_result  # Keep last successful result
-            
-            if not official_result:
-                return [{
-                    'test_case_id': f"{problem.id}_s3_solution",
-                    'passed': False,
-                    'expected': [],
-                    'actual': user_results,
-                    'is_hidden': False,
-                    'error': 'No valid statements found in official solution'
-                }]
-            
-            expected_results = official_result.get('result', [])
             
             # Compare user results with official solution results
             results_match = self._compare_query_results(user_results, expected_results)
