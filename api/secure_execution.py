@@ -448,15 +448,15 @@ class SecureQueryExecutor:
             
             # Sort both result sets for comparison (handle unordered results)
             def normalize_row(row):
-                """Convert row values to comparable format"""
+                """Convert row values to comparable format with robust type handling"""
                 normalized = {}
                 for key, value in row.items():
                     if value is None:
                         normalized[key] = None
-                    elif isinstance(value, (int, float)):
-                        normalized[key] = value
                     else:
-                        normalized[key] = str(value)
+                        # Convert to string and strip whitespace for consistent comparison
+                        # This handles int/float/string type mismatches gracefully
+                        normalized[key] = str(value).strip()
                 return normalized
             
             actual_normalized = [normalize_row(row) for row in actual]
