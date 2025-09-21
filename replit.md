@@ -91,6 +91,10 @@ Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
 
 ## Recent Changes
+- **September 21, 2025**: Fixed critical multi-table dataset validation encoding issue
+  - **Issue**: UTF-8 decoding errors in admin panel when validating S3 datasets
+  - **Fix**: Added robust encoding detection with fallback support (utf-8, latin-1, cp1252, ascii)
+  - **Impact**: Multi-table dataset validation now works with files in various text encodings
 - **September 20, 2025**: Successfully imported GitHub project and configured for Replit environment
 - **Application Status**: ✅ Running correctly - Frontend on port 5000, Backend on port 8000, Database connected
 - **Deployment**: ✅ Configured for autoscale deployment

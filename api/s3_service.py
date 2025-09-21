@@ -228,6 +228,45 @@ class S3AnswerService:
             logger.error(f"Failed to parse {file_format} content: {e}")
             raise ValueError(f"Failed to parse {file_format} file: {e}")
     
+    def _decode_content(self, content: bytes) -> str:
+        """
+        Decode bytes content to string with fallback encoding support.
+        
+        Tries multiple encodings to handle files that might not be UTF-8:
+        - utf-8 (preferred)
+        - utf-8-sig (UTF-8 with BOM)
+        - latin-1 (ISO-8859-1)
+        - cp1252 (Windows-1252)
+        - ascii
+        
+        Args:
+            content: Raw file content bytes
+            
+        Returns:
+            Decoded string content
+            
+        Raises:
+            ValueError: If content cannot be decoded with any supported encoding
+        """
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'ascii']
+        
+        for encoding in encodings:
+            try:
+                decoded_content = content.decode(encoding)
+                logger.debug(f"Successfully decoded content using {encoding} encoding")
+                return decoded_content
+            except UnicodeDecodeError:
+                logger.debug(f"Failed to decode content using {encoding} encoding")
+                continue
+                
+        # If all encodings fail, try with error handling
+        try:
+            decoded_content = content.decode('utf-8', errors='replace')
+            logger.warning("Decoded content using UTF-8 with error replacement - some characters may be corrupted")
+            return decoded_content
+        except Exception as e:
+            raise ValueError(f"Unable to decode file content with any supported encoding: {e}")
+    
     def _parse_csv(self, content: bytes) -> List[Dict[str, Any]]:
         """Parse CSV content to list of dictionaries"""
         if not PANDAS_AVAILABLE:
@@ -252,7 +291,7 @@ class S3AnswerService:
         import csv
         
         try:
-            text_content = content.decode('utf-8')
+            text_content = self._decode_content(content)
             reader = csv.DictReader(io.StringIO(text_content))
             data = []
             
@@ -281,7 +320,7 @@ class S3AnswerService:
     def _parse_json(self, content: bytes) -> List[Dict[str, Any]]:
         """Parse JSON content to list of dictionaries"""
         try:
-            text_content = content.decode('utf-8')
+            text_content = self._decode_content(content)
             data = json.loads(text_content)
             
             # Ensure data is a list of dictionaries
