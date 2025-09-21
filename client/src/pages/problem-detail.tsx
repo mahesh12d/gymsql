@@ -84,6 +84,10 @@ export default function ProblemDetail() {
       queryClient.invalidateQueries({
         queryKey: ["/api/submissions", problemId],
       });
+      // Also invalidate the problems list to update the isUserSolved status
+      queryClient.invalidateQueries({
+        queryKey: ["/api/problems"],
+      });
       // Auto-open submissions tab after successful submission
       setActiveTab('submission');
     },
