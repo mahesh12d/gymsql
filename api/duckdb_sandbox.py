@@ -29,6 +29,10 @@ class DuckDBSandbox:
     ]
     TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$')
     
+    # Resource limits for security and performance
+    MAX_TABLES_PER_PROBLEM = 20  # Maximum number of tables per problem
+    MAX_SAMPLE_ROWS_PER_TABLE = 1000  # Maximum sample rows per table
+    
     def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 128, sandbox_id: str = None):
         """
         Initialize DuckDB sandbox with memory and time limits
@@ -60,6 +64,209 @@ class DuckDBSandbox:
         # Basic escaping - wrap in double quotes and escape internal quotes
         return f'"{identifier.replace(chr(34), chr(34)+chr(34))}"'
     
+    def _validate_column_type(self, col_type: str) -> str:
+        """
+        Validate and sanitize column type to prevent DDL injection
+        
+        Args:
+            col_type: Column type string from user input
+            
+        Returns:
+            Validated and sanitized column type, or raises ValueError if invalid
+        """
+        if not col_type or not isinstance(col_type, str):
+            return "VARCHAR"
+        
+        # Clean and normalize
+        col_type = col_type.upper().strip()
+        
+        # Allowed DuckDB types (strict allowlist for security)
+        allowed_types = {
+            # Integer types
+            'BOOLEAN', 'BOOL',
+            'TINYINT', 'SMALLINT', 'INTEGER', 'INT', 'BIGINT',
+            'UTINYINT', 'USMALLINT', 'UINTEGER', 'UBIGINT',
+            
+            # Floating point types
+            'REAL', 'FLOAT', 'DOUBLE',
+            
+            # String types  
+            'VARCHAR', 'CHAR', 'TEXT', 'STRING',
+            
+            # Date/time types
+            'DATE', 'TIME', 'TIMESTAMP', 'TIMESTAMPTZ',
+            
+            # Other types
+            'UUID', 'BLOB', 'JSON'
+        }
+        
+        # Handle parameterized types (preserve parameters for valid base types)
+        base_type = col_type
+        parameters = ""
+        if '(' in col_type:
+            base_type = col_type.split('(')[0].strip()
+            # Extract parameters but validate they contain only digits, commas, spaces
+            param_part = col_type[col_type.find('('):]
+            if re.match(r'^\(\s*\d+(\s*,\s*\d+)?\s*\)$', param_part):
+                parameters = param_part
+            else:
+                # Invalid parameters, strip them
+                parameters = ""
+        
+        # Check if base type is allowed
+        if base_type not in allowed_types:
+            logger.warning(f"Invalid column type '{col_type}', defaulting to VARCHAR")
+            return "VARCHAR"
+        
+        # Return validated type with parameters if valid
+        return base_type + parameters
+
+    def _create_table_from_question_schema(self, table_name: str, columns: List[Dict[str, str]], sample_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Create a table in DuckDB from question schema definition
+        
+        Args:
+            table_name: Name of the table to create
+            columns: List of column definitions with 'name' and 'type' keys
+            sample_data: List of sample data rows to insert
+            
+        Returns:
+            Dict with success status and table information
+        """
+        try:
+            escaped_table_name = self._escape_identifier(table_name)
+            
+            # Begin transaction for atomicity
+            self.conn.execute("BEGIN TRANSACTION")
+            
+            try:
+                # Build CREATE TABLE statement with validated types
+                column_definitions = []
+                for col in columns:
+                    col_name = col.get('name', '').strip()
+                    col_type = col.get('type', 'VARCHAR').strip()
+                    
+                    if not col_name:
+                        self.conn.execute("ROLLBACK")
+                        return {"success": False, "error": f"Column name is required for table '{table_name}'"}
+                    
+                    # Validate column name
+                    if not self._validate_table_name(col_name):  # Reuse table name validation for column names
+                        self.conn.execute("ROLLBACK")
+                        return {"success": False, "error": f"Invalid column name '{col_name}' for table '{table_name}'"}
+                    
+                    # CRITICAL: Validate and sanitize column type to prevent DDL injection
+                    validated_type = self._validate_column_type(col_type)
+                    
+                    # Escape column name and add validated type
+                    escaped_col_name = self._escape_identifier(col_name)
+                    column_definitions.append(f"{escaped_col_name} {validated_type}")
+                
+                # Create the table
+                create_sql = f"CREATE TABLE {escaped_table_name} ({', '.join(column_definitions)})"
+                logger.info(f"Creating table with SQL: {create_sql}")
+                
+                # Drop table if it exists first
+                self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
+                self.conn.execute(create_sql)
+                
+                # Insert sample data if provided
+                rows_inserted = 0
+                if sample_data and len(sample_data) > 0:
+                    rows_inserted = self._insert_sample_data(table_name, sample_data)
+                
+                # Commit transaction on success
+                self.conn.execute("COMMIT")
+                
+                # Get table schema information for response
+                schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
+                schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+                
+                # Get actual row count
+                count_result = self.conn.execute(f"SELECT COUNT(*) FROM {escaped_table_name}").fetchone()
+                actual_row_count = count_result[0] if count_result else 0
+                
+                # Get sample data for display (limit to 3 rows)
+                sample_result = self.conn.execute(f"SELECT * FROM {escaped_table_name} LIMIT 3").fetchdf()
+                display_sample_data = sample_result.to_dict(orient="records") if not sample_result.empty else []
+                
+                table_info = {
+                    "name": table_name,
+                    "schema": schema,
+                    "row_count": actual_row_count,
+                    "sample_data": display_sample_data
+                }
+                
+                logger.info(f"Successfully created table '{table_name}' with {actual_row_count} rows")
+                
+                return {
+                    "success": True,
+                    "message": f"Table '{table_name}' created successfully with {actual_row_count} rows",
+                    "table_info": table_info
+                }
+                
+            except Exception as inner_e:
+                # Rollback on any error during table creation
+                self.conn.execute("ROLLBACK")
+                raise inner_e
+            
+        except Exception as e:
+            logger.error(f"Failed to create table '{table_name}': {e}")
+            return {"success": False, "error": f"Failed to create table '{table_name}': {str(e)}"}
+    
+    def _insert_sample_data(self, table_name: str, sample_data: List[Dict[str, Any]]) -> int:
+        """
+        Insert sample data into a table
+        
+        Args:
+            table_name: Name of the table
+            sample_data: List of data rows to insert
+            
+        Returns:
+            Number of rows inserted
+        """
+        try:
+            if not sample_data or len(sample_data) == 0:
+                return 0
+            
+            escaped_table_name = self._escape_identifier(table_name)
+            rows_inserted = 0
+            
+            # Get table columns to validate data
+            schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
+            table_columns = [row[0] for row in schema_result]
+            
+            for row_data in sample_data:
+                try:
+                    # Filter data to only include columns that exist in the table
+                    filtered_data = {col: val for col, val in row_data.items() if col in table_columns}
+                    
+                    if not filtered_data:
+                        continue  # Skip empty rows
+                    
+                    # Build INSERT statement with parameterized queries for safety
+                    columns = list(filtered_data.keys())
+                    values = list(filtered_data.values())
+                    
+                    escaped_columns = [self._escape_identifier(col) for col in columns]
+                    placeholders = ', '.join(['?' for _ in values])
+                    
+                    insert_sql = f"INSERT INTO {escaped_table_name} ({', '.join(escaped_columns)}) VALUES ({placeholders})"
+                    self.conn.execute(insert_sql, values)
+                    rows_inserted += 1
+                    
+                except Exception as row_error:
+                    logger.warning(f"Failed to insert row into '{table_name}': {row_error}. Row data: {row_data}")
+                    # Continue with other rows even if one fails
+                    continue
+            
+            logger.info(f"Inserted {rows_inserted} rows into table '{table_name}'")
+            return rows_inserted
+            
+        except Exception as e:
+            logger.error(f"Failed to insert sample data into '{table_name}': {e}")
+            return 0
+    
     def _initialize_connection(self):
         """Initialize DuckDB connection with security and performance settings"""
         try:
@@ -79,21 +286,80 @@ class DuckDBSandbox:
             logger.error(f"Failed to initialize DuckDB connection: {e}")
             raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
     
-    async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, parquet_data_source: Dict[str, str] = None) -> Dict[str, Any]:
+    async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, parquet_data_source: Dict[str, str] = None, question_tables: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Load problem dataset from parquet file into DuckDB (S3 only)
+        Load problem dataset into DuckDB from multiple sources:
+        1. Multiple tables from question.tables[] definitions (preferred for multi-table problems)
+        2. Single table from S3 parquet file (legacy single-table support)
         
         Args:
             problem_id: Unique identifier for the problem
-            s3_data_source: Dict containing bucket, key, table_name, description, etag
+            s3_data_source: Dict containing bucket, key, table_name, description, etag (legacy)
             parquet_data_source: Unused legacy parameter (Git integration removed)
+            question_tables: List of table definitions from question.tables[] field
             
         Returns:
             Dict with success status and any error messages
         """
         try:
-            # Check for S3 data source first (preferred approach)
-            if s3_data_source:
+            tables_created = []
+            total_rows = 0
+            
+            # Prefer question_tables (multi-table support) over S3 single-table
+            if question_tables and len(question_tables) > 0:
+                # Resource limits enforcement
+                if len(question_tables) > self.MAX_TABLES_PER_PROBLEM:
+                    return {"success": False, "error": f"Too many tables: {len(question_tables)}. Maximum allowed: {self.MAX_TABLES_PER_PROBLEM}"}
+                
+                logger.info(f"Loading {len(question_tables)} tables from question definitions for problem {problem_id}")
+                
+                for table_def in question_tables:
+                    try:
+                        table_name = table_def.get('name', '').strip()
+                        columns = table_def.get('columns', [])
+                        sample_data = table_def.get('sampleData', table_def.get('sample_data', []))
+                        
+                        if not table_name:
+                            return {"success": False, "error": "Table name is required for each table definition"}
+                        
+                        # Security validation
+                        if not self._validate_table_name(table_name):
+                            return {"success": False, "error": f"Invalid table name: {table_name}"}
+                        
+                        if not columns or len(columns) == 0:
+                            return {"success": False, "error": f"Table '{table_name}' must have at least one column defined"}
+                        
+                        # Resource limits: check sample data size
+                        if sample_data and len(sample_data) > self.MAX_SAMPLE_ROWS_PER_TABLE:
+                            return {"success": False, "error": f"Too many sample rows for table '{table_name}': {len(sample_data)}. Maximum allowed: {self.MAX_SAMPLE_ROWS_PER_TABLE}"}
+                        
+                        # Create table from schema definition
+                        create_result = self._create_table_from_question_schema(table_name, columns, sample_data)
+                        if not create_result["success"]:
+                            return create_result
+                        
+                        table_info = create_result["table_info"]
+                        tables_created.append(table_info)
+                        total_rows += table_info["row_count"]
+                        
+                        # Track loaded table for security validation
+                        self.loaded_table_names.add(table_name)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to create table '{table_name}': {e}")
+                        return {"success": False, "error": f"Failed to create table '{table_name}': {str(e)}"}
+                
+                return {
+                    "success": True,
+                    "message": f"Successfully created {len(tables_created)} tables from question definitions",
+                    "tables": tables_created,
+                    "total_tables": len(tables_created),
+                    "total_rows": total_rows,
+                    "data_source": "question_definitions"
+                }
+            
+            # Fallback to S3 data source (legacy single-table support)
+            elif s3_data_source:
                 # Use S3 data source
                 bucket = s3_data_source.get('bucket', '')
                 key = s3_data_source.get('key', '')
@@ -156,8 +422,8 @@ class DuckDBSandbox:
                     return {"success": False, "error": f"Failed to load S3 dataset: {str(e)}"}
             
             else:
-                # No S3 data source provided
-                return {"success": False, "error": "S3 data source is required - Git repository integration has been removed"}
+                # No data source provided
+                return {"success": False, "error": "Either question_tables or s3_data_source is required"}
             
         except Exception as e:
             error_msg = f"Failed to load problem data for {problem_id}: {str(e)}"
