@@ -397,8 +397,14 @@ class SecureQueryExecutor:
                     if result.get('success'):
                         user_results = result.get('results', [])
                         
-                        # Fast comparison
-                        is_correct = self._compare_results_fast(user_results, expected_output)
+                        # Enhanced comparison with detailed feedback
+                        is_correct, comparison_details = self._compare_results_detailed(user_results, expected_output)
+                        
+                        feedback = []
+                        if is_correct:
+                            feedback.append('Results match expected output perfectly')
+                        else:
+                            feedback.extend(comparison_details)
                         
                         return [{
                             'test_case_id': f"{problem_id}_expected_output",
@@ -406,7 +412,7 @@ class SecureQueryExecutor:
                             'is_hidden': False,
                             'is_correct': is_correct,
                             'score': 100.0 if is_correct else 0.0,
-                            'feedback': ['Results match expected output'] if is_correct else ['Results differ from expected output'],
+                            'feedback': feedback,
                             'execution_time_ms': result.get('execution_time_ms', 0),
                             'user_output': user_results,
                             'expected_output': expected_output,
@@ -499,8 +505,14 @@ class SecureQueryExecutor:
                             logger.error(f"Failed to fetch S3 expected output: {e}")
                             # Continue with fallback expected_output
                     
-                    # Fast comparison
-                    is_correct = self._compare_results_fast(user_output, expected_output)
+                    # Enhanced comparison with detailed feedback
+                    is_correct, comparison_details = self._compare_results_detailed(user_output, expected_output)
+                    
+                    feedback = []
+                    if is_correct:
+                        feedback.append('Results match expected output perfectly')
+                    else:
+                        feedback.extend(comparison_details)
                     
                     results.append({
                         'test_case_id': test_case.id,
@@ -508,7 +520,7 @@ class SecureQueryExecutor:
                         'is_hidden': test_case.is_hidden,
                         'is_correct': is_correct,
                         'score': 100.0 if is_correct else 0.0,
-                        'feedback': ['Results match expected output'] if is_correct else ['Results differ from expected output'],
+                        'feedback': feedback,
                         'execution_time_ms': result.get('execution_time_ms', 0),
                         'execution_status': ExecutionStatus.SUCCESS.value,
                         'user_output': user_output,
@@ -711,6 +723,71 @@ class SecureQueryExecutor:
             logger.error(f"Fast comparison failed: {e}")
             return False
     
+    def _compare_results_detailed(self, user_results: List[Dict], expected_results: List[Dict]) -> Tuple[bool, List[str]]:
+        """Detailed result comparison with specific feedback"""
+        try:
+            feedback = []
+            
+            # Check row count first
+            user_count = len(user_results)
+            expected_count = len(expected_results)
+            
+            if user_count != expected_count:
+                feedback.append(f"Row count mismatch: your query returned {user_count} rows, expected {expected_count} rows")
+                return False, feedback
+            
+            if user_count == 0:
+                return True, ["Both results are empty"]
+            
+            # Check column structure
+            if user_results and expected_results:
+                user_columns = set(user_results[0].keys()) if user_results[0] else set()
+                expected_columns = set(expected_results[0].keys()) if expected_results[0] else set()
+                
+                if user_columns != expected_columns:
+                    missing_cols = expected_columns - user_columns
+                    extra_cols = user_columns - expected_columns
+                    
+                    if missing_cols:
+                        feedback.append(f"Missing columns: {', '.join(sorted(missing_cols))}")
+                    if extra_cols:
+                        feedback.append(f"Unexpected columns: {', '.join(sorted(extra_cols))}")
+                    
+                    return False, feedback
+            
+            # Check data content
+            for i, (user_row, expected_row) in enumerate(zip(user_results, expected_results)):
+                if user_row != expected_row:
+                    # Find specific differences
+                    differences = []
+                    for col in expected_row.keys():
+                        if col in user_row:
+                            user_val = user_row[col]
+                            expected_val = expected_row[col]
+                            if user_val != expected_val:
+                                differences.append(f"{col}: got '{user_val}', expected '{expected_val}'")
+                    
+                    if differences:
+                        if i < 3:  # Show details for first few rows
+                            feedback.append(f"Row {i + 1} differs - {'; '.join(differences[:3])}")
+                        elif i == 3:  # Summarize if many differences
+                            feedback.append(f"... and {user_count - i} more rows with differences")
+                            break
+                    else:
+                        feedback.append(f"Row {i + 1} has subtle differences in data types or formatting")
+                    
+                    if len(feedback) >= 5:  # Limit feedback length
+                        break
+            
+            if feedback:
+                return False, feedback
+            else:
+                return True, ["Results match perfectly"]
+                
+        except Exception as e:
+            logger.error(f"Detailed comparison failed: {e}")
+            return False, [f"Comparison error: {str(e)}"]
+    
     def _compute_result_hash_fast(self, results: List[Dict[str, Any]]) -> str:
         """Fast hash computation for results"""
         try:
@@ -722,7 +799,7 @@ class SecureQueryExecutor:
             return "error_hash"
     
     def _calculate_score_fast(self, test_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Fast scoring calculation"""
+        """Enhanced scoring calculation with detailed feedback"""
         if not test_results:
             return {
                 'overall_score': 0.0,
@@ -730,7 +807,7 @@ class SecureQueryExecutor:
                 'total_count': 0,
                 'avg_execution_time': 0,
                 'max_execution_time': 0,
-                'feedback': ['No test results available']
+                'feedback': ['No test results available - this problem may not have test cases configured yet.']
             }
         
         passed_count = sum(1 for result in test_results if result.get('is_correct', False))
@@ -741,13 +818,44 @@ class SecureQueryExecutor:
         avg_execution_time = sum(execution_times) / len(execution_times) if execution_times else 0
         max_execution_time = max(execution_times) if execution_times else 0
         
-        feedback = []
+        # Collect detailed feedback from all test results
+        detailed_feedback = []
+        
+        # Add overall score summary
         if passed_count == total_count:
-            feedback.append('All test cases passed!')
+            detailed_feedback.append(f'✅ Excellent! All {total_count} test case(s) passed!')
         elif passed_count > 0:
-            feedback.append(f'{passed_count} of {total_count} test cases passed')
+            detailed_feedback.append(f'⚠️  {passed_count} of {total_count} test cases passed')
         else:
-            feedback.append('No test cases passed')
+            detailed_feedback.append(f'❌ None of the {total_count} test case(s) passed')
+        
+        # Add specific feedback from each test result
+        for i, result in enumerate(test_results, 1):
+            test_name = result.get('test_case_name', f'Test Case {i}')
+            is_correct = result.get('is_correct', False)
+            test_feedback = result.get('feedback', [])
+            
+            if is_correct:
+                detailed_feedback.append(f'✓ {test_name}: PASSED')
+            else:
+                detailed_feedback.append(f'✗ {test_name}: FAILED')
+                # Add specific failure details
+                if test_feedback:
+                    for fb in test_feedback:
+                        detailed_feedback.append(f'  → {fb}')
+                
+                # Add comparison details if available
+                if 'user_output' in result and 'expected_output' in result:
+                    user_rows = len(result.get('user_output', []))
+                    expected_rows = len(result.get('expected_output', []))
+                    if user_rows != expected_rows:
+                        detailed_feedback.append(f'  → Row count mismatch: got {user_rows} rows, expected {expected_rows} rows')
+                    elif user_rows > 0:
+                        detailed_feedback.append(f'  → Row count matches ({user_rows} rows) but data differs')
+        
+        # Add execution time info if significant
+        if avg_execution_time > 1000:  # More than 1 second
+            detailed_feedback.append(f'⏱️  Average execution time: {avg_execution_time:.0f}ms')
         
         return {
             'overall_score': overall_score,
@@ -755,7 +863,7 @@ class SecureQueryExecutor:
             'total_count': total_count,
             'avg_execution_time': avg_execution_time,
             'max_execution_time': max_execution_time,
-            'feedback': feedback
+            'feedback': detailed_feedback
         }
     
     def _generate_feedback_fast(self, test_results: List[Dict[str, Any]]) -> List[str]:
