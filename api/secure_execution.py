@@ -91,12 +91,9 @@ class SecureQueryExecutor:
                 }
             
             # Step 2: Validate query security with semantic validation
-            logger.info(f"Validating query with loaded_table_names: {sandbox.loaded_table_names}")
             validation_result = query_validator.validate_query(query, sandbox.loaded_table_names)
-            logger.info(f"Validation result: {validation_result}")
             
             if not validation_result['is_valid']:
-                logger.error(f"Query validation failed for user {user_id}, problem {problem_id}: {validation_result['errors']}")
                 return {
                     'success': False,
                     'is_correct': False,
@@ -185,12 +182,9 @@ class SecureQueryExecutor:
                 }
             
             # Step 2: Quick validation with semantic validation
-            logger.info(f"[TEST] Validating query with loaded_table_names: {sandbox.loaded_table_names}")
             validation_result = query_validator.validate_query(query, sandbox.loaded_table_names)
-            logger.info(f"[TEST] Validation result: {validation_result}")
             
             if not validation_result['is_valid']:
-                logger.error(f"[TEST] Query validation failed for user {user_id}, problem {problem_id}: {validation_result['errors']}")
                 return {
                     'success': False,
                     'feedback': validation_result['errors'],

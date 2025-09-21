@@ -70,10 +70,6 @@ class DuckDBSandbox:
             self.conn.execute("SET memory_limit = ?", [f"{self.memory_limit_mb}MB"])
             self.conn.execute("SET threads = 1")  # Limit threads for sandbox
             
-            # IMPORTANT: Clear loaded table names when connection is reset
-            # since the new in-memory database won't have the previously loaded tables
-            self.loaded_table_names.clear()
-            
             # Note: httpfs is only loaded temporarily during setup_problem_data, 
             # not permanently for user queries to prevent SSRF
             
