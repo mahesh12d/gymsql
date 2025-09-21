@@ -1,0 +1,136 @@
+the updated full script where _extract_query_elements is reworked to use sqlparse’s AST elements (Function, Identifier, IdentifierList) instead of maintaining giant keyword/function exclusion lists.
+
+This way:
+
+You automatically detect tables vs functions instead of guessing by name.
+
+You don’t need to maintain sql_functions and exclude_keywords.
+
+Query parsing is more reliable for future cases.
+
+Here’s the improved version 👇
+
+import sqlparse
+from sqlparse.sql import Identifier, IdentifierList, Function, Token
+from sqlparse.tokens import Keyword, DML, Name
+
+class SQLValidator:
+    def __init__(self, allowed_tables=None, max_subqueries=2, max_joins=3):
+        """
+        Initialize validator with configurable rules
+        """
+        self.allowed_tables = allowed_tables or set()
+        self.max_subqueries = max_subqueries
+        self.max_joins = max_joins
+
+    def validate(self, query: str) -> dict:
+        """
+        Validate query and return structured result
+        """
+        result = {
+            "query": query.strip(),
+            "tables": set(),
+            "functions": set(),
+            "subqueries": 0,
+            "joins": 0,
+            "errors": [],
+            "warnings": [],
+            "complexity_score": 0,
+        }
+
+        try:
+            parsed = sqlparse.parse(query)
+            if not parsed:
+                result["errors"].append("Invalid SQL or empty query")
+                return result
+
+            stmt = parsed[0]
+            query_info = self._extract_query_elements(stmt)
+
+            # Populate result
+            result.update(query_info)
+
+            # Run rule-based validations
+            self._apply_rules(result)
+
+        except Exception as e:
+            result["errors"].append(f"Parsing error: {str(e)}")
+
+        return result
+
+    def _extract_query_elements(self, stmt):
+        """
+        Use sqlparse AST to extract tables, functions, joins, subqueries
+        """
+        tables = set()
+        functions = set()
+        joins = 0
+        subqueries = 0
+
+        def extract_tokens(token_list):
+            nonlocal joins, subqueries
+
+            for token in token_list:
+                # Handle nested statements
+                if token.is_group:
+                    if token.ttype is DML and token.value.upper() == "SELECT":
+                        subqueries += 1
+                    extract_tokens(token.tokens)
+
+                # Handle functions
+                if isinstance(token, Function):
+                    functions.add(token.get_name().lower())
+
+                # Handle identifiers (tables/columns)
+                elif isinstance(token, Identifier):
+                    name = token.get_real_name()
+                    if name:
+                        tables.add(name.lower())
+
+                elif isinstance(token, IdentifierList):
+                    for identifier in token.get_identifiers():
+                        if isinstance(identifier, Identifier):
+                            name = identifier.get_real_name()
+                            if name:
+                                tables.add(name.lower())
+
+                # Count JOINs
+                elif token.ttype is Keyword and "JOIN" in token.value.upper():
+                    joins += 1
+
+        extract_tokens(stmt.tokens)
+
+        return {
+            "tables": tables,
+            "functions": functions,
+            "subqueries": subqueries,
+            "joins": joins,
+        }
+
+    def _apply_rules(self, result):
+        """
+        Apply validation rules on extracted elements
+        """
+        # Rule: Allowed tables only
+        for t in result["tables"]:
+            if self.allowed_tables and t not in self.allowed_tables:
+                result["errors"].append(f"Table '{t}' is not part of dataset")
+
+        # Rule: Subquery limit
+        if result["subqueries"] > self.max_subqueries:
+            result["errors"].append("Too many subqueries")
+
+        # Rule: JOIN limit
+        if result["joins"] > self.max_joins:
+            result["errors"].append("Too many joins")
+
+        # Rule: SELECT *
+        if "select *" in result["query"].lower():
+            result["warnings"].append("Avoid using SELECT *")
+
+        # Complexity scoring (tunable)
+        result["complexity_score"] = (
+            result["subqueries"] * 2
+            + result["joins"] * 3
+            + len(result["functions"])
+        )

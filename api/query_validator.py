@@ -72,9 +72,14 @@ class ExecutionLimits:
 class SecureSQLValidator:
     """Comprehensive SQL query validator with security checks"""
 
-    def __init__(self):
+    def __init__(self, allowed_tables=None, max_subqueries=2, max_joins=3):
         # Execution limits
         self.execution_limits = ExecutionLimits()
+        
+        # Configurable validation limits
+        self.allowed_tables = allowed_tables or set()
+        self.max_subqueries = max_subqueries
+        self.max_joins = max_joins
 
         # Strictly blocked DML/DDL keywords (anywhere in query)
         self.blocked_keywords = {
@@ -356,8 +361,10 @@ class SecureSQLValidator:
                     info['statement_type'] = token.value.upper()
                     break
 
-            # Extract table names, functions, etc.
-            self._extract_query_elements(parsed_query, info)
+            # Extract table names, functions, etc. using improved method
+            extracted_info = self._extract_query_elements(parsed_query)
+            # Merge the extracted info with the existing info structure
+            info.update(extracted_info)
 
             # Calculate complexity score
             info['complexity_score'] = self._calculate_complexity(info)
@@ -367,226 +374,108 @@ class SecureSQLValidator:
 
         return info
 
-    def _extract_query_elements(self,
-                                token,
-                                info: Dict[str, Any],
-                                depth: int = 0,
-                                context: str = None,
-                                parent_tokens: list = None):
-        """Recursively extract query elements with better context awareness"""
-        if parent_tokens is None:
-            parent_tokens = []
+    def _extract_query_elements(self, stmt):
+        """
+        Use sqlparse AST to extract tables, functions, joins, subqueries
+        This replaces the old hardcoded approach with proper AST parsing
+        """
+        from sqlparse.sql import Identifier, IdentifierList, Function
+        from sqlparse.tokens import Keyword, DML
+        
+        tables = set()
+        functions = set()
+        joins = 0
+        subqueries = 0
 
-        if hasattr(token, 'tokens'):
-            for i, sub_token in enumerate(token.tokens):
-                # Determine context based on surrounding tokens
-                sub_context = context
+        def extract_tokens(token_list):
+            nonlocal joins, subqueries
 
-                # Look for FROM/JOIN keywords to identify table names
-                if hasattr(sub_token, 'value') and sub_token.value.upper() in [
-                        'FROM', 'JOIN', 'UPDATE', 'INTO'
-                ]:
-                    sub_context = 'expecting_table'
-                elif context == 'expecting_table' and hasattr(
-                        sub_token, 'value') and sub_token.ttype is tokens.Name:
-                    sub_context = 'table_name'
-                elif context == 'table_name':
-                    sub_context = None  # Reset after finding table name
+            for token in token_list:
+                # Handle nested statements
+                if token.is_group:
+                    if hasattr(token, 'tokens'):
+                        # Count subqueries by looking for nested SELECT statements
+                        token_str = str(token).strip().upper()
+                        if token_str.startswith('(') and 'SELECT' in token_str:
+                            subqueries += 1
+                        extract_tokens(token.tokens)
 
-                new_parent_tokens = parent_tokens + [token]
-                self._extract_query_elements(sub_token, info, depth + 1,
-                                             sub_context, new_parent_tokens)
-        else:
-            # Extract different elements based on token type and context
-            if token.ttype is tokens.Name:
-                value = token.value.lower()
+                # Handle functions
+                if isinstance(token, Function):
+                    func_name = token.get_name()
+                    if func_name:
+                        functions.add(func_name.lower())
 
-                # Common SQL aggregate and scalar functions that should NOT be treated as table names
-                sql_functions = {
-                    # Aggregates
-                    'sum',
-                    'count',
-                    'avg',
-                    'min',
-                    'max',
-                    'std',
-                    'stddev',
-                    'variance',
-                    'array_agg',
-                    'json_agg',
-                    'string_agg',
+                # Handle identifiers (tables/columns)
+                elif isinstance(token, Identifier):
+                    name = token.get_real_name()
+                    if name and self._is_likely_table_name(token, token_list):
+                        tables.add(name.lower())
 
-                    # Math
-                    'abs',
-                    'round',
-                    'ceil',
-                    'ceiling',
-                    'floor',
-                    'sqrt',
-                    'power',
-                    'mod',
-                    'ln',
-                    'log',
-                    'exp',
+                elif isinstance(token, IdentifierList):
+                    for identifier in token.get_identifiers():
+                        if isinstance(identifier, Identifier):
+                            name = identifier.get_real_name()
+                            if name and self._is_likely_table_name(identifier, token_list):
+                                tables.add(name.lower())
 
-                    # String
-                    'concat',
-                    'substr',
-                    'substring',
-                    'length',
-                    'char_length',
-                    'upper',
-                    'lower',
-                    'trim',
-                    'ltrim',
-                    'rtrim',
-                    'replace',
-                    'position',
-                    'instr',
-                    'initcap',
+                # Count JOINs
+                elif hasattr(token, 'ttype') and token.ttype is Keyword and "JOIN" in token.value.upper():
+                    joins += 1
 
-                    # Date/Time
-                    'date',
-                    'time',
-                    'timestamp',
-                    'extract',
-                    'now',
-                    'current_date',
-                    'current_time',
-                    'current_timestamp',
-                    'age',
-                    'date_trunc',
-                    'to_date',
-                    'to_char',
-                    'to_timestamp',
+        extract_tokens(stmt.tokens)
 
-                    # Null handling
-                    'coalesce',
-                    'nullif',
-                    'ifnull',
-                    'isnull',
+        return {
+            "tables": list(tables),
+            "functions": list(functions),
+            "subqueries": subqueries,
+            "joins": joins,
+        }
 
-                    # Casting
-                    'cast',
-                    'convert',
-
-                    # Window functions
-                    'rank',
-                    'row_number',
-                    'dense_rank',
-                    'lag',
-                    'lead',
-                    'first_value',
-                    'last_value',
-                    'nth_value',
-
-                    # Conditionals
-                    'case',
-                    'when',
-                    'then',
-                    'else',
-
-                    # Advanced / Common
-                    'greatest',
-                    'least'
-                }
-
-                # Basic keywords to exclude
-                exclude_keywords = {
-                    # Core
-                    'select',
-                    'from',
-                    'where',
-                    'and',
-                    'or',
-                    'as',
-                    'on',
-                    'in',
-                    'by',
-                    'order',
-                    'group',
-                    'having',
-                    'limit',
-                    'offset',
-                    'distinct',
-                    'union',
-                    'intersect',
-                    'except',
-
-                    # Joins
-                    'join',
-                    'inner',
-                    'left',
-                    'right',
-                    'full',
-                    'cross',
-                    'using',
-
-                    # Conditions
-                    'not',
-                    'between',
-                    'like',
-                    'is',
-                    'null',
-                    'exists',
-                    'any',
-                    'all',
-
-                    # CTEs
-                    'with',
-                    'recursive',
-
-                    # Case expressions
-                    'case',
-                    'when',
-                    'then',
-                    'else',
-                    'end',
-
-                    # Sorting
-                    'asc',
-                    'desc'
-                }
-
-                # Check if this name is inside parentheses (likely a function parameter/column)
-                is_in_function = False
-                for parent in parent_tokens:
-                    if hasattr(parent, 'tokens'):
-                        parent_str = str(parent).strip()
-                        if '(' in parent_str and parent_str.count(
-                                '(') > parent_str.count(')'):
-                            is_in_function = True
-                            break
-
-                if value not in exclude_keywords and value not in sql_functions:
-                    # Only add to tables if we're explicitly expecting a table name
-                    if context == 'table_name' and not is_in_function:
-                        if value not in info['tables']:
-                            info['tables'].append(value)
-                    # Don't add names that appear in function contexts or without clear table context
-                    # This prevents column names like 'PassengerId' from being treated as tables
-
-            elif token.ttype is tokens.Name.Builtin:
-                # Built-in functions
-                func_name = token.value.lower()
-                if func_name not in info['functions']:
-                    info['functions'].append(func_name)
-
-            elif token.ttype is tokens.Keyword and token.value.upper() in [
-                    'JOIN', 'INNER', 'LEFT', 'RIGHT', 'FULL'
-            ]:
-                join_type = token.value.upper()
-                if join_type not in info['joins']:
-                    info['joins'].append(join_type)
+    def _is_likely_table_name(self, identifier, parent_tokens):
+        """
+        Determine if an identifier is likely a table name based on context
+        """
+        # Get the identifier as string
+        identifier_str = str(identifier).strip()
+        
+        # Skip if it contains dots (likely column references like o.id)
+        if '.' in identifier_str:
+            return False
+            
+        # Look at the immediate context around this identifier
+        context_tokens = []
+        for token in parent_tokens:
+            if hasattr(token, 'tokens'):
+                for sub_token in token.tokens:
+                    if hasattr(sub_token, 'value'):
+                        context_tokens.append(sub_token.value.upper())
+        
+        context_str = ' '.join(context_tokens[-10:])  # Last 10 tokens for context
+        
+        # Look for keywords that typically precede table names
+        table_indicators = ['FROM', 'JOIN', 'UPDATE', 'INTO']
+        
+        # Check if any table indicator appears right before this identifier
+        for indicator in table_indicators:
+            if indicator in context_str:
+                # Find position of indicator
+                indicator_pos = context_str.rfind(indicator)
+                # Check if our identifier appears after the indicator
+                remaining_context = context_str[indicator_pos + len(indicator):].strip()
+                if remaining_context.startswith(identifier_str.upper()):
+                    return True
+                
+        return False
 
     def _calculate_complexity(self, info: Dict[str, Any]) -> int:
-        """Calculate query complexity score"""
+        """Calculate query complexity score using improved scoring"""
         score = 0
-        score += len(info['tables']) * 2
-        score += len(info['joins']) * 3
-        score += len(info['functions']) * 2
-        score += info['subqueries'] * 5
-        score += len(info['where_clauses'])
+        score += len(info.get('tables', [])) * 2
+        score += info.get('joins', 0) * 3
+        score += len(info.get('functions', [])) * 1
+        score += info.get('subqueries', 0) * 2
+        score += len(info.get('where_clauses', []))
         return score
 
     def _validate_security(self, query: str,
@@ -613,6 +502,25 @@ class SecureSQLValidator:
         if query_info.get('statement_type') in self.allowed_statements:
             result['allowed_operations'].append(query_info['statement_type'])
 
+        # NEW: Configurable table validation
+        for table in query_info.get('tables', []):
+            if self.allowed_tables and table not in self.allowed_tables:
+                result['errors'].append(f"Table '{table}' is not part of dataset")
+
+        # NEW: Subquery limit validation
+        subquery_count = query_info.get('subqueries', 0)
+        if subquery_count > self.max_subqueries:
+            result['errors'].append(
+                f"Too many subqueries ({subquery_count}). Maximum allowed: {self.max_subqueries}"
+            )
+
+        # NEW: JOIN limit validation
+        join_count = query_info.get('joins', 0)
+        if join_count > self.max_joins:
+            result['errors'].append(
+                f"Too many joins ({join_count}). Maximum allowed: {self.max_joins}"
+            )
+
         # Enhanced complexity warnings
         complexity_score = query_info.get('complexity_score', 0)
         if complexity_score > 25:
@@ -621,7 +529,8 @@ class SecureSQLValidator:
             result['warnings'].append("High query complexity detected")
 
         # Check for too many tables (potential for cartesian product)
-        table_count = len(query_info.get('tables', []))
+        tables = query_info.get('tables', [])
+        table_count = len(tables) if isinstance(tables, list) else 0
         if table_count > 6:
             result['warnings'].append(
                 f"Query accesses {table_count} tables - ensure proper JOIN conditions to avoid cartesian products"
@@ -635,6 +544,10 @@ class SecureSQLValidator:
                 '%') == query.index('LIKE') + 5:
             result['warnings'].append(
                 "Leading wildcard in LIKE pattern may cause slow performance")
+
+        # NEW: SELECT * warning
+        if "select *" in query.lower():
+            result["warnings"].append("Avoid using SELECT * - specify columns explicitly")
 
         return result
 
