@@ -65,7 +65,11 @@ export function CreateQuestionTab() {
         ...state.problemDraft,
         question: {
           ...state.problemDraft.question,
-          expectedOutput
+          expectedOutput,
+          // Include s3_data_source if it exists in the question
+          ...(state.problemDraft.question.s3_data_source && {
+            s3_data_source: state.problemDraft.question.s3_data_source
+          })
         }
       };
       
