@@ -1093,8 +1093,8 @@ def create_question_enhanced(
                 error=dataset_validation["error"]
             )
         
-        # Step 2: Fetch solution SQL from S3
-        logger.info(f"Fetching solution SQL from S3: {request.solution_path}")
+        # Step 2: Fetch solution from S3 (supports both SQL and parquet)
+        logger.info(f"Fetching solution from S3: {request.solution_path}")
         solution_result = s3_service.fetch_solution_sql(
             bucket=solution_bucket,
             key=solution_key
@@ -1103,46 +1103,56 @@ def create_question_enhanced(
         if not solution_result["success"]:
             return EnhancedQuestionCreateResponse(
                 success=False,
-                message=f"Solution SQL fetch failed: {solution_result['error']}",
+                message=f"Solution fetch failed: {solution_result['error']}",
                 problem_id=request.problem_id,
                 error=solution_result["error"]
             )
         
-        solution_sql = solution_result["sql_content"]
-        
-        # Step 3: Execute solution SQL on dataset using DuckDB
-        logger.info(f"Executing solution SQL on dataset")
+        # Step 3: Get expected results based on solution type
+        logger.info(f"Processing solution ({solution_result['file_type']})")
         import duckdb
         import tempfile
         
         try:
-            # Download dataset to temporary file
-            temp_dataset_path = s3_service.download_to_temp_file(dataset_bucket, dataset_key)
-            
-            # Create DuckDB connection and load dataset
-            conn = duckdb.connect(":memory:")
-            conn.execute("CREATE TABLE dataset AS SELECT * FROM read_parquet(?)", [temp_dataset_path])
-            
-            # Execute solution SQL
-            result = conn.execute(solution_sql).fetchall()
-            columns = [desc[0] for desc in conn.description]
-            
-            # Convert to list of dictionaries
-            expected_results = [dict(zip(columns, row)) for row in result]
-            
-            # Clean up temporary file
-            try:
-                os.unlink(temp_dataset_path)
-            except:
-                pass
+            if solution_result["file_type"] == "sql":
+                # SQL solution: Execute SQL on dataset
+                solution_sql = solution_result["sql_content"]
+                
+                # Download dataset to temporary file
+                temp_dataset_path = s3_service.download_to_temp_file(dataset_bucket, dataset_key)
+                
+                # Create DuckDB connection and load dataset
+                conn = duckdb.connect(":memory:")
+                conn.execute("CREATE TABLE dataset AS SELECT * FROM read_parquet(?)", [temp_dataset_path])
+                
+                # Execute solution SQL
+                result = conn.execute(solution_sql).fetchall()
+                columns = [desc[0] for desc in conn.description]
+                
+                # Convert to list of dictionaries
+                expected_results = [dict(zip(columns, row)) for row in result]
+                
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_dataset_path)
+                except:
+                    pass
+                    
+            elif solution_result["file_type"] == "parquet":
+                # Parquet solution: Use parquet data directly as expected results
+                expected_results = solution_result["solution_data"]
+                logger.info(f"Using parquet solution with {len(expected_results)} rows")
+                
+            else:
+                raise ValueError(f"Unsupported solution file type: {solution_result['file_type']}")
                 
         except Exception as e:
-            logger.error(f"Failed to execute solution SQL: {e}")
+            logger.error(f"Failed to process solution: {e}")
             return EnhancedQuestionCreateResponse(
                 success=False,
-                message=f"Solution execution failed: {str(e)}",
+                message=f"Solution processing failed: {str(e)}",
                 problem_id=request.problem_id,
-                error=f"SQL execution error: {str(e)}"
+                error=f"Solution processing error: {str(e)}"
             )
         
         # Step 4: Generate expected hash and preview rows

@@ -649,31 +649,63 @@ class S3AnswerService:
     
     def fetch_solution_sql(self, bucket: str, key: str) -> Dict[str, Any]:
         """
-        Fetch SQL solution file from S3 and return as structured response
+        Fetch solution file from S3 and return as structured response
+        Supports both SQL files (.sql) and parquet files (.parquet) as solutions
         
         Args:
             bucket: S3 bucket name
-            key: S3 object key (SQL file path)
+            key: S3 object key (SQL or parquet file path)
             
         Returns:
-            Dict with success status, sql_content, and error information
+            Dict with success status, sql_content or solution_data, and error information
         """
         try:
-            # Use the existing text file download method
-            sql_content = self.download_text_file(bucket, key)
+            # Determine file type from extension
+            file_extension = os.path.splitext(key)[1].lower()
             
-            logger.info(f"Successfully fetched solution SQL from {bucket}/{key} ({len(sql_content)} characters)")
-            
-            return {
-                "success": True,
-                "sql_content": sql_content,
-                "bucket": bucket,
-                "key": key
-            }
+            if file_extension == '.sql':
+                # Handle SQL file - use text file download
+                sql_content = self.download_text_file(bucket, key)
+                
+                logger.info(f"Successfully fetched solution SQL from {bucket}/{key} ({len(sql_content)} characters)")
+                
+                return {
+                    "success": True,
+                    "sql_content": sql_content,
+                    "file_type": "sql",
+                    "bucket": bucket,
+                    "key": key
+                }
+                
+            elif file_extension == '.parquet':
+                # Handle parquet file - use existing parquet parsing logic
+                cache_result = self.fetch_answer_file(bucket=bucket, key=key, file_format='parquet')
+                
+                logger.info(f"Successfully fetched solution parquet from {bucket}/{key} ({len(cache_result.data)} rows)")
+                
+                return {
+                    "success": True,
+                    "solution_data": cache_result.data,
+                    "file_type": "parquet",
+                    "bucket": bucket,
+                    "key": key,
+                    "etag": cache_result.etag
+                }
+                
+            else:
+                # Unsupported file type
+                error_msg = f"Unsupported solution file type: {file_extension}. Supported types: .sql, .parquet"
+                logger.error(f"Unsupported file type for {bucket}/{key}: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "bucket": bucket,
+                    "key": key
+                }
             
         except ValueError as e:
             # Handle validation errors (bucket not allowed, file too large, etc.)
-            logger.error(f"Validation error fetching solution SQL from {bucket}/{key}: {e}")
+            logger.error(f"Validation error fetching solution from {bucket}/{key}: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -687,11 +719,11 @@ class S3AnswerService:
             if error_code == 'NoSuchBucket':
                 error_msg = f"S3 bucket '{bucket}' does not exist"
             elif error_code == 'NoSuchKey':
-                error_msg = f"SQL file '{key}' not found in bucket '{bucket}'"
+                error_msg = f"Solution file '{key}' not found in bucket '{bucket}'"
             else:
                 error_msg = f"S3 error: {e}"
             
-            logger.error(f"S3 error fetching solution SQL from {bucket}/{key}: {error_msg}")
+            logger.error(f"S3 error fetching solution from {bucket}/{key}: {error_msg}")
             return {
                 "success": False,
                 "error": error_msg,
@@ -701,10 +733,10 @@ class S3AnswerService:
             
         except Exception as e:
             # Handle any other errors
-            logger.error(f"Unexpected error fetching solution SQL from {bucket}/{key}: {e}")
+            logger.error(f"Unexpected error fetching solution from {bucket}/{key}: {e}")
             return {
                 "success": False,
-                "error": f"Failed to fetch solution SQL: {str(e)}",
+                "error": f"Failed to fetch solution: {str(e)}",
                 "bucket": bucket,
                 "key": key
             }

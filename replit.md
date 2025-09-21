@@ -91,17 +91,27 @@ Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
 
 ## Recent Changes
-- **September 21, 2025**: Fixed critical multi-table dataset validation encoding issue
-  - **Issue**: UTF-8 decoding errors in admin panel when validating S3 datasets
-  - **Fix**: Added robust encoding detection with fallback support (utf-8, latin-1, cp1252, ascii)
-  - **Impact**: Multi-table dataset validation now works with files in various text encodings
+- **September 21, 2025**: Resolved all multi-table question creation issues
+  - **Issue 1**: UTF-8 decoding errors in admin panel when validating S3 datasets
+    - **Fix**: Added robust encoding detection with fallback support (utf-8, latin-1, cp1252, ascii)
+    - **Impact**: Multi-table dataset validation now works with files in various text encodings
+  - **Issue 2**: Missing `fetch_solution_sql` method causing "Create Multi-table Question" failures
+    - **Fix**: Added comprehensive `fetch_solution_sql` method with proper error handling
+  - **Issue 3**: Parquet solution files not supported in multi-table questions
+    - **Fix**: Extended multi-table implementation to support both SQL (.sql) and parquet (.parquet) solution files
+    - **Impact**: Multi-table questions now work consistently with existing single-table parquet solutions
 - **September 20, 2025**: Successfully imported GitHub project and configured for Replit environment
 - **Application Status**: ✅ Running correctly - Frontend on port 5000, Backend on port 8000, Database connected
 - **Deployment**: ✅ Configured for autoscale deployment
 - **Workflows**: ✅ Configured with webview output for frontend development
 
 ## Known Issues
-### Critical: "kumbhar" Question Data Mismatch
+### Resolved ✅: Multi-table Dataset Validation (September 21, 2025)
+- **Status**: Fixed - All encoding and parquet solution issues resolved
+- **Previous Issues**: UTF-8 decoding errors, missing methods, parquet solution support
+- **Current Status**: Multi-table question creation fully functional
+
+### Critical: "kumbhar" Question Data Mismatch  
 - **Problem ID**: `30ff47d8-e9a6-4b13-810d-cbea2915d73d`
 - **Issue**: Question asks for "sales data analysis by region" but dataset is Titanic passenger data
 - **Impact**: All user submissions fail validation regardless of correctness
