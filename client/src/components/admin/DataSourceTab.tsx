@@ -252,24 +252,36 @@ export function DataSourceTab() {
                 Add Dataset
               </Button>
 
-              <div>
-                <Label htmlFor="solution-path">Solution File Path</Label>
-                <Input
-                  id="solution-path"
-                  value={solutionPath}
-                  onChange={(e) => setSolutionPath(e.target.value)}
-                  placeholder="problems/multi001/solution.parquet"
-                  data-testid="input-solution-path"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Path to the expected solution file in S3
-                </p>
-              </div>
+              {/* Solution File Path - Only required for S3 verification */}
+              {state.solutionVerification?.source === 's3' && (
+                <div>
+                  <Label htmlFor="solution-path">Solution File Path *</Label>
+                  <Input
+                    id="solution-path"
+                    value={solutionPath}
+                    onChange={(e) => setSolutionPath(e.target.value)}
+                    placeholder="problems/multi001/solution.parquet"
+                    data-testid="input-solution-path"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Path to the expected solution file in S3 (required when using S3 verification)
+                  </p>
+                </div>
+              )}
+
+              {/* Note for Neon verification */}
+              {state.solutionVerification?.source === 'neon' && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-700 dark:text-blue-200">
+                    💡 Using Neon database verification - solution will be validated against manually entered expected results in the Create Question tab.
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button
                   onClick={() => actions.validateMultiTableDatasets(solutionPath)}
-                  disabled={state.isValidatingMultiTable || state.multiTableDatasets.length === 0 || !solutionPath.trim()}
+                  disabled={state.isValidatingMultiTable || state.multiTableDatasets.length === 0 || (state.solutionVerification?.source === 's3' && !solutionPath.trim())}
                   data-testid="button-validate-multi"
                 >
                   {state.isValidatingMultiTable ? 'Validating...' : 'Validate Multi-table Datasets'}
@@ -342,7 +354,7 @@ export function DataSourceTab() {
                   ? 'border-primary bg-primary/5' 
                   : 'border-border hover:border-primary/50'
               }`}
-              onClick={() => actions.verifySolution('neon')}
+              onClick={() => actions.setSolutionType('neon')}
               data-testid="option-solution-source-neon"
             >
               <div className="flex items-center space-x-2">
@@ -362,7 +374,7 @@ export function DataSourceTab() {
                   ? 'border-primary bg-primary/5' 
                   : 'border-border hover:border-primary/50'
               }`}
-              onClick={() => actions.verifySolution('s3')}
+              onClick={() => actions.setSolutionType('s3')}
               data-testid="option-solution-source-s3"
             >
               <div className="flex items-center space-x-2">
