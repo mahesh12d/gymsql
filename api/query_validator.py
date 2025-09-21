@@ -318,20 +318,59 @@ class SecureSQLValidator:
             
         return info
     
-    def _extract_query_elements(self, token, info: Dict[str, Any], depth: int = 0):
-        """Recursively extract query elements"""
+    def _extract_query_elements(self, token, info: Dict[str, Any], depth: int = 0, context: str = None, parent_tokens: list = None):
+        """Recursively extract query elements with better context awareness"""
+        if parent_tokens is None:
+            parent_tokens = []
+            
         if hasattr(token, 'tokens'):
-            for sub_token in token.tokens:
-                self._extract_query_elements(sub_token, info, depth + 1)
+            for i, sub_token in enumerate(token.tokens):
+                # Determine context based on surrounding tokens
+                sub_context = context
+                
+                # Look for FROM/JOIN keywords to identify table names
+                if hasattr(sub_token, 'value') and sub_token.value.upper() in ['FROM', 'JOIN', 'UPDATE', 'INTO']:
+                    sub_context = 'expecting_table'
+                elif context == 'expecting_table' and hasattr(sub_token, 'value') and sub_token.ttype is tokens.Name:
+                    sub_context = 'table_name'
+                elif context == 'table_name':
+                    sub_context = None  # Reset after finding table name
+                
+                new_parent_tokens = parent_tokens + [token]
+                self._extract_query_elements(sub_token, info, depth + 1, sub_context, new_parent_tokens)
         else:
-            # Extract different elements based on token type
+            # Extract different elements based on token type and context
             if token.ttype is tokens.Name:
-                # Could be table or column name
                 value = token.value.lower()
-                if value not in ['select', 'from', 'where', 'and', 'or']:
-                    if depth > 0:  # Likely a table or column
-                        if '.' not in value and value not in info['tables']:
+                
+                # Common SQL aggregate and scalar functions that should NOT be treated as table names
+                sql_functions = {
+                    'sum', 'count', 'avg', 'min', 'max', 'std', 'stddev', 'variance',
+                    'concat', 'substr', 'substring', 'length', 'upper', 'lower', 'trim',
+                    'abs', 'round', 'ceil', 'floor', 'sqrt', 'power', 'coalesce', 'nullif',
+                    'cast', 'convert', 'date', 'time', 'timestamp', 'extract', 'now',
+                    'rank', 'row_number', 'dense_rank', 'lag', 'lead', 'first_value', 'last_value'
+                }
+                
+                # Basic keywords to exclude
+                exclude_keywords = {'select', 'from', 'where', 'and', 'or', 'as', 'on', 'in', 'by', 'order', 'group', 'having', 'limit', 'distinct'}
+                
+                # Check if this name is inside parentheses (likely a function parameter/column)
+                is_in_function = False
+                for parent in parent_tokens:
+                    if hasattr(parent, 'tokens'):
+                        parent_str = str(parent).strip()
+                        if '(' in parent_str and parent_str.count('(') > parent_str.count(')'):
+                            is_in_function = True
+                            break
+                
+                if value not in exclude_keywords and value not in sql_functions:
+                    # Only add to tables if we're explicitly expecting a table name
+                    if context == 'table_name' and not is_in_function:
+                        if value not in info['tables']:
                             info['tables'].append(value)
+                    # Don't add names that appear in function contexts or without clear table context
+                    # This prevents column names like 'PassengerId' from being treated as tables
             
             elif token.ttype is tokens.Name.Builtin:
                 # Built-in functions
