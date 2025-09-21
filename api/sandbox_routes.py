@@ -136,12 +136,16 @@ async def execute_duckdb_query(
         
         result = sandbox.execute_query(query)
         
-        return {
+        response_data = {
             "problem_id": problem_id,
             "query": query,
             "sandbox_type": "duckdb",
             **result
         }
+        
+        # Sanitize result to prevent JSON serialization errors
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(response_data)
         
     except HTTPException:
         raise

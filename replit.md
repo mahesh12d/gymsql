@@ -91,17 +91,16 @@ Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
 
 ## Recent Changes
-- **September 21, 2025**: Resolved all multi-table question creation issues
-  - **Issue 1**: UTF-8 decoding errors in admin panel when validating S3 datasets
-    - **Fix**: Added robust encoding detection with fallback support (utf-8, latin-1, cp1252, ascii)
-    - **Impact**: Multi-table dataset validation now works with files in various text encodings
-  - **Issue 2**: Missing `fetch_solution_sql` method causing "Create Multi-table Question" failures
-    - **Fix**: Added comprehensive `fetch_solution_sql` method with proper error handling
-  - **Issue 3**: Parquet solution files not supported in multi-table questions
-    - **Fix**: Extended multi-table implementation to support both SQL (.sql) and parquet (.parquet) solution files
-    - **Impact**: Multi-table questions now work consistently with existing single-table parquet solutions
-- **September 20, 2025**: Successfully imported GitHub project and configured for Replit environment
-- **Application Status**: ✅ Running correctly - Frontend on port 5000, Backend on port 8000, Database connected
+- **September 21, 2025**: Successfully completed GitHub import and resolved critical encoding issues
+  - **Issue**: UnicodeDecodeError causing JSON parsing failures in sandbox API routes
+    - **Root Cause**: UTF-8 encoding errors when processing query results containing non-UTF-8 characters (byte 0xa0)
+    - **Fix**: Enhanced `sanitize_json_data` function in `secure_execution.py` to handle string encoding issues
+    - **Solution**: Added UTF-8 validation, multi-encoding fallback support, and proper bytes-to-string conversion
+    - **Impact**: All API endpoints now working correctly, sandbox queries execute successfully
+  - **Workflow Configuration**: Fixed workflow setup with proper webview output type for port 5000
+  - **Application Status**: ✅ Running correctly - Frontend on port 5000, Backend on port 8000, Database connected
+  - **Multi-table Support**: All previous multi-table question creation issues resolved with encoding fixes
+- **September 20, 2025**: Initial GitHub project import with basic Replit environment configuration
 - **Deployment**: ✅ Configured for autoscale deployment
 - **Workflows**: ✅ Configured with webview output for frontend development
 

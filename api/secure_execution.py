@@ -36,7 +36,7 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 def sanitize_json_data(data: Any) -> Any:
-    """Fast JSON sanitization optimized for speed"""
+    """Fast JSON sanitization optimized for speed with UTF-8 encoding fix"""
     if isinstance(data, dict):
         return {key: sanitize_json_data(value) for key, value in data.items()}
     elif isinstance(data, list):
@@ -48,6 +48,28 @@ def sanitize_json_data(data: Any) -> Any:
             return "Infinity" if data > 0 else "-Infinity"
         else:
             return data
+    elif isinstance(data, str):
+        # Handle potential UTF-8 encoding issues in string data
+        try:
+            # Try to encode/decode to validate UTF-8
+            data.encode('utf-8')
+            return data
+        except UnicodeEncodeError:
+            # Fix encoding issues by replacing problematic characters
+            return data.encode('utf-8', errors='replace').decode('utf-8')
+    elif isinstance(data, bytes):
+        # Convert bytes to string with proper encoding handling
+        try:
+            return data.decode('utf-8')
+        except UnicodeDecodeError:
+            # Try multiple encodings before falling back to error replacement
+            for encoding in ['latin-1', 'cp1252', 'ascii']:
+                try:
+                    return data.decode(encoding)
+                except UnicodeDecodeError:
+                    continue
+            # Final fallback with error replacement
+            return data.decode('utf-8', errors='replace')
     else:
         return data
 
