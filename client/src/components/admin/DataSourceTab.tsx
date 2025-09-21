@@ -306,7 +306,7 @@ export function DataSourceTab() {
                             {state.multiTableValidation.validated_datasets.map((dataset, i) => (
                               <div key={i} className="text-xs">
                                 <Badge variant="outline" className="mr-2">{dataset.table_name}</Badge>
-                                {dataset.row_count.toLocaleString()} rows, {dataset.table_schema.length} columns
+                                {dataset.row_count.toLocaleString()} rows, {dataset.table_schema?.length || 0} columns
                               </div>
                             ))}
                           </div>
