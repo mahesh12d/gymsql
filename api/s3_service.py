@@ -644,6 +644,68 @@ class S3AnswerService:
             logger.error(f"Error downloading text file {bucket}/{key}: {e}")
             raise
     
+    def fetch_solution_sql(self, bucket: str, key: str) -> Dict[str, Any]:
+        """
+        Fetch SQL solution file from S3 and return as structured response
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key (SQL file path)
+            
+        Returns:
+            Dict with success status, sql_content, and error information
+        """
+        try:
+            # Use the existing text file download method
+            sql_content = self.download_text_file(bucket, key)
+            
+            logger.info(f"Successfully fetched solution SQL from {bucket}/{key} ({len(sql_content)} characters)")
+            
+            return {
+                "success": True,
+                "sql_content": sql_content,
+                "bucket": bucket,
+                "key": key
+            }
+            
+        except ValueError as e:
+            # Handle validation errors (bucket not allowed, file too large, etc.)
+            logger.error(f"Validation error fetching solution SQL from {bucket}/{key}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "bucket": bucket,
+                "key": key
+            }
+            
+        except ClientError as e:
+            # Handle S3 errors
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchBucket':
+                error_msg = f"S3 bucket '{bucket}' does not exist"
+            elif error_code == 'NoSuchKey':
+                error_msg = f"SQL file '{key}' not found in bucket '{bucket}'"
+            else:
+                error_msg = f"S3 error: {e}"
+            
+            logger.error(f"S3 error fetching solution SQL from {bucket}/{key}: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "bucket": bucket,
+                "key": key
+            }
+            
+        except Exception as e:
+            # Handle any other errors
+            logger.error(f"Unexpected error fetching solution SQL from {bucket}/{key}: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to fetch solution SQL: {str(e)}",
+                "bucket": bucket,
+                "key": key
+            }
+    
     def validate_dataset_file(self, bucket: str, key: str, table_name: str) -> Dict[str, Any]:
         """
         Validate S3 dataset file and extract schema information
