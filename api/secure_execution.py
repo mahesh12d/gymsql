@@ -205,7 +205,7 @@ class SecureQueryExecutor:
                     if problem.solution_source == 's3' and problem.s3_solution_source:
                         # Use S3 solution verification
                         test_results = await self._verify_with_s3_solution(
-                            sandbox, problem, query, query_result.get('result', [])
+                            sandbox, problem, query, query_result.get('results', [])
                         )
                     else:
                         # Use Neon database verification (default)
@@ -213,7 +213,7 @@ class SecureQueryExecutor:
                             expected_output = problem.question.get('expectedOutput', [])
                             if expected_output:
                                 # Compare results with expected output
-                                actual_results = query_result.get('result', [])
+                                actual_results = query_result.get('results', [])
                                 test_results.append({
                                     'test_case_id': f"{problem_id}_main",
                                     'passed': actual_results == expected_output,
@@ -261,11 +261,41 @@ class SecureQueryExecutor:
             DuckDBSandbox instance or None if creation failed
         """
         try:
+            # Get problem info first to check if we need S3 data
+            problem = db.query(Problem).filter(Problem.id == problem_id).first()
+            if not problem:
+                logger.error(f"Problem {problem_id} not found")
+                return None
+            
             # First, try to get existing sandbox
             sandbox = self.sandbox_manager.get_sandbox(user_id, problem_id)
             
             if sandbox is not None:
                 logger.info(f"Using existing sandbox for user {user_id}, problem {problem_id}")
+                
+                # IMPORTANT FIX: Always ensure data is loaded for existing sandboxes too
+                if problem.s3_data_source:
+                    # Check if sandbox has the required table loaded
+                    table_info = sandbox.get_table_info()
+                    expected_table_name = problem.s3_data_source.get('table_name', 'problem_data')
+                    
+                    # If the expected table is not found, reload the data
+                    table_exists = any(
+                        table.get('name') == expected_table_name 
+                        for table in table_info.get('tables', [])
+                    )
+                    
+                    if not table_exists:
+                        logger.info(f"Reloading S3 data for existing sandbox - table {expected_table_name} not found")
+                        setup_result = await sandbox.setup_problem_data(
+                            problem_id=problem_id,
+                            s3_data_source=problem.s3_data_source
+                        )
+                        
+                        if not setup_result.get('success', False):
+                            logger.error(f"Failed to reload problem data: {setup_result.get('error')}")
+                            # Continue anyway - some problems might not need data
+                
                 return sandbox
             
             # Create new sandbox
@@ -273,8 +303,7 @@ class SecureQueryExecutor:
             sandbox = await self.sandbox_manager.create_sandbox(user_id, problem_id)
             
             # Load problem data if it has S3 data source
-            problem = db.query(Problem).filter(Problem.id == problem_id).first()
-            if problem and problem.s3_data_source:
+            if problem.s3_data_source:
                 logger.info(f"Loading S3 data for problem {problem_id}")
                 setup_result = await sandbox.setup_problem_data(
                     problem_id=problem_id,
@@ -672,7 +701,7 @@ class SecureQueryExecutor:
                 
                 # Validate result using advanced test validator
                 if execution_status == ExecutionStatus.SUCCESS:
-                    user_output = result.get('result', [])
+                    user_output = result.get('results', [])
                     
                     # Check if test case has S3 expected output source
                     expected_output = test_case.expected_output  # Default fallback
@@ -796,9 +825,10 @@ class SecureQueryExecutor:
             temp_dataset_path = s3_service.download_to_temp_file(bucket, key)
             
             try:
-                # Create DuckDB connection and load dataset
+                # Create DuckDB connection and load dataset with correct table name
                 conn = duckdb.connect(":memory:")
-                conn.execute("CREATE TABLE dataset AS SELECT * FROM read_parquet(?)", [temp_dataset_path])
+                table_name = s3_data.get('table_name', 'dataset')  # Use configured table name
+                conn.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM read_parquet(?)', [temp_dataset_path])
                 
                 # Execute user query
                 result = conn.execute(query).fetchall()
