@@ -682,6 +682,118 @@ class S3AnswerService:
             logger.error(f"Failed to generate result hash: {e}")
             raise ValueError(f"Hash generation failed: {str(e)}")
     
+    def fetch_parquet_solution(self, bucket: str, key: str, etag: Optional[str] = None) -> CacheResult:
+        """
+        Fetch parquet solution file (out.parquet) for result validation
+        
+        Args:
+            bucket: S3 bucket name
+            key: S3 object key (should be out.parquet)
+            etag: Current ETag for cache validation
+            
+        Returns:
+            CacheResult with parsed parquet data as list of dictionaries
+            
+        Raises:
+            ValueError: If bucket not allowed, file too large, or parsing fails
+            ClientError: If S3 operation fails
+        """
+        # Validate bucket is in allowlist for security
+        if bucket.lower() not in S3_ALLOWED_BUCKETS:
+            raise ValueError(f"Bucket '{bucket}' not allowed. Allowed buckets: {', '.join(S3_ALLOWED_BUCKETS)}")
+        
+        # Use higher limits for solution files than regular answer files
+        cache_key = (bucket, key)
+        
+        try:
+            # Normalize ETag (remove quotes for internal comparison)
+            input_etag_stripped = etag.strip('"') if etag else None
+            
+            # Check in-memory cache first
+            if cache_key in self._cache and input_etag_stripped:
+                cached = self._cache[cache_key]
+                if cached['etag'] == input_etag_stripped:
+                    logger.info(f"Solution file {bucket}/{key} served from memory cache")
+                    return CacheResult('cache_hit', cached['data'], input_etag_stripped, cached['last_modified'])
+            
+            # Use conditional GET with If-None-Match header (S3 expects quoted ETag)
+            get_params = {'Bucket': bucket, 'Key': key}
+            if input_etag_stripped:
+                get_params['IfNoneMatch'] = f'"{input_etag_stripped}"'
+            
+            try:
+                obj_response = self.s3_client.get_object(**get_params)
+            except ClientError as e:
+                # Check for 304 Not Modified via HTTP status code
+                http_status = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+                error_code = e.response.get('Error', {}).get('Code', '')
+                
+                if http_status == 304 or error_code in ['NotModified', 'PreconditionFailed']:
+                    # Not modified - return cached data if available
+                    if cache_key in self._cache:
+                        cached = self._cache[cache_key]
+                        logger.info(f"Solution file {bucket}/{key} not modified (304)")
+                        return CacheResult('cache_hit', cached['data'], input_etag_stripped, cached['last_modified'])
+                    else:
+                        # No cached data but got 304 - fetch without condition
+                        obj_response = self.s3_client.get_object(Bucket=bucket, Key=key)
+                else:
+                    raise
+            
+            # Check file size limit (use dataset limit for solution files)
+            content_length = obj_response.get('ContentLength', 0)
+            max_size_bytes = S3_DATASET_MAX_FILE_SIZE_MB * 1024 * 1024
+            if content_length > max_size_bytes:
+                raise ValueError(f"Solution file too large: {content_length / (1024*1024):.1f}MB (max: {S3_DATASET_MAX_FILE_SIZE_MB}MB)")
+            
+            # Get metadata
+            new_etag = obj_response['ETag'].strip('"')
+            last_modified = obj_response['LastModified']
+            
+            # Read and parse parquet content
+            logger.info(f"Fetching solution file {bucket}/{key} (size: {content_length} bytes)")
+            file_content = obj_response['Body'].read()
+            
+            # Parse parquet content directly
+            parsed_data = self._parse_parquet(file_content)
+            
+            # Enforce dataset row limit for solution files
+            if len(parsed_data) > S3_DATASET_MAX_ROWS:
+                logger.warning(f"Solution file {bucket}/{key} has {len(parsed_data)} rows, truncating to {S3_DATASET_MAX_ROWS}")
+                parsed_data = parsed_data[:S3_DATASET_MAX_ROWS]
+            
+            # Update cache with eviction if needed
+            self._cache[cache_key] = {
+                'etag': new_etag,
+                'last_modified': last_modified,
+                'data': parsed_data
+            }
+            
+            # Simple cache eviction: remove oldest entries if over limit
+            if len(self._cache) > MAX_CACHE_ENTRIES:
+                # Remove 20% of oldest entries (simple LRU approximation)
+                entries_to_remove = len(self._cache) - int(MAX_CACHE_ENTRIES * 0.8)
+                oldest_keys = list(self._cache.keys())[:entries_to_remove]
+                for old_key in oldest_keys:
+                    del self._cache[old_key]
+                logger.info(f"Cache eviction: removed {entries_to_remove} entries")
+            
+            logger.info(f"Successfully parsed {len(parsed_data)} rows from solution file {bucket}/{key}")
+            return CacheResult('fetched', parsed_data, new_etag, last_modified)
+            
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchBucket':
+                raise ValueError(f"S3 bucket '{bucket}' does not exist")
+            elif error_code == 'NoSuchKey':
+                raise ValueError(f"Solution file '{key}' not found in bucket '{bucket}'")
+            else:
+                logger.error(f"S3 error fetching solution file {bucket}/{key}: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"Error fetching solution file {bucket}/{key}: {e}")
+            raise
+
     def _validate_dataset_bucket(self, bucket: str) -> bool:
         """Validate that bucket is in the allowed list for datasets"""
         return bucket in S3_ALLOWED_BUCKETS
