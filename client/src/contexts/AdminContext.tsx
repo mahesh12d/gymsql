@@ -234,12 +234,12 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       if (state.multiTableValidation?.success && state.multiTableValidation.validated_datasets) {
         const tables = state.multiTableValidation.validated_datasets.map((dataset) => ({
           name: dataset.table_name,
-          columns: dataset.table_schema.map((col) => ({
+          columns: (dataset.table_schema || []).map((col) => ({
             name: col.column,
             type: col.type,
             description: `${col.column} column (${col.type})`
           })),
-          sample_data: dataset.sample_data
+          sample_data: dataset.sample_data || []
         }));
         return {
           ...state,
