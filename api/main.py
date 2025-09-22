@@ -363,6 +363,19 @@ def get_problem(problem_id: str,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Problem not found")
     
+    # Handle JSON parsing for question field if it's a string
+    import json
+    if isinstance(problem.question, str):
+        try:
+            problem.question = json.loads(problem.question)
+        except (json.JSONDecodeError, TypeError):
+            # If parsing fails, create a default QuestionData structure
+            problem.question = {
+                "description": "Error loading problem description",
+                "tables": [],
+                "expectedOutput": []
+            }
+    
     # Check if problem is premium and user doesn't have premium access
     if problem.premium is True and (not current_user or not current_user.premium):
         # Return problem with premium message instead of throwing error
