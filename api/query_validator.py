@@ -157,6 +157,103 @@ class SecureSQLValidator:
             'EXISTS', 'BETWEEN', 'LIKE', 'IS', 'NULL', 'WITH', 'RECURSIVE'
         }
 
+    def validate_query_with_hardcode_detection(self, query: str,
+                       loaded_tables: Optional[Set[str]] = None) -> Dict[str, Any]:
+        """
+        Enhanced validation with comprehensive anti-hardcode detection
+        
+        Args:
+            query: SQL query string to validate
+            loaded_tables: Set of table names available in the sandbox
+            
+        Returns:
+            Dict with validation results including hardcode detection
+        """
+        result = self.validate_query(query, loaded_tables)
+        
+        # Add hardcode detection if basic validation passes
+        if result.get('is_valid', False):
+            query_info = result.get('query_info', {})
+            
+            # Layer 1: Static Analysis - Detect hardcoded queries
+            hardcode_result = self.detect_hardcoded_query(query, query_info)
+            
+            # Merge hardcode detection results
+            if hardcode_result['is_hardcoded']:
+                result['is_valid'] = False
+                result['errors'].extend(hardcode_result['errors'])
+                result['warnings'].extend(hardcode_result['warnings'])
+                
+            result['hardcode_detection'] = hardcode_result
+            
+            # Enhanced semantic validation for loaded tables
+            if loaded_tables:
+                enhanced_semantic = self._enhanced_semantic_validation(query, query_info, loaded_tables)
+                if enhanced_semantic['errors']:
+                    result['is_valid'] = False
+                    result['errors'].extend(enhanced_semantic['errors'])
+                result['warnings'].extend(enhanced_semantic['warnings'])
+        
+        return result
+    
+    def _enhanced_semantic_validation(self, query: str, query_info: Dict[str, Any], 
+                                    loaded_tables: Set[str]) -> Dict[str, Any]:
+        """
+        Enhanced semantic validation specifically for anti-hardcode detection
+        """
+        result = {'errors': [], 'warnings': []}
+        
+        query_tables = query_info.get('tables', [])
+        query_upper = query.upper().strip()
+        
+        # Rule 1: Must reference at least one loaded table
+        if not any(table.lower() in {t.lower() for t in loaded_tables} for table in query_tables):
+            if 'FROM' in query_upper or 'JOIN' in query_upper:
+                result['errors'].append(
+                    "Query must reference tables from the loaded dataset. "
+                    f"Available tables: {', '.join(sorted(loaded_tables))}"
+                )
+            else:
+                result['errors'].append(
+                    "Query must include FROM clause with dataset tables. "
+                    "Constant-only queries are not permitted for data analysis problems."
+                )
+        
+        # Rule 2: Must have meaningful column references for data analysis
+        column_refs = self._count_column_references(query)
+        if query_tables and column_refs == 0:
+            # Exception for COUNT(*) which is legitimate
+            if not ('COUNT(*)' in query_upper or 'COUNT( * )' in query_upper):
+                result['errors'].append(
+                    "Query must reference actual table columns for data analysis. "
+                    "Queries that only access table structure without column data are not permitted."
+                )
+        
+        # Rule 3: Aggregation queries must have column dependencies
+        agg_functions = ['SUM(', 'AVG(', 'MAX(', 'MIN(']
+        has_agg = any(func in query_upper for func in agg_functions)
+        if has_agg:
+            # Check that aggregation functions contain column references, not just literals
+            agg_has_columns = False
+            for func in agg_functions:
+                if func in query_upper:
+                    # Find the function call and check its contents
+                    start = query_upper.find(func)
+                    if start != -1:
+                        # Simple check: ensure there's a word character after the function
+                        remaining = query_upper[start + len(func):]
+                        if re.search(r'[a-zA-Z_]\w*', remaining.split(')')[0]):
+                            agg_has_columns = True
+                            break
+            
+            if not agg_has_columns:
+                result['errors'].append(
+                    "Aggregation functions must operate on actual table columns, not constant values. "
+                    "Use column names in SUM(), AVG(), MAX(), MIN() functions."
+                )
+        
+        return result
+
     def validate_query(
             self,
             query: str,
@@ -555,6 +652,7 @@ class SecureSQLValidator:
                             loaded_tables: Set[str]) -> Dict[str, Any]:
         """
         Validate semantic correctness of query against loaded dataset
+        Enhanced with anti-hardcode detection
         
         Args:
             query_info: Extracted query information
@@ -596,6 +694,104 @@ class SecureSQLValidator:
             )
 
         return result
+
+    def detect_hardcoded_query(self, query: str, query_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Layer 1: Static Analysis - Detect hardcoded queries that don't properly analyze data
+        
+        Returns:
+            Dict with detection results including errors and confidence score
+        """
+        result = {
+            'is_hardcoded': False,
+            'confidence': 0.0,
+            'errors': [],
+            'warnings': [],
+            'reasons': []
+        }
+        
+        query_upper = query.upper().strip()
+        query_tables = query_info.get('tables', [])
+        
+        # Pattern 1: Pure constant queries (SELECT 355, SELECT 'hello', etc.)
+        if re.match(r'^\s*SELECT\s+[\d\'\"\w\s,\(\)\.]+(\s+AS\s+[\w\"\'\`]+)?\s*;?\s*$', query_upper):
+            # Check if it contains any table references
+            if not query_tables and 'FROM' not in query_upper:
+                result['is_hardcoded'] = True
+                result['confidence'] = 1.0
+                result['errors'].append("Pure constant query detected - must analyze actual data")
+                result['reasons'].append("No table references, only literal values")
+                return result
+        
+        # Pattern 2: SELECT literals FROM table LIMIT 1 (common cheat pattern)
+        if 'LIMIT 1' in query_upper or 'LIMIT\s+1' in query_upper:
+            # Check if SELECT clause contains only literals/constants
+            select_match = re.search(r'SELECT\s+(.*?)\s+FROM', query_upper)
+            if select_match:
+                select_clause = select_match.group(1).strip()
+                # Check if select clause is primarily numeric literals
+                if re.match(r'^[\d\s,\(\)\.]+$', select_clause.replace(' AS ', ' ').replace('"', '').replace("'", '')):
+                    result['is_hardcoded'] = True
+                    result['confidence'] = 0.9
+                    result['errors'].append("Suspected hardcoded query: literal values with LIMIT 1")
+                    result['reasons'].append("Selecting literal values with artificial LIMIT")
+                    return result
+        
+        # Pattern 3: Check for minimal column references
+        column_refs = self._count_column_references(query)
+        if query_tables and column_refs == 0:
+            result['is_hardcoded'] = True
+            result['confidence'] = 0.8
+            result['errors'].append("Query references tables but no actual columns - likely hardcoded")
+            result['reasons'].append("Table referenced but no column access detected")
+            return result
+        
+        # Pattern 4: Aggregation functions with no column references
+        agg_functions = ['SUM', 'COUNT', 'AVG', 'MAX', 'MIN']
+        has_agg = any(func in query_upper for func in agg_functions)
+        if has_agg and column_refs == 0 and query_tables:
+            # Exception: COUNT(*) is legitimate
+            if not ('COUNT(*)' in query_upper or 'COUNT( * )' in query_upper):
+                result['warnings'].append("Aggregation function found but no column references - verify legitimacy")
+                result['confidence'] = 0.6
+                result['reasons'].append("Aggregation without clear column access")
+        
+        # Pattern 5: VALUES clause usage (often used for hardcoding)
+        if 'VALUES' in query_upper and query_tables:
+            result['warnings'].append("VALUES clause detected - ensure it's for legitimate purpose")
+            result['confidence'] = 0.4
+            result['reasons'].append("VALUES clause present")
+        
+        return result
+    
+    def _count_column_references(self, query: str) -> int:
+        """
+        Count probable column references in a query
+        This is a heuristic approach - not perfect but catches most cases
+        """
+        # Remove string literals to avoid false positives
+        query_clean = re.sub(r"'[^']*'", "", query)
+        query_clean = re.sub(r'"[^"]*"', "", query_clean)
+        
+        # Look for patterns that suggest column access
+        column_patterns = [
+            r'\b\w+\.\w+\b',  # table.column
+            r'\bSUM\s*\(\s*\w+\s*\)',  # SUM(column)
+            r'\bCOUNT\s*\(\s*\w+\s*\)',  # COUNT(column)
+            r'\bAVG\s*\(\s*\w+\s*\)',  # AVG(column)
+            r'\bMAX\s*\(\s*\w+\s*\)',  # MAX(column)
+            r'\bMIN\s*\(\s*\w+\s*\)',  # MIN(column)
+            r'\bWHERE\s+\w+',  # WHERE column
+            r'\bGROUP\s+BY\s+\w+',  # GROUP BY column
+            r'\bORDER\s+BY\s+\w+',  # ORDER BY column
+        ]
+        
+        count = 0
+        for pattern in column_patterns:
+            matches = re.findall(pattern, query_clean, re.IGNORECASE)
+            count += len(matches)
+        
+        return count
 
     def get_safe_query_suggestions(self, query: str) -> List[str]:
         """Provide suggestions for making query safer"""

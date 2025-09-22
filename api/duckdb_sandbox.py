@@ -520,6 +520,339 @@ class DuckDBSandbox:
             logger.error(error_msg)
             return {"success": False, "error": error_msg}
     
+    def analyze_execution_plan(self, query: str) -> Dict[str, Any]:
+        """
+        Layer 2: Execution Plan Analysis - Verify queries actually scan tables and perform operations
+        
+        Args:
+            query: SQL query string to analyze
+            
+        Returns:
+            Dict containing plan analysis results and anti-hardcode validation
+        """
+        result = {
+            'plan_valid': True,
+            'errors': [],
+            'warnings': [],
+            'analysis': {
+                'tables_scanned': [],
+                'rows_scanned': 0,
+                'has_table_scan': False,
+                'has_aggregation': False,
+                'has_join': False,
+                'is_constant_only': False
+            }
+        }
+        
+        try:
+            # Get execution plan using DuckDB's EXPLAIN
+            plan_query = f"EXPLAIN {query}"
+            plan_result = self.conn.execute(plan_query).fetchall()
+            
+            if not plan_result:
+                result['plan_valid'] = False
+                result['errors'].append("Unable to generate execution plan")
+                return result
+            
+            # Convert plan to string for analysis
+            plan_text = '\n'.join([str(row[0]) if isinstance(row, tuple) else str(row) for row in plan_result])
+            plan_text_upper = plan_text.upper()
+            
+            # Analyze plan for table scanning
+            if 'SEQ_SCAN' in plan_text_upper or 'TABLE_SCAN' in plan_text_upper:
+                result['analysis']['has_table_scan'] = True
+                
+                # Extract table names from scan operations
+                import re
+                table_scan_matches = re.findall(r'(?:SEQ_SCAN|TABLE_SCAN)\s+(\w+)', plan_text_upper)
+                result['analysis']['tables_scanned'] = table_scan_matches
+            
+            # Check for aggregation operations
+            if any(op in plan_text_upper for op in ['AGGREGATE', 'HASH_GROUP_BY', 'GROUP_BY']):
+                result['analysis']['has_aggregation'] = True
+            
+            # Check for join operations
+            if any(op in plan_text_upper for op in ['HASH_JOIN', 'NESTED_LOOP_JOIN', 'MERGE_JOIN', 'JOIN']):
+                result['analysis']['has_join'] = True
+            
+            # Check for constant-only operations (red flag for hardcoded queries)
+            if 'CONSTANT_DATA' in plan_text_upper or 'VALUES' in plan_text_upper:
+                if not result['analysis']['has_table_scan']:
+                    result['analysis']['is_constant_only'] = True
+                    result['plan_valid'] = False
+                    result['errors'].append("Query execution plan shows no table access - likely hardcoded constants")
+            
+            # Verify actual data interaction
+            if result['analysis']['has_table_scan']:
+                # Get row count statistics using EXPLAIN ANALYZE (with timeout protection)
+                try:
+                    analyze_query = f"EXPLAIN ANALYZE {query}"
+                    analyze_result = self.conn.execute(analyze_query).fetchall()
+                    analyze_text = '\n'.join([str(row[0]) if isinstance(row, tuple) else str(row) for row in analyze_result])
+                    
+                    # Extract row counts from EXPLAIN ANALYZE output
+                    rows_pattern = re.findall(r'(\d+)\s+rows', analyze_text, re.IGNORECASE)
+                    if rows_pattern:
+                        result['analysis']['rows_scanned'] = sum(int(count) for count in rows_pattern)
+                        
+                        # If no rows were actually scanned despite table references, flag as suspicious
+                        if result['analysis']['rows_scanned'] == 0 and result['analysis']['has_table_scan']:
+                            result['warnings'].append("Query plan shows table scan but no rows processed - verify query logic")
+                    
+                except Exception as analyze_error:
+                    # EXPLAIN ANALYZE might fail for some queries, but that's not necessarily an error
+                    logger.warning(f"EXPLAIN ANALYZE failed: {analyze_error}")
+                    result['warnings'].append("Unable to analyze actual row processing")
+            
+            # Final validation: queries should interact with data
+            if not result['analysis']['has_table_scan'] and not result['analysis']['is_constant_only']:
+                result['plan_valid'] = False
+                result['errors'].append("Query execution plan shows no data interaction")
+                
+        except Exception as e:
+            logger.error(f"Execution plan analysis failed: {e}")
+            result['plan_valid'] = False
+            result['errors'].append(f"Plan analysis error: {str(e)}")
+        
+        return result
+
+    def create_data_variants(self, seed: int = 12345) -> Dict[str, Any]:
+        """
+        Layer 3: Data Dependency Testing - Create slightly modified dataset variants
+        to catch hardcoded queries that don't actually analyze the data
+        
+        Args:
+            seed: Random seed for reproducible variants
+            
+        Returns:
+            Dict containing variant creation results
+        """
+        result = {
+            'success': True,
+            'errors': [],
+            'variant_tables': [],
+            'changes_applied': []
+        }
+        
+        try:
+            import random
+            random.seed(seed)
+            
+            for table_name in self.loaded_table_names:
+                try:
+                    # Create variant table name
+                    variant_table = f"variant_{table_name}"
+                    
+                    # Get table schema and sample data
+                    schema_query = f"DESCRIBE {table_name}"
+                    schema_result = self.conn.execute(schema_query).fetchall()
+                    
+                    # Get column info
+                    columns = []
+                    numeric_columns = []
+                    text_columns = []
+                    
+                    for row in schema_result:
+                        col_name = row[0]
+                        col_type = row[1].upper()
+                        columns.append((col_name, col_type))
+                        
+                        if any(t in col_type for t in ['INT', 'NUMERIC', 'FLOAT', 'DOUBLE', 'DECIMAL']):
+                            numeric_columns.append(col_name)
+                        elif any(t in col_type for t in ['VARCHAR', 'TEXT', 'CHAR', 'STRING']):
+                            text_columns.append(col_name)
+                    
+                    # Create variant table with modified data
+                    # Strategy: Modify 1-2% of rows with small, deterministic changes
+                    
+                    # Get total row count
+                    count_result = self.conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+                    total_rows = count_result[0] if count_result else 0
+                    
+                    if total_rows == 0:
+                        result['errors'].append(f"Table {table_name} is empty, cannot create variant")
+                        continue
+                    
+                    # Calculate number of rows to modify (1-2% minimum 1 row)
+                    rows_to_modify = max(1, int(total_rows * 0.015))  # 1.5%
+                    
+                    # Create variant table as copy of original
+                    create_variant_sql = f"CREATE TEMP TABLE {variant_table} AS SELECT * FROM {table_name}"
+                    self.conn.execute(create_variant_sql)
+                    
+                    changes_made = []
+                    
+                    # Apply numeric modifications if possible
+                    if numeric_columns:
+                        for col in numeric_columns[:2]:  # Limit to 2 columns to avoid over-modification
+                            # Use deterministic selection based on hash
+                            update_sql = f"""
+                                UPDATE {variant_table} 
+                                SET {col} = {col} + 1 
+                                WHERE ABS(HASH(CAST(rowid AS VARCHAR)) % {total_rows}) < {rows_to_modify}
+                                  AND {col} IS NOT NULL
+                            """
+                            try:
+                                modified_count = self.conn.execute(update_sql).rowcount or 0
+                                if modified_count > 0:
+                                    changes_made.append(f"Modified {modified_count} rows in column {col} (+1)")
+                            except Exception as e:
+                                logger.warning(f"Failed to modify numeric column {col}: {e}")
+                    
+                    # Apply text modifications if possible (more subtle)
+                    if text_columns and not changes_made:  # Only if no numeric changes were made
+                        for col in text_columns[:1]:  # Limit to 1 text column
+                            # Append a small marker to string values
+                            update_sql = f"""
+                                UPDATE {variant_table} 
+                                SET {col} = {col} || '_v' 
+                                WHERE ABS(HASH(CAST(rowid AS VARCHAR)) % {total_rows}) < {rows_to_modify}
+                                  AND {col} IS NOT NULL
+                                  AND LENGTH({col}) < 100
+                            """
+                            try:
+                                modified_count = self.conn.execute(update_sql).rowcount or 0
+                                if modified_count > 0:
+                                    changes_made.append(f"Modified {modified_count} rows in column {col} (append '_v')")
+                            except Exception as e:
+                                logger.warning(f"Failed to modify text column {col}: {e}")
+                    
+                    if changes_made:
+                        result['variant_tables'].append(variant_table)
+                        result['changes_applied'].extend(changes_made)
+                    else:
+                        # Drop the variant table if no changes were made
+                        self.conn.execute(f"DROP TABLE IF EXISTS {variant_table}")
+                        result['errors'].append(f"Could not create meaningful variant for table {table_name}")
+                        
+                except Exception as table_error:
+                    logger.error(f"Failed to create variant for table {table_name}: {table_error}")
+                    result['errors'].append(f"Variant creation failed for {table_name}: {str(table_error)}")
+            
+            if not result['variant_tables']:
+                result['success'] = False
+                result['errors'].append("No data variants could be created")
+                
+        except Exception as e:
+            logger.error(f"Data variant creation failed: {e}")
+            result['success'] = False
+            result['errors'].append(f"Variant creation error: {str(e)}")
+        
+        return result
+
+    def test_data_dependency(self, query: str, expected_result: List[Dict], tolerance: float = 0.001) -> Dict[str, Any]:
+        """
+        Test if query results change when using data variants (detects hardcoded answers)
+        
+        Args:
+            query: SQL query to test
+            expected_result: Expected result from original data
+            tolerance: Numeric tolerance for comparison
+            
+        Returns:
+            Dict containing dependency test results
+        """
+        result = {
+            'is_data_dependent': True,
+            'confidence': 1.0,
+            'errors': [],
+            'warnings': [],
+            'test_details': {
+                'original_result_count': len(expected_result),
+                'variant_result_count': 0,
+                'results_differ': False,
+                'difference_details': []
+            }
+        }
+        
+        try:
+            # Create data variants
+            variant_creation = self.create_data_variants()
+            if not variant_creation['success']:
+                result['warnings'].append("Could not create data variants for testing")
+                return result
+            
+            variant_tables = variant_creation['variant_tables']
+            if not variant_tables:
+                result['warnings'].append("No data variants available for testing")
+                return result
+            
+            # Replace table names in query with variant table names
+            variant_query = query
+            for table_name in self.loaded_table_names:
+                variant_table = f"variant_{table_name}"
+                if variant_table in variant_tables:
+                    # Simple replacement - this works for most basic queries
+                    variant_query = variant_query.replace(table_name, variant_table)
+            
+            # Execute query on variant data
+            try:
+                variant_result_raw = self.conn.execute(variant_query).fetchall()
+                
+                # Convert to list of dicts for comparison
+                if variant_result_raw:
+                    # Get column names
+                    columns = [desc[0] for desc in self.conn.description]
+                    variant_result = [dict(zip(columns, row)) for row in variant_result_raw]
+                else:
+                    variant_result = []
+                
+                result['test_details']['variant_result_count'] = len(variant_result)
+                
+                # Compare results
+                if len(expected_result) != len(variant_result):
+                    result['test_details']['results_differ'] = True
+                    result['test_details']['difference_details'].append(
+                        f"Row count differs: original={len(expected_result)}, variant={len(variant_result)}"
+                    )
+                else:
+                    # Compare values with tolerance for numeric fields
+                    for i, (orig_row, var_row) in enumerate(zip(expected_result, variant_result)):
+                        for key in orig_row.keys():
+                            if key in var_row:
+                                orig_val = orig_row[key]
+                                var_val = var_row[key]
+                                
+                                # Numeric comparison with tolerance
+                                if isinstance(orig_val, (int, float)) and isinstance(var_val, (int, float)):
+                                    if abs(orig_val - var_val) > tolerance:
+                                        result['test_details']['results_differ'] = True
+                                        result['test_details']['difference_details'].append(
+                                            f"Row {i}, column {key}: {orig_val} vs {var_val}"
+                                        )
+                                        break
+                                # String comparison
+                                elif str(orig_val) != str(var_val):
+                                    result['test_details']['results_differ'] = True
+                                    result['test_details']['difference_details'].append(
+                                        f"Row {i}, column {key}: '{orig_val}' vs '{var_val}'"
+                                    )
+                                    break
+                
+                # Evaluate data dependency
+                if not result['test_details']['results_differ']:
+                    # Results are identical despite data changes - likely hardcoded
+                    result['is_data_dependent'] = False
+                    result['confidence'] = 0.9
+                    result['errors'].append(
+                        "Query results unchanged despite data modifications - likely hardcoded answer"
+                    )
+                else:
+                    # Results differ appropriately - query appears legitimate
+                    result['confidence'] = 1.0
+                    
+            except Exception as query_error:
+                # Query failed on variant data - might indicate data dependency issues
+                result['warnings'].append(f"Query failed on variant data: {str(query_error)}")
+                result['confidence'] = 0.7  # Lower confidence due to execution failure
+                
+        except Exception as e:
+            logger.error(f"Data dependency test failed: {e}")
+            result['errors'].append(f"Dependency test error: {str(e)}")
+            result['confidence'] = 0.0
+        
+        return result
+
     def execute_query(self, query: str) -> Dict[str, Any]:
         """
         Execute user SQL query with enhanced DuckDB sandbox allowing full DDL/DML operations
