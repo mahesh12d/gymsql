@@ -116,3 +116,13 @@ Expert mode enabled for faster agent operations
 - **Impact**: All user submissions fail validation regardless of correctness
 - **Root Cause**: Question description and expected output don't match the actual loaded dataset
 - **Fix Required**: Either update question to match Titanic data OR load correct sales dataset
+
+### Anti-Hardcode Detection System: Foundation Complete ✅ (September 22, 2025)
+- **Problem**: Students could cheat by hardcoding expected values (e.g., `SELECT 355 as "sum(passanger)"`) instead of writing proper analytical SQL
+- **Solution**: Implemented comprehensive three-layer defense system:
+  - **Layer 1 - Static Analysis**: Detects constant-only queries, validates table/column references
+  - **Layer 2 - Execution Plan Analysis**: Uses DuckDB EXPLAIN to verify actual data scanning  
+  - **Layer 3 - Data Dependency Testing**: Creates dataset variants to catch hardcoded results
+- **Status**: Core components implemented in `api/query_validator.py` and `api/duckdb_sandbox.py`
+- **Integration Needed**: Coordinate layers in SecureQueryExecutor pipeline with time budgets and JSON plan parsing
+- **Impact**: Major advancement in educational SQL platform integrity
