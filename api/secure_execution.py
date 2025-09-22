@@ -456,17 +456,18 @@ class SecureQueryExecutor:
             problem = db.query(Problem).filter(Problem.id == problem_id).first()
             
             if not problem:
-                return [{
-                    'test_case_id': 'error',
-                    'test_case_name': 'Problem Not Found',
-                    'is_hidden': False,
-                    'is_correct': False,
-                    'score': 0.0,
-                    'feedback': ['Problem not found in database'],
-                    'execution_time_ms': 0,
-                    'execution_status': ExecutionStatus.ERROR.value,
-                    'validation_details': {}
-                }]
+                return [self._build_validation_result(
+                    test_case_id='error',
+                    test_case_name='Problem Not Found',
+                    is_correct=False,
+                    feedback=['Problem not found in database'],
+                    validation_details={
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': ['Problem not found in database']
+                    }
+                )]
             
             # Check if this is an enhanced S3-based question with hash validation (fastest path)
             if problem.expected_hash and problem.s3_data_source:
@@ -494,15 +495,18 @@ class SecureQueryExecutor:
                     )
                     return s3_verification
                 else:
-                    return [{
-                        'test_case_id': 's3_verification',
-                        'test_case_name': 'S3 Solution Verification',
-                        'is_hidden': False,
-                        'is_correct': False,
-                        'score': 0.0,
-                        'feedback': [result.get('error', 'Query execution failed')],
-                        'execution_time_ms': 0
-                    }]
+                    return [self._build_validation_result(
+                        test_case_id='s3_verification',
+                        test_case_name='S3 Solution Verification',
+                        is_correct=False,
+                        feedback=[result.get('error', 'Query execution failed')],
+                        validation_details={
+                            'row_comparisons': [],
+                            'matching_row_count': 0,
+                            'total_row_count': 0,
+                            'comparison_differences': [result.get('error', 'Query execution failed')]
+                        }
+                    )]
             
             # Check for expected output in problem question
             if problem.question and isinstance(problem.question, dict):
@@ -522,64 +526,74 @@ class SecureQueryExecutor:
                         else:
                             feedback.extend(comparison_details)
                         
-                        return [{
-                            'test_case_id': f"{problem_id}_expected_output",
-                            'test_case_name': 'Expected Output Check',
-                            'is_hidden': False,
-                            'is_correct': is_correct,
-                            'score': 100.0 if is_correct else 0.0,
-                            'feedback': feedback,
-                            'execution_time_ms': result.get('execution_time_ms', 0),
-                            'user_output': user_results,
-                            'expected_output': expected_output,
-                            'output_matches': is_correct
-                        }]
+                        # Create detailed validation structure for frontend
+                        validation_details = self._create_validation_details(user_results, expected_output)
+                        
+                        return [self._build_validation_result(
+                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_name='Expected Output Check',
+                            is_correct=is_correct,
+                            feedback=feedback,
+                            execution_time_ms=result.get('execution_time_ms', 0),
+                            user_output=user_results,
+                            expected_output=expected_output,
+                            validation_details=validation_details,
+                            output_matches=is_correct
+                        )]
                     else:
-                        return [{
-                            'test_case_id': f"{problem_id}_expected_output",
-                            'test_case_name': 'Expected Output Check',
-                            'is_hidden': False,
-                            'is_correct': False,
-                            'score': 0.0,
-                            'feedback': [result.get('error', 'Query execution failed')],
-                            'execution_time_ms': 0
-                        }]
+                        return [self._build_validation_result(
+                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_name='Expected Output Check',
+                            is_correct=False,
+                            feedback=[result.get('error', 'Query execution failed')],
+                            validation_details={
+                                'row_comparisons': [],
+                                'matching_row_count': 0,
+                                'total_row_count': 0,
+                                'comparison_differences': [result.get('error', 'Query execution failed')]
+                            }
+                        )]
             
             # Fallback: just execute query and return success
             result = await self._execute_query_fast(sandbox, query)
             
             if result.get('success'):
-                return [{
-                    'test_case_id': 'basic_execution',
-                    'test_case_name': 'Query Execution',
-                    'is_hidden': False,
-                    'is_correct': True,
-                    'score': 100.0,
-                    'feedback': ['Query executed successfully'],
-                    'execution_time_ms': result.get('execution_time_ms', 0)
-                }]
+                return [self._build_validation_result(
+                    test_case_id='basic_execution',
+                    test_case_name='Query Execution',
+                    is_correct=True,
+                    feedback=['Query executed successfully'],
+                    execution_time_ms=result.get('execution_time_ms', 0),
+                    user_output=result.get('results', [])
+                )]
             else:
-                return [{
-                    'test_case_id': 'execution_error',
-                    'test_case_name': 'Query Execution',
-                    'is_hidden': False,
-                    'is_correct': False,
-                    'score': 0.0,
-                    'feedback': [result.get('error', 'Query failed')],
-                    'execution_time_ms': 0
-                }]
+                return [self._build_validation_result(
+                    test_case_id='execution_error',
+                    test_case_name='Query Execution',
+                    is_correct=False,
+                    feedback=[result.get('error', 'Query failed')],
+                    validation_details={
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': [result.get('error', 'Query failed')]
+                    }
+                )]
             
         except Exception as e:
             logger.error(f"Validation failed: {e}")
-            return [{
-                'test_case_id': 'validation_error',
-                'test_case_name': 'Validation Error',
-                'is_hidden': False,
-                'is_correct': False,
-                'score': 0.0,
-                'feedback': [f'Validation error: {str(e)}'],
-                'execution_time_ms': 0
-            }]
+            return [self._build_validation_result(
+                test_case_id='validation_error',
+                test_case_name='Validation Error',
+                is_correct=False,
+                feedback=[f'Validation error: {str(e)}'],
+                validation_details={
+                    'row_comparisons': [],
+                    'matching_row_count': 0,
+                    'total_row_count': 0,
+                    'comparison_differences': [f'Validation error: {str(e)}']
+                }
+            )]
     
     async def _execute_test_cases_fast(
         self,
@@ -630,43 +644,55 @@ class SecureQueryExecutor:
                     else:
                         feedback.extend(comparison_details)
                     
-                    results.append({
-                        'test_case_id': test_case.id,
-                        'test_case_name': test_case.name,
-                        'is_hidden': test_case.is_hidden,
-                        'is_correct': is_correct,
-                        'score': 100.0 if is_correct else 0.0,
-                        'feedback': feedback,
-                        'execution_time_ms': result.get('execution_time_ms', 0),
-                        'execution_status': ExecutionStatus.SUCCESS.value,
-                        'user_output': user_output,
-                        'expected_output': expected_output,
-                        'output_matches': is_correct
-                    })
+                    # Create detailed validation structure for frontend
+                    validation_details = self._create_validation_details(user_output, expected_output)
+                    
+                    results.append(self._build_validation_result(
+                        test_case_id=test_case.id,
+                        test_case_name=test_case.name,
+                        is_hidden=test_case.is_hidden,
+                        is_correct=is_correct,
+                        score=100.0 if is_correct else 0.0,
+                        feedback=feedback,
+                        execution_time_ms=result.get('execution_time_ms', 0),
+                        execution_status=ExecutionStatus.SUCCESS.value,
+                        validation_details=validation_details,
+                        user_output=user_output,
+                        expected_output=expected_output,
+                        output_matches=is_correct
+                    ))
                 else:
-                    results.append({
-                        'test_case_id': test_case.id,
-                        'test_case_name': test_case.name,
-                        'is_hidden': test_case.is_hidden,
-                        'is_correct': False,
-                        'score': 0.0,
-                        'feedback': [result.get('error', 'Query execution failed')],
-                        'execution_time_ms': 0,
-                        'execution_status': ExecutionStatus.ERROR.value
-                    })
+                    results.append(self._build_validation_result(
+                        test_case_id=test_case.id,
+                        test_case_name=test_case.name,
+                        is_hidden=test_case.is_hidden,
+                        is_correct=False,
+                        feedback=[result.get('error', 'Query execution failed')],
+                        execution_status=ExecutionStatus.ERROR.value,
+                        validation_details={
+                            'row_comparisons': [],
+                            'matching_row_count': 0,
+                            'total_row_count': 0,
+                            'comparison_differences': [result.get('error', 'Query execution failed')]
+                        }
+                    ))
                     
             except Exception as e:
                 logger.error(f"Test case execution failed: {e}")
-                results.append({
-                    'test_case_id': test_case.id,
-                    'test_case_name': test_case.name,
-                    'is_hidden': test_case.is_hidden,
-                    'is_correct': False,
-                    'score': 0.0,
-                    'feedback': [f'Test execution error: {str(e)}'],
-                    'execution_time_ms': 0,
-                    'execution_status': ExecutionStatus.ERROR.value
-                })
+                results.append(self._build_validation_result(
+                    test_case_id=test_case.id,
+                    test_case_name=test_case.name,
+                    is_hidden=test_case.is_hidden,
+                    is_correct=False,
+                    feedback=[f'Test execution error: {str(e)}'],
+                    execution_status=ExecutionStatus.ERROR.value,
+                    validation_details={
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': [f'Test execution error: {str(e)}']
+                    }
+                ))
         
         return results
     
@@ -689,7 +715,16 @@ class SecureQueryExecutor:
                     'is_correct': False,
                     'score': 0.0,
                     'feedback': [result.get('error', 'Query execution failed')],
-                    'execution_time_ms': 0
+                    'execution_time_ms': 0,
+                    'user_output': [],
+                    'expected_output': [],
+                    'output_matches': False,
+                    'validation_details': {
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': [result.get('error', 'Query execution failed')]
+                    }
                 }]
             
             user_results = result.get('results', [])
@@ -700,30 +735,38 @@ class SecureQueryExecutor:
             
             is_correct = user_hash == expected_hash
             
-            return [{
-                'test_case_id': 'hash_validation',
-                'test_case_name': 'Result Hash Validation',
-                'is_hidden': False,
-                'is_correct': is_correct,
-                'score': 100.0 if is_correct else 0.0,
-                'feedback': ['Query results match expected pattern'] if is_correct else ['Query results do not match expected pattern'],
-                'execution_time_ms': result.get('execution_time_ms', 0),
-                'user_hash': user_hash,
-                'expected_hash': expected_hash,
-                'hash_matches': is_correct
-            }]
+            return [self._build_validation_result(
+                test_case_id='hash_validation',
+                test_case_name='Result Hash Validation',
+                is_correct=is_correct,
+                feedback=['Query results match expected pattern'] if is_correct else ['Query results do not match expected pattern'],
+                execution_time_ms=result.get('execution_time_ms', 0),
+                user_output=user_results,
+                validation_details={
+                    'row_comparisons': [],
+                    'matching_row_count': 1 if is_correct else 0,
+                    'total_row_count': 1,
+                    'comparison_differences': ['Hash-based validation - row-by-row comparison not applicable'] if is_correct else ['Hash mismatch indicates data differences'],
+                    'user_hash': user_hash,
+                    'expected_hash': expected_hash
+                },
+                output_matches=is_correct
+            )]
             
         except Exception as e:
             logger.error(f"Hash validation failed: {e}")
-            return [{
-                'test_case_id': 'hash_validation_error',
-                'test_case_name': 'Hash Validation Error',
-                'is_hidden': False,
-                'is_correct': False,
-                'score': 0.0,
-                'feedback': [f'Hash validation error: {str(e)}'],
-                'execution_time_ms': 0
-            }]
+            return [self._build_validation_result(
+                test_case_id='hash_validation_error',
+                test_case_name='Hash Validation Error',
+                is_correct=False,
+                feedback=[f'Hash validation error: {str(e)}'],
+                validation_details={
+                    'row_comparisons': [],
+                    'matching_row_count': 0,
+                    'total_row_count': 0,
+                    'comparison_differences': [f'Hash validation error: {str(e)}']
+                }
+            )]
     
     async def _verify_with_s3_solution_fast(
         self,
@@ -750,26 +793,42 @@ class SecureQueryExecutor:
                     'is_correct': False,
                     'score': 0.0,
                     'feedback': ['Failed to load expected results from S3'],
-                    'execution_time_ms': 0
+                    'execution_time_ms': 0,
+                    'user_output': user_results,
+                    'expected_output': [],
+                    'output_matches': False,
+                    'validation_details': {
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': ['Failed to load expected results from S3']
+                    }
                 }]
             
             expected_results = validation_result.get('sample_data', [])
             
-            # Fast comparison
-            is_correct = self._compare_results_fast(user_results, expected_results)
+            # Enhanced comparison with detailed feedback and validation details
+            is_correct, comparison_details = self._compare_results_detailed(user_results, expected_results)
             
-            return [{
-                'test_case_id': 's3_solution_verification',
-                'test_case_name': 'S3 Solution Verification',
-                'is_hidden': False,
-                'is_correct': is_correct,
-                'score': 100.0 if is_correct else 0.0,
-                'feedback': ['Results match S3 solution'] if is_correct else ['Results differ from S3 solution'],
-                'execution_time_ms': 0,
-                'user_output': user_results,
-                'expected_output': expected_results,
-                'output_matches': is_correct
-            }]
+            feedback = []
+            if is_correct:
+                feedback.append('Results match S3 solution perfectly')
+            else:
+                feedback.extend(comparison_details)
+            
+            # Create detailed validation structure for frontend
+            validation_details = self._create_validation_details(user_results, expected_results)
+            
+            return [self._build_validation_result(
+                test_case_id='s3_solution_verification',
+                test_case_name='S3 Solution Verification',
+                is_correct=is_correct,
+                feedback=feedback,
+                user_output=user_results,
+                expected_output=expected_results,
+                validation_details=validation_details,
+                output_matches=is_correct
+            )]
             
         except Exception as e:
             logger.error(f"S3 solution verification failed: {e}")
@@ -780,7 +839,16 @@ class SecureQueryExecutor:
                 'is_correct': False,
                 'score': 0.0,
                 'feedback': [f'S3 verification error: {str(e)}'],
-                'execution_time_ms': 0
+                'execution_time_ms': 0,
+                'user_output': user_results,
+                'expected_output': [],
+                'output_matches': False,
+                'validation_details': {
+                    'row_comparisons': [],
+                    'matching_row_count': 0,
+                    'total_row_count': 0,
+                    'comparison_differences': [f'S3 verification error: {str(e)}']
+                }
             }]
     
     async def _validate_minimal(
@@ -903,6 +971,150 @@ class SecureQueryExecutor:
         except Exception as e:
             logger.error(f"Detailed comparison failed: {e}")
             return False, [f"Comparison error: {str(e)}"]
+    
+    def _create_validation_details(self, user_results: List[Dict], expected_results: List[Dict]) -> Dict[str, Any]:
+        """Create detailed validation details structure for frontend display"""
+        try:
+            row_comparisons = []
+            matching_count = 0
+            
+            # Handle case where lengths don't match
+            max_length = max(len(user_results), len(expected_results))
+            
+            for i in range(max_length):
+                user_row = user_results[i] if i < len(user_results) else None
+                expected_row = expected_results[i] if i < len(expected_results) else {}
+                
+                # Check if rows match
+                matches = user_row == expected_row if user_row is not None else False
+                if matches:
+                    matching_count += 1
+                
+                # Create differences summary if they don't match
+                differences = None
+                if user_row and expected_row and not matches:
+                    diff_list = []
+                    for col in expected_row.keys():
+                        if col in user_row:
+                            user_val = user_row[col]
+                            expected_val = expected_row[col]
+                            if user_val != expected_val:
+                                diff_list.append(f"{col}: got '{user_val}', expected '{expected_val}'")
+                    differences = "; ".join(diff_list[:3]) if diff_list else "Data type or formatting differences"
+                
+                row_comparisons.append({
+                    'row_index': i,
+                    'matches': matches,
+                    'actual_row': user_row,
+                    'expected_row': expected_row,
+                    'differences': differences
+                })
+            
+            # Build comparison differences summary
+            comparison_differences = []
+            user_count = len(user_results)
+            expected_count = len(expected_results)
+            
+            if user_count != expected_count:
+                comparison_differences.append(f"Row count mismatch: got {user_count} rows, expected {expected_count} rows")
+            
+            if user_results and expected_results:
+                user_columns = set(user_results[0].keys()) if user_results[0] else set()
+                expected_columns = set(expected_results[0].keys()) if expected_results[0] else set()
+                
+                if user_columns != expected_columns:
+                    missing_cols = expected_columns - user_columns
+                    extra_cols = user_columns - expected_columns
+                    
+                    if missing_cols:
+                        comparison_differences.append(f"Missing columns: {', '.join(sorted(missing_cols))}")
+                    if extra_cols:
+                        comparison_differences.append(f"Unexpected columns: {', '.join(sorted(extra_cols))}")
+            
+            return {
+                'row_comparisons': row_comparisons,
+                'matching_row_count': matching_count,
+                'total_row_count': max_length,
+                'comparison_differences': comparison_differences
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create validation details: {e}")
+            return {
+                'row_comparisons': [],
+                'matching_row_count': 0,
+                'total_row_count': 0,
+                'comparison_differences': [f"Error creating comparison details: {str(e)}"]
+            }
+    
+    def _build_validation_result(
+        self,
+        test_case_id: str,
+        test_case_name: str,
+        is_correct: bool,
+        feedback: List[str] = None,
+        execution_time_ms: int = 0,
+        is_hidden: bool = False,
+        score: float = None,
+        user_output: List[Dict] = None,
+        expected_output: List[Dict] = None,
+        validation_details: Dict[str, Any] = None,
+        execution_status: str = None,
+        output_matches: bool = None,
+        extra_fields: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Build standardized validation result with consistent schema and safe defaults"""
+        
+        # Set safe defaults with proper types
+        feedback = feedback or []
+        user_output = user_output or []
+        expected_output = expected_output or []
+        
+        if score is None:
+            score = 100.0 if is_correct else 0.0
+        
+        if validation_details is None:
+            validation_details = {
+                'row_comparisons': [],
+                'matching_row_count': 0,
+                'total_row_count': 0,
+                'comparison_differences': []
+            }
+        
+        if execution_status is None:
+            execution_status = ExecutionStatus.SUCCESS.value if is_correct else ExecutionStatus.ERROR.value
+        
+        if output_matches is None:
+            output_matches = is_correct
+        
+        # Sanitize outputs to prevent JSON serialization errors
+        user_output_safe = sanitize_json_data(user_output)
+        expected_output_safe = sanitize_json_data(expected_output)
+        validation_details_safe = sanitize_json_data(validation_details)
+        
+        # Build canonical result structure
+        result = {
+            'test_case_id': str(test_case_id),
+            'test_case_name': test_case_name or '',
+            'is_hidden': bool(is_hidden),
+            'is_correct': bool(is_correct),
+            'score': float(score),
+            'feedback': list(feedback),
+            'execution_time_ms': int(execution_time_ms),
+            'execution_status': execution_status,
+            'validation_details': validation_details_safe,
+            'user_output': user_output_safe,
+            'expected_output': expected_output_safe,
+            'output_matches': bool(output_matches)
+        }
+        
+        # Add any extra fields
+        if extra_fields:
+            # Sanitize extra fields too
+            extra_fields_safe = sanitize_json_data(extra_fields)
+            result.update(extra_fields_safe)
+        
+        return result
     
     def _compute_result_hash_fast(self, results: List[Dict[str, Any]]) -> str:
         """Fast hash computation for results"""
