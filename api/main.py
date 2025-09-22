@@ -407,9 +407,7 @@ def get_problem(problem_id: str,
             logger.error(f"Error fetching expected output from S3: {str(e)}")
             # Continue with original data if S3 fetch fails
     
-    # Sanitize result to prevent JSON serialization errors
-    from .secure_execution import sanitize_json_data
-    return sanitize_json_data(problem_data)
+    return problem_data
 
 
 # New secure execution endpoints
