@@ -314,6 +314,19 @@ def get_problems(
     # Format response
     problems = []
     for problem, solved_count, is_user_solved in results:
+        # Handle JSON parsing for question field if it's a string
+        import json
+        if isinstance(problem.question, str):
+            try:
+                problem.question = json.loads(problem.question)
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, create a default QuestionData structure
+                problem.question = {
+                    "description": "Error loading problem description",
+                    "tables": [],
+                    "expectedOutput": []
+                }
+        
         problem_data = ProblemResponse.from_orm(problem)
         problem_data.solved_count = int(solved_count)
         problem_data.is_user_solved = bool(
