@@ -96,6 +96,7 @@ class Problem(Base):
     # Enhanced fields for AWS S3 integration
     expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results
     preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
+    expected_output = Column(JSONB, nullable=True)  # Dedicated column for expected query results
     
     # Solution verification method control
     solution_source = Column(String(10), nullable=False, default='neon')  # 'neon' or 's3'

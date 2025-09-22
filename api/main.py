@@ -368,8 +368,7 @@ def get_problem(problem_id: str,
     
     # Fetch expected output from S3 if solution source is S3
     if (problem.solution_source == 's3' and 
-        problem.s3_solution_source and 
-        problem_data.question):
+        problem.s3_solution_source):
         
         try:
             s3_config = problem.s3_solution_source
@@ -387,17 +386,12 @@ def get_problem(problem_id: str,
                 )
                 
                 if result.status in ['cache_hit', 'fetched'] and result.data:
-                    # Update the question's expected output with S3 data
+                    # Update the dedicated expected_output field with S3 data
                     # Limit to first 20 rows for frontend display
                     preview_data = result.data[:20] if len(result.data) > 20 else result.data
                     
-                    # Create new question data with updated expected output
-                    updated_question = QuestionData(
-                        description=problem_data.question.description,
-                        tables=problem_data.question.tables,
-                        expectedOutput=preview_data
-                    )
-                    problem_data.question = updated_question
+                    # Set the expected output in the dedicated field
+                    problem_data.expected_output = preview_data
                     
                     logger.info(f"Successfully updated expected output with {len(preview_data)} rows from S3")
                 else:
@@ -406,6 +400,11 @@ def get_problem(problem_id: str,
         except Exception as e:
             logger.error(f"Error fetching expected output from S3: {str(e)}")
             # Continue with original data if S3 fetch fails
+    else:
+        # Ensure expected_output is set from the dedicated column
+        # (ProblemResponse.from_orm should handle this automatically, but make it explicit)
+        if hasattr(problem, 'expected_output') and problem.expected_output is not None:
+            problem_data.expected_output = problem.expected_output
     
     return problem_data
 

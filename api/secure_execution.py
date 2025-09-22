@@ -508,10 +508,14 @@ class SecureQueryExecutor:
                         }
                     )]
             
-            # Check for expected output in problem question
-            if problem.question and isinstance(problem.question, dict):
+            # Check for expected output in dedicated column (preferred) or fallback to question
+            expected_output = problem.expected_output if hasattr(problem, 'expected_output') and problem.expected_output else None
+            
+            # Fallback to legacy question.expectedOutput for backward compatibility
+            if not expected_output and problem.question and isinstance(problem.question, dict):
                 expected_output = problem.question.get('expectedOutput', [])
-                if expected_output:
+            
+            if expected_output:
                     result = await self._execute_query_fast(sandbox, query)
                     
                     if result.get('success'):

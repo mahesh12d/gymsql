@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trash2, Plus, Info, Eye } from 'lucide-react';
+import { Trash2, Plus, Info, Eye, EyeOff } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -18,6 +18,8 @@ export function CreateQuestionTab() {
   const [tagInput, setTagInput] = useState('');
   const [hintInput, setHintInput] = useState('');
   const [expectedOutputJson, setExpectedOutputJson] = useState('[]');
+  const [showJsonPreview, setShowJsonPreview] = useState(false);
+  const [jsonValidationError, setJsonValidationError] = useState('');
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
@@ -63,9 +65,10 @@ export function CreateQuestionTab() {
       const expectedOutput = JSON.parse(expectedOutputJson);
       const problemData = {
         ...state.problemDraft,
+        expectedOutput, // Use the new dedicated column
         question: {
           ...state.problemDraft.question,
-          expectedOutput,
+          // Remove expectedOutput from question object (now in dedicated column)
           // Include s3_data_source if it exists in the question
           ...(state.problemDraft.question.s3_data_source && {
             s3_data_source: state.problemDraft.question.s3_data_source
@@ -80,6 +83,32 @@ export function CreateQuestionTab() {
         description: "Invalid JSON in expected output",
         variant: "destructive",
       });
+    }
+  };
+
+  // Validate JSON as user types
+  const handleJsonChange = (value: string) => {
+    setExpectedOutputJson(value);
+    
+    if (!value.trim()) {
+      setJsonValidationError('');
+      return;
+    }
+    
+    try {
+      JSON.parse(value);
+      setJsonValidationError('');
+    } catch (error) {
+      setJsonValidationError(error instanceof Error ? error.message : 'Invalid JSON');
+    }
+  };
+
+  // Parse JSON for preview
+  const getParsedJson = () => {
+    try {
+      return JSON.parse(expectedOutputJson);
+    } catch {
+      return null;
     }
   };
 
@@ -302,20 +331,113 @@ export function CreateQuestionTab() {
         </CardContent>
       </Card>
 
-      {/* Expected Output */}
+      {/* Expected Output - New JSONB Editor with Preview */}
       <Card>
         <CardHeader>
-          <CardTitle>Expected Output (JSON)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Expected Output (JSONB)</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowJsonPreview(!showJsonPreview)}
+              data-testid="button-toggle-preview"
+            >
+              {showJsonPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showJsonPreview ? 'Hide Preview' : 'Show Preview'}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Define the expected query results as JSON array. This will be stored in a dedicated JSONB column.
+          </p>
         </CardHeader>
-        <CardContent>
-          <Textarea
-            value={expectedOutputJson}
-            onChange={(e) => setExpectedOutputJson(e.target.value)}
-            placeholder="[{&quot;column&quot;: &quot;value&quot;}]"
-            rows={6}
-            className="font-mono text-sm"
-            data-testid="textarea-expected-output"
-          />
+        <CardContent className="space-y-4">
+          <div>
+            <Textarea
+              value={expectedOutputJson}
+              onChange={(e) => handleJsonChange(e.target.value)}
+              placeholder={`[\n  {"REGION": "North", "TOTAL_SALES": 15000},\n  {"REGION": "South", "TOTAL_SALES": 12000}\n]`}
+              rows={8}
+              className={`font-mono text-sm ${jsonValidationError ? 'border-red-500' : ''}`}
+              data-testid="textarea-expected-output"
+            />
+            {jsonValidationError && (
+              <Alert className="mt-2">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-red-600">
+                  <strong>JSON Error:</strong> {jsonValidationError}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          
+          {/* JSON Preview */}
+          {showJsonPreview && (
+            <div className="border rounded-md">
+              <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-b">
+                <h4 className="text-sm font-medium">Preview</h4>
+              </div>
+              <div className="p-3">
+                {getParsedJson() ? (
+                  <div className="space-y-2">
+                    {Array.isArray(getParsedJson()) ? (
+                      <>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {getParsedJson().length} rows found
+                        </div>
+                        {getParsedJson().length > 0 && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="border-b">
+                                  {Object.keys(getParsedJson()[0]).map((key) => (
+                                    <th key={key} className="text-left p-2 font-medium bg-gray-50 dark:bg-gray-700">
+                                      {key}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {getParsedJson().slice(0, 5).map((row: any, index: number) => (
+                                  <tr key={index} className="border-b">
+                                    {Object.values(row).map((value: any, colIndex: number) => (
+                                      <td key={colIndex} className="p-2">
+                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {getParsedJson().length > 5 && (
+                              <div className="text-xs text-gray-500 mt-2">
+                                ... and {getParsedJson().length - 5} more rows
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Expected output should be an array of objects
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    {expectedOutputJson.trim() ? 'Invalid JSON' : 'Enter valid JSON to see preview'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Quick Examples */}
+          <div className="text-xs text-gray-500 space-y-1">
+            <div><strong>Example formats:</strong></div>
+            <div>• Simple: <code>[{"{\"column\": \"value\"}"}]</code></div>
+            <div>• Multiple rows: <code>[{"{\"id\": 1, \"name\": \"Alice\""}, {"{\"id\": 2, \"name\": \"Bob\"}"}]</code></div>
+            <div>• Numbers: <code>[{"{\"total\": 15000, \"count\": 42}"}]</code></div>
+          </div>
         </CardContent>
       </Card>
 

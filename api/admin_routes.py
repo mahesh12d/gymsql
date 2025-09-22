@@ -414,6 +414,7 @@ def create_problem(
     
     
     # Convert AdminQuestionData to the format expected by the database
+    # Note: expectedOutput is now stored in dedicated expected_output column
     question_data = {
         "description": problem_data.question.description,
         "tables": [
@@ -426,8 +427,8 @@ def create_problem(
                 "sampleData": table.sample_data
             }
             for table in problem_data.question.tables
-        ],
-        "expectedOutput": problem_data.question.expected_output
+        ]
+        # expectedOutput removed - now stored in dedicated expected_output column
     }
     
     # Extract S3 data source if present
@@ -449,6 +450,7 @@ def create_problem(
         title=problem_data.title,
         difficulty=problem_data.difficulty,
         question=question_data,
+        expected_output=problem_data.question.expected_output,  # Use dedicated column
         s3_data_source=s3_data_source,
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
