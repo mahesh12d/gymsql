@@ -81,6 +81,8 @@ export interface MultiTableValidationResponse {
 export interface SolutionVerificationResult {
   verified: boolean;
   source: 'neon';  // Only Neon supported - S3 solutions deprecated
+  message?: string;
+  test_case_count?: number;
 }
 
 // State interface
@@ -93,6 +95,7 @@ interface AdminState {
 
   // Problem Draft
   problemDraft: ProblemDraft;
+  selectedProblemId: string; // For verifying existing problems
 
   // Single S3 validation
   s3Source: S3DatasetSource;
@@ -124,6 +127,7 @@ type AdminAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'UPDATE_PROBLEM_DRAFT'; payload: Partial<ProblemDraft> }
   | { type: 'RESET_PROBLEM_DRAFT' }
+  | { type: 'SET_SELECTED_PROBLEM_ID'; payload: string }
   | { type: 'SET_S3_SOURCE'; payload: S3DatasetSource }
   | { type: 'SET_S3_VALIDATION'; payload: S3DatasetValidationResponse | null }
   | { type: 'SET_VALIDATING_S3'; payload: boolean }
@@ -131,7 +135,6 @@ type AdminAction =
   | { type: 'SET_MULTI_TABLE_VALIDATION'; payload: MultiTableValidationResponse | null }
   | { type: 'SET_VALIDATING_MULTI_TABLE'; payload: boolean }
   | { type: 'SET_SOLUTION_VERIFICATION'; payload: SolutionVerificationResult | null }
-  | { type: 'SET_SOLUTION_TYPE'; payload: 'neon' }
   | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'APPLY_SINGLE_VALIDATION_TO_DRAFT' }
   | { type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' };
@@ -156,6 +159,7 @@ const initialState: AdminState = {
     premium: false,
     topic_id: ''
   },
+  selectedProblemId: '',
   s3Source: {
     bucket: '',
     key: '',
@@ -186,6 +190,8 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       return { ...state, problemDraft: { ...state.problemDraft, ...action.payload } };
     case 'RESET_PROBLEM_DRAFT':
       return { ...state, problemDraft: state.schemaInfo?.example_problem || initialState.problemDraft };
+    case 'SET_SELECTED_PROBLEM_ID':
+      return { ...state, selectedProblemId: action.payload };
     case 'SET_S3_SOURCE':
       return { ...state, s3Source: action.payload };
     case 'SET_S3_VALIDATION':
@@ -200,11 +206,6 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       return { ...state, isValidatingMultiTable: action.payload };
     case 'SET_SOLUTION_VERIFICATION':
       return { ...state, solutionVerification: action.payload };
-    case 'SET_SOLUTION_TYPE':
-      return { 
-        ...state, 
-        solutionVerification: { verified: true, source: 'neon' }
-      };
     case 'SET_ACTIVE_TAB':
       return { ...state, activeTab: action.payload };
     case 'APPLY_SINGLE_VALIDATION_TO_DRAFT':
@@ -273,7 +274,8 @@ interface AdminContextType {
     authenticate: (key: string) => Promise<void>;
     validateS3Dataset: () => Promise<void>;
     validateMultiTableDatasets: (solutionPath: string) => Promise<void>;
-    setSolutionType: (source: 'neon') => void;
+    setSolutionType: (source: 'neon') => Promise<void>;
+    setSelectedProblemId: (problemId: string) => void;
     verifySolution: (source: 'neon') => Promise<void>;
     applyValidationToDraft: (type: 'single' | 'multi') => void;
     resetDraft: () => void;
@@ -302,8 +304,63 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
     },
 
-    setSolutionType: (source: 'neon') => {
-      dispatch({ type: 'SET_SOLUTION_TYPE', payload: source });
+    setSelectedProblemId: (problemId: string) => {
+      dispatch({ type: 'SET_SELECTED_PROBLEM_ID', payload: problemId });
+    },
+
+    setSolutionType: async (source: 'neon') => {
+      // For Neon solutions, actually verify they exist instead of auto-verifying
+      if (source === 'neon') {
+        try {
+          dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: null });
+          
+          // Make API call to verify Neon solution
+          const response = await fetch('/api/admin/verify-neon-solution', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Admin-Key': state.adminKey
+            },
+            body: JSON.stringify({
+              problem_id: state.selectedProblemId
+            })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to verify solution: ${response.statusText}`);
+          }
+          
+          const verificationResult = await response.json();
+          
+          dispatch({ 
+            type: 'SET_SOLUTION_VERIFICATION', 
+            payload: {
+              verified: verificationResult.verified,
+              source: verificationResult.source,
+              message: verificationResult.message,
+              test_case_count: verificationResult.test_case_count
+            }
+          });
+          
+        } catch (error) {
+          console.error('Failed to verify Neon solution:', error);
+          toast({
+            title: "Verification Failed",
+            description: `Failed to verify Neon solution: ${error instanceof Error ? error.message : String(error)}`,
+            variant: "destructive"
+          });
+          
+          // Set failed verification
+          dispatch({ 
+            type: 'SET_SOLUTION_VERIFICATION', 
+            payload: {
+              verified: false,
+              source: 'neon',
+              message: `Verification failed: ${error instanceof Error ? error.message : String(error)}`
+            }
+          });
+        }
+      }
     },
 
     authenticate: async (key: string) => {

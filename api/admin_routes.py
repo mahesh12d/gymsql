@@ -636,6 +636,87 @@ def delete_solution(
     return {"success": True, "message": "Solution deleted successfully"}
 
 
+# ======= Neon Solution Verification Endpoints =======
+
+class NeonVerificationRequest(BaseModel):
+    """Request model for Neon solution verification"""
+    problem_id: str = Field(..., description="Problem ID to verify Neon test cases for")
+
+class NeonVerificationResponse(BaseModel):
+    """Response model for Neon solution verification"""
+    verified: bool = Field(..., description="Whether the problem has valid Neon test cases")
+    source: str = Field(default="neon", description="Always 'neon' for this verification")
+    test_case_count: int = Field(default=0, description="Number of valid test cases found")
+    message: str = Field(default="", description="Verification status message")
+
+@admin_router.post("/verify-neon-solution", response_model=NeonVerificationResponse)
+def verify_neon_solution(
+    request: NeonVerificationRequest,
+    _: bool = Depends(verify_admin_user_access),
+    db: Session = Depends(get_db)
+):
+    """
+    Verify that a problem has valid Neon test cases with expected_output
+    
+    This endpoint checks if the problem has test cases with:
+    1. Non-empty expected_output JSONB field
+    2. Valid JSON structure in expected_output
+    3. At least one test case with expected results
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Check if problem exists
+        problem = db.query(Problem).filter(Problem.id == request.problem_id).first()
+        if not problem:
+            return NeonVerificationResponse(
+                verified=False,
+                test_case_count=0,
+                message=f"Problem '{request.problem_id}' not found"
+            )
+        
+        # Find test cases with valid expected_output
+        test_cases = db.query(TestCase).filter(
+            TestCase.problem_id == request.problem_id,
+            TestCase.expected_output.isnot(None)
+        ).all()
+        
+        valid_test_cases = 0
+        for test_case in test_cases:
+            # Check if expected_output has valid content
+            if test_case.expected_output:
+                try:
+                    # Ensure it's a list with at least one item
+                    if isinstance(test_case.expected_output, list) and len(test_case.expected_output) > 0:
+                        # Check if first item looks like a valid result row
+                        first_row = test_case.expected_output[0]
+                        if isinstance(first_row, dict) and len(first_row) > 0:
+                            valid_test_cases += 1
+                except Exception as e:
+                    logger.warning(f"Invalid expected_output in test case {test_case.id}: {e}")
+                    continue
+        
+        if valid_test_cases > 0:
+            return NeonVerificationResponse(
+                verified=True,
+                test_case_count=valid_test_cases,
+                message=f"Found {valid_test_cases} valid Neon test case(s)"
+            )
+        else:
+            return NeonVerificationResponse(
+                verified=False,
+                test_case_count=0,
+                message="No valid test cases with expected_output found"
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to verify Neon solution for problem {request.problem_id}: {e}")
+        return NeonVerificationResponse(
+            verified=False,
+            test_case_count=0,
+            message=f"Verification failed: {str(e)}"
+        )
+
 # ======= S3 Answer File Management Endpoints =======
 
 class S3UploadRequest(BaseModel):
