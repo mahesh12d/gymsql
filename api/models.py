@@ -93,14 +93,13 @@ class Problem(Base):
     s3_data_sources = Column(JSONB, nullable=True)  # Array of S3 data sources for multi-table support
     premium = Column(Boolean, nullable=True, default=None)  # null = free, True = premium
     
-    # Enhanced fields for AWS S3 integration
-    expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results
-    preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
-    expected_output = Column(JSONB, nullable=True)  # Dedicated column for expected query results
+    # Master solution field - the definitive expected output for validation
+    master_solution = Column(JSONB, nullable=True)  # Complete expected output for validation and display
     
-    # Solution verification method control
-    solution_source = Column(String(10), nullable=False, default='neon')  # 'neon' or 's3'
-    s3_solution_source = Column(JSONB, nullable=True)  # S3 bucket, key for solutions.sql file
+    # Legacy fields - to be removed in future migration
+    expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results  
+    preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
+    expected_output = Column(JSONB, nullable=True)  # Old dedicated column - use master_solution instead
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")

@@ -127,15 +127,16 @@ class QuestionData(BaseModel):
 # Problem schemas
 class ProblemBase(CamelCaseModel):
     title: str
-    question: QuestionData  # JSONB field containing description, schema (expectedOutput deprecated)
+    question: QuestionData  # JSONB field containing description, schema
     difficulty: str
     tags: List[str] = []
     company: Optional[str] = None
     hints: List[str] = []
     premium: Optional[bool] = None  # null = free, True = premium
-    expected_output: Optional[List[dict]] = Field(default=None, alias="expectedOutput")  # Dedicated JSONB column for expected results
+    master_solution: Optional[List[dict]] = Field(default=None, alias="masterSolution")  # Complete expected output for validation and display
+    expected_output: Optional[List[dict]] = Field(default=None, alias="expectedOutput")  # Legacy field - use master_solution instead
     parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data (legacy)
-    s3_data_source: Optional[S3DatasetSource] = None  # S3 dataset source configuration (preferred)
+    s3_data_source: Optional[S3DatasetSource] = None  # S3 dataset source configuration (legacy)
 
 class ProblemCreate(ProblemBase):
     pass

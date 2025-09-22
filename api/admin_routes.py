@@ -34,7 +34,7 @@ class AdminTableData(BaseModel):
 class AdminQuestionData(BaseModel):
     description: str
     tables: List[AdminTableData] = []
-    expected_output: List[Dict[str, Any]] = Field(..., alias="expectedOutput")
+    expected_output: Optional[List[Dict[str, Any]]] = Field(None, alias="expectedOutput")  # Optional for backward compatibility
     s3_data_source: Optional[S3DatasetSource] = None
 
 class AdminS3SolutionSource(BaseModel):
@@ -46,6 +46,7 @@ class AdminProblemCreate(BaseModel):
     title: str
     difficulty: str
     question: AdminQuestionData
+    master_solution: Optional[List[Dict[str, Any]]] = Field(None, alias="masterSolution")  # New master solution field
     tags: List[str] = []
     company: str = ""
     hints: List[str] = []
@@ -444,13 +445,21 @@ def create_problem(
     # Solution source is always 'neon' - S3 solutions deprecated
     s3_solution_source = None
 
+    # Normalize master solution: prefer masterSolution, fallback to expectedOutput
+    master_solution_data = None
+    if problem_data.master_solution:
+        master_solution_data = problem_data.master_solution
+    elif problem_data.question.expected_output:
+        master_solution_data = problem_data.question.expected_output
+    
     # Create the problem
     problem = Problem(
         id=str(uuid.uuid4()),
         title=problem_data.title,
         difficulty=problem_data.difficulty,
         question=question_data,
-        expected_output=problem_data.question.expected_output,  # Use dedicated column
+        master_solution=master_solution_data,  # Use normalized master solution
+        expected_output=problem_data.question.expected_output,  # Keep legacy field for backward compatibility
         s3_data_source=s3_data_source,
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,

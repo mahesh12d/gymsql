@@ -235,6 +235,29 @@ def run_schema_migrations():
             print("test_cases table doesn't exist yet, S3 columns will be created by create_tables()")
         
         print("S3 answer source migration completed!")
+        
+        # Master solution migration - add master_solution column for better admin UX
+        print("Checking master_solution column...")
+        columns = [col['name'] for col in inspector.get_columns('problems')]  # Refresh column list
+        
+        if 'master_solution' not in columns:
+            print("Adding master_solution JSONB column to problems table...")
+            conn.execute(text("ALTER TABLE problems ADD COLUMN master_solution JSONB NULL"))
+            print("master_solution column added to problems table")
+            
+            # Backfill existing problems: copy expectedOutput from question field to master_solution
+            print("Backfilling master_solution from existing question.expectedOutput data...")
+            result = conn.execute(text("""
+                UPDATE problems 
+                SET master_solution = question->'expectedOutput'
+                WHERE master_solution IS NULL 
+                  AND question->'expectedOutput' IS NOT NULL
+                  AND jsonb_typeof(question->'expectedOutput') = 'array'
+            """))
+            updated_count = result.rowcount
+            print(f"Backfilled master_solution for {updated_count} existing problems")
+        
+        print("Master solution migration completed!")
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

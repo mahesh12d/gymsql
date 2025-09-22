@@ -17,9 +17,12 @@ export function CreateQuestionTab() {
   const { toast } = useToast();
   const [tagInput, setTagInput] = useState('');
   const [hintInput, setHintInput] = useState('');
-  const [expectedOutputJson, setExpectedOutputJson] = useState('[]');
+  const [masterSolutionJson, setMasterSolutionJson] = useState('[]');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   const [jsonValidationError, setJsonValidationError] = useState('');
+  const [solutionInputMode, setSolutionInputMode] = useState<'json' | 'table'>('json');
+  const [tableColumns, setTableColumns] = useState<Array<{name: string, type: string}>>([]);
+  const [tableRows, setTableRows] = useState<Array<Record<string, any>>>([]);
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
@@ -62,13 +65,15 @@ export function CreateQuestionTab() {
 
   const handleSubmit = () => {
     try {
-      const expectedOutput = JSON.parse(expectedOutputJson);
+      const masterSolution = solutionInputMode === 'json' 
+        ? JSON.parse(masterSolutionJson) 
+        : tableRows;
+      
       const problemData = {
         ...state.problemDraft,
-        expectedOutput, // Use the new dedicated column
+        masterSolution, // Use the new master_solution field
         question: {
           ...state.problemDraft.question,
-          // Remove expectedOutput from question object (now in dedicated column)
           // Include s3_data_source if it exists in the question
           ...(state.problemDraft.question.s3_data_source && {
             s3_data_source: state.problemDraft.question.s3_data_source
@@ -80,7 +85,7 @@ export function CreateQuestionTab() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Invalid JSON in expected output",
+        description: "Invalid JSON in master solution",
         variant: "destructive",
       });
     }
@@ -88,7 +93,7 @@ export function CreateQuestionTab() {
 
   // Validate JSON as user types
   const handleJsonChange = (value: string) => {
-    setExpectedOutputJson(value);
+    setMasterSolutionJson(value);
     
     if (!value.trim()) {
       setJsonValidationError('');
@@ -105,11 +110,32 @@ export function CreateQuestionTab() {
 
   // Parse JSON for preview
   const getParsedJson = () => {
+    if (solutionInputMode === 'table') {
+      return tableRows;
+    }
     try {
-      return JSON.parse(expectedOutputJson);
+      return JSON.parse(masterSolutionJson);
     } catch {
       return null;
     }
+  };
+
+  // Helper functions for format conversion
+  const convertJsonToTable = (jsonData: any[]) => {
+    if (!Array.isArray(jsonData) || jsonData.length === 0) return;
+    
+    const columns = Object.keys(jsonData[0]).map(key => ({
+      name: key,
+      type: typeof jsonData[0][key] === 'number' ? 'number' : 
+            typeof jsonData[0][key] === 'boolean' ? 'boolean' : 'text'
+    }));
+    
+    setTableColumns(columns);
+    setTableRows(jsonData);
+  };
+
+  const convertTableToJson = () => {
+    return JSON.stringify(tableRows, null, 2);
   };
 
   const addTag = () => {
@@ -331,44 +357,211 @@ export function CreateQuestionTab() {
         </CardContent>
       </Card>
 
-      {/* Expected Output - New JSONB Editor with Preview */}
+      {/* Master Solution - Enhanced JSONB Editor with Multiple Input Modes */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Expected Output (JSONB)</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowJsonPreview(!showJsonPreview)}
-              data-testid="button-toggle-preview"
-            >
-              {showJsonPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-              {showJsonPreview ? 'Hide Preview' : 'Show Preview'}
-            </Button>
+            <CardTitle>Master Solution</CardTitle>
+            <div className="flex space-x-2">
+              <select
+                value={solutionInputMode}
+                onChange={(e) => setSolutionInputMode(e.target.value as 'json' | 'table')}
+                className="text-sm border rounded px-2 py-1"
+                data-testid="select-input-mode"
+              >
+                <option value="json">JSON Input</option>
+                <option value="table">Table Builder</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowJsonPreview(!showJsonPreview)}
+                data-testid="button-toggle-preview"
+              >
+                {showJsonPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {showJsonPreview ? 'Hide Preview' : 'Show Preview'}
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Define the expected query results as JSON array. This will be stored in a dedicated JSONB column.
+            Define the definitive expected results for this problem. This will be used for validation and displayed to users as the expected output.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Textarea
-              value={expectedOutputJson}
-              onChange={(e) => handleJsonChange(e.target.value)}
-              placeholder={`[\n  {"REGION": "North", "TOTAL_SALES": 15000},\n  {"REGION": "South", "TOTAL_SALES": 12000}\n]`}
-              rows={8}
-              className={`font-mono text-sm ${jsonValidationError ? 'border-red-500' : ''}`}
-              data-testid="textarea-expected-output"
-            />
-            {jsonValidationError && (
-              <Alert className="mt-2">
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-red-600">
-                  <strong>JSON Error:</strong> {jsonValidationError}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+          {solutionInputMode === 'json' ? (
+            <div>
+              <Label>JSON Input</Label>
+              <Textarea
+                value={masterSolutionJson}
+                onChange={(e) => handleJsonChange(e.target.value)}
+                placeholder={`[\n  {"REGION": "North", "TOTAL_SALES": 15000},\n  {"REGION": "South", "TOTAL_SALES": 12000}\n]`}
+                rows={8}
+                className={`font-mono text-sm ${jsonValidationError ? 'border-red-500' : ''}`}
+                data-testid="textarea-master-solution"
+              />
+              {jsonValidationError && (
+                <Alert className="mt-2">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-red-600">
+                    <strong>JSON Error:</strong> {jsonValidationError}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>Table Builder</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Build your expected output table by defining columns and adding rows
+                </p>
+              </div>
+              
+              {/* Column Management */}
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-2">Columns</h4>
+                <div className="space-y-2">
+                  {tableColumns.map((col, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Input
+                        placeholder="Column Name"
+                        value={col.name}
+                        onChange={(e) => {
+                          const newColumns = [...tableColumns];
+                          newColumns[index].name = e.target.value;
+                          setTableColumns(newColumns);
+                        }}
+                        className="flex-1"
+                        data-testid={`input-column-name-${index}`}
+                      />
+                      <select
+                        value={col.type}
+                        onChange={(e) => {
+                          const newColumns = [...tableColumns];
+                          newColumns[index].type = e.target.value;
+                          setTableColumns(newColumns);
+                        }}
+                        className="border rounded px-2 py-1"
+                        data-testid={`select-column-type-${index}`}
+                      >
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="date">Date</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTableColumns(tableColumns.filter((_, i) => i !== index));
+                          // Remove this column from all rows
+                          setTableRows(tableRows.map(row => {
+                            const newRow = {...row};
+                            delete newRow[col.name];
+                            return newRow;
+                          }));
+                        }}
+                        data-testid={`button-remove-column-${index}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTableColumns([...tableColumns, { name: '', type: 'text' }])}
+                    data-testid="button-add-column"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Column
+                  </Button>
+                </div>
+              </div>
+
+              {/* Row Management */}
+              {tableColumns.length > 0 && (
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Rows</h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newRow: Record<string, any> = {};
+                        tableColumns.forEach(col => {
+                          newRow[col.name] = col.type === 'number' ? 0 : col.type === 'boolean' ? false : '';
+                        });
+                        setTableRows([...tableRows, newRow]);
+                      }}
+                      data-testid="button-add-row"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Row
+                    </Button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border">
+                      <thead>
+                        <tr>
+                          {tableColumns.map((col, index) => (
+                            <th key={index} className="border p-2 bg-gray-50 dark:bg-gray-800 text-left">
+                              {col.name || 'Unnamed'}
+                            </th>
+                          ))}
+                          <th className="border p-2 bg-gray-50 dark:bg-gray-800 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableRows.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {tableColumns.map((col, colIndex) => (
+                              <td key={colIndex} className="border p-1">
+                                {col.type === 'boolean' ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={row[col.name] || false}
+                                    onChange={(e) => {
+                                      const newRows = [...tableRows];
+                                      newRows[rowIndex][col.name] = e.target.checked;
+                                      setTableRows(newRows);
+                                    }}
+                                    data-testid={`checkbox-row-${rowIndex}-col-${colIndex}`}
+                                  />
+                                ) : (
+                                  <Input
+                                    type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
+                                    value={row[col.name] || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...tableRows];
+                                      newRows[rowIndex][col.name] = col.type === 'number' ? Number(e.target.value) : e.target.value;
+                                      setTableRows(newRows);
+                                    }}
+                                    className="h-8"
+                                    data-testid={`input-row-${rowIndex}-col-${colIndex}`}
+                                  />
+                                )}
+                              </td>
+                            ))}
+                            <td className="border p-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setTableRows(tableRows.filter((_, i) => i !== rowIndex))}
+                                data-testid={`button-remove-row-${rowIndex}`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* JSON Preview */}
           {showJsonPreview && (
@@ -424,7 +617,7 @@ export function CreateQuestionTab() {
                   </div>
                 ) : (
                   <div className="text-sm text-gray-500">
-                    {expectedOutputJson.trim() ? 'Invalid JSON' : 'Enter valid JSON to see preview'}
+                    {masterSolutionJson.trim() ? 'Invalid JSON' : 'Enter valid JSON to see preview'}
                   </div>
                 )}
               </div>

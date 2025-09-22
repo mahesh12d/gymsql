@@ -392,45 +392,18 @@ def get_problem(problem_id: str,
     # Create response from ORM
     problem_data = ProblemResponse.from_orm(problem)
     
-    # Fetch expected output from S3 if solution source is S3
-    if (problem.solution_source == 's3' and 
-        problem.s3_solution_source):
-        
-        try:
-            s3_config = problem.s3_solution_source
-            bucket = s3_config.get('bucket')
-            key = s3_config.get('key')
-            
-            if bucket and key:
-                logger.info(f"Fetching expected output from S3: {bucket}/{key}")
-                
-                # Fetch the expected output from S3 parquet file
-                result = s3_service.fetch_answer_file(
-                    bucket=bucket,
-                    key=key,
-                    file_format='parquet'
-                )
-                
-                if result.status in ['cache_hit', 'fetched'] and result.data:
-                    # Update the dedicated expected_output field with S3 data
-                    # Limit to first 20 rows for frontend display
-                    preview_data = result.data[:20] if len(result.data) > 20 else result.data
-                    
-                    # Set the expected output in the dedicated field
-                    problem_data.expected_output = preview_data
-                    
-                    logger.info(f"Successfully updated expected output with {len(preview_data)} rows from S3")
-                else:
-                    logger.warning(f"Failed to fetch S3 data: {result.status}")
-                    
-        except Exception as e:
-            logger.error(f"Error fetching expected output from S3: {str(e)}")
-            # Continue with original data if S3 fetch fails
+    # Use master_solution as the primary source for expected output
+    if hasattr(problem, 'master_solution') and problem.master_solution is not None:
+        problem_data.expected_output = problem.master_solution
+        logger.info(f"Using master_solution with {len(problem.master_solution)} rows for expected output")
+    elif hasattr(problem, 'expected_output') and problem.expected_output is not None:
+        # Fallback to legacy expected_output field
+        problem_data.expected_output = problem.expected_output
+        logger.info(f"Using legacy expected_output field with {len(problem.expected_output)} rows")
     else:
-        # Ensure expected_output is set from the dedicated column
-        # (ProblemResponse.from_orm should handle this automatically, but make it explicit)
-        if hasattr(problem, 'expected_output') and problem.expected_output is not None:
-            problem_data.expected_output = problem.expected_output
+        # No expected output available
+        problem_data.expected_output = []
+        logger.warning(f"No expected output found for problem {problem_id}")
     
     return problem_data
 

@@ -508,11 +508,19 @@ class SecureQueryExecutor:
                         }
                     )]
             
-            # Check for expected output in dedicated column (preferred) or fallback to question
-            expected_output = problem.expected_output if hasattr(problem, 'expected_output') and problem.expected_output else None
+            # Check for expected output - prioritize master_solution, then fallback to legacy fields
+            expected_output = None
             
-            # Fallback to legacy question.expectedOutput for backward compatibility
-            if not expected_output and problem.question and isinstance(problem.question, dict):
+            # First priority: master_solution field (new admin system)
+            if hasattr(problem, 'master_solution') and problem.master_solution:
+                expected_output = problem.master_solution
+            
+            # Second priority: legacy expected_output column
+            elif hasattr(problem, 'expected_output') and problem.expected_output:
+                expected_output = problem.expected_output
+            
+            # Third priority: legacy question.expectedOutput for backward compatibility
+            elif problem.question and isinstance(problem.question, dict):
                 expected_output = problem.question.get('expectedOutput', [])
             
             if expected_output:

@@ -162,7 +162,7 @@ const ProblemDescriptionTab = memo(function ProblemDescriptionTab({
       {/* Structured Table Display */}
       <TableDisplay
         tables={problem?.question?.tables || []}
-        expectedOutput={problem?.question?.expectedOutput || []}
+        expectedOutput={problem?.masterSolution || problem?.question?.expectedOutput || []}
       />
 
       {/* Hints Section */}
