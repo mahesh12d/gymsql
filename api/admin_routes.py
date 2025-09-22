@@ -51,8 +51,7 @@ class AdminProblemCreate(BaseModel):
     hints: List[str] = []
     premium: bool = False
     topic_id: str = ""
-    solution_source: str = "neon"  # 'neon' or 's3'
-    s3_solution_source: Optional[AdminS3SolutionSource] = None
+    solution_source: str = "neon"  # Always use 'neon' - S3 solutions deprecated
 
 class SchemaInfo(BaseModel):
     """Response model for schema information"""
@@ -441,47 +440,8 @@ def create_problem(
             "description": problem_data.question.s3_data_source.description
         }
     
-    # Validate and extract S3 solution source if present
+    # Solution source is always 'neon' - S3 solutions deprecated
     s3_solution_source = None
-    if problem_data.solution_source == 's3':
-        if not problem_data.s3_solution_source:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="S3 solution source configuration is required when solution_source is 's3'"
-            )
-        
-        s3_config = problem_data.s3_solution_source
-        
-        # Validate required fields
-        if not s3_config.bucket or not s3_config.key:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="S3 solution source requires both bucket and key"
-            )
-        
-        # Validate .parquet extension for solution files
-        if not s3_config.key.lower().endswith('.parquet'):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="S3 solution file must have .parquet extension"
-            )
-        
-        # Validate bucket allowlist (import S3_ALLOWED_BUCKETS)
-        from .s3_service import S3_ALLOWED_BUCKETS
-        if s3_config.bucket not in S3_ALLOWED_BUCKETS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"S3 bucket '{s3_config.bucket}' not in allowed list: {S3_ALLOWED_BUCKETS}"
-            )
-        
-        s3_solution_source = {
-            "bucket": s3_config.bucket,
-            "key": s3_config.key,
-            "description": s3_config.description
-        }
-    elif problem_data.s3_solution_source:
-        # Clear S3 solution source if solution_source is not 's3'
-        s3_solution_source = None
 
     # Create the problem
     problem = Problem(
@@ -1035,14 +995,16 @@ def create_question_enhanced(
     db: Session = Depends(get_db)
 ):
     """
-    Enhanced question creation with S3 dataset and solution workflow
+    DEPRECATED: Enhanced question creation with S3 solution workflow
     
-    This endpoint implements the full AWS S3 integration:
-    1. Admin uploads dataset.parquet and out.parquet to S3
-    2. Backend loads dataset from S3 → DuckDB
-    3. Load expected results from out.parquet directly
-    4. Store metadata in Postgres with expected hash and preview rows
+    This endpoint is deprecated as part of the migration from S3 to Neon database
+    for solution validation. Use the standard /problems endpoint with Neon-based
+    test cases instead.
     """
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="This endpoint is deprecated. S3 solution creation has been migrated to Neon database. Use the standard /problems endpoint with test cases instead."
+    )
     logger = logging.getLogger(__name__)
     
     try:

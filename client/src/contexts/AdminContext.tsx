@@ -80,12 +80,7 @@ export interface MultiTableValidationResponse {
 
 export interface SolutionVerificationResult {
   verified: boolean;
-  source: 'neon' | 's3';
-  s3_solution_source?: {
-    bucket: string;
-    key: string;
-    description?: string;
-  } | null;
+  source: 'neon';  // Only Neon supported - S3 solutions deprecated
 }
 
 // State interface
@@ -136,8 +131,7 @@ type AdminAction =
   | { type: 'SET_MULTI_TABLE_VALIDATION'; payload: MultiTableValidationResponse | null }
   | { type: 'SET_VALIDATING_MULTI_TABLE'; payload: boolean }
   | { type: 'SET_SOLUTION_VERIFICATION'; payload: SolutionVerificationResult | null }
-  | { type: 'SET_SOLUTION_TYPE'; payload: 'neon' | 's3' }
-  | { type: 'UPDATE_S3_SOLUTION_CONFIG'; payload: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'> }
+  | { type: 'SET_SOLUTION_TYPE'; payload: 'neon' }
   | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'APPLY_SINGLE_VALIDATION_TO_DRAFT' }
   | { type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' };
@@ -209,17 +203,7 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
     case 'SET_SOLUTION_TYPE':
       return { 
         ...state, 
-        solutionVerification: action.payload === 'neon' ? 
-          { verified: true, source: 'neon', s3_solution_source: null } :
-          { verified: false, source: 's3', s3_solution_source: null }
-      };
-    case 'UPDATE_S3_SOLUTION_CONFIG':
-      return {
-        ...state,
-        solutionVerification: state.solutionVerification ? {
-          ...state.solutionVerification,
-          s3_solution_source: action.payload
-        } : null
+        solutionVerification: { verified: true, source: 'neon' }
       };
     case 'SET_ACTIVE_TAB':
       return { ...state, activeTab: action.payload };
@@ -289,9 +273,8 @@ interface AdminContextType {
     authenticate: (key: string) => Promise<void>;
     validateS3Dataset: () => Promise<void>;
     validateMultiTableDatasets: (solutionPath: string) => Promise<void>;
-    setSolutionType: (source: 'neon' | 's3') => void;
-    updateS3SolutionConfig: (config: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => void;
-    verifySolution: (source: 'neon' | 's3', s3Config?: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => Promise<void>;
+    setSolutionType: (source: 'neon') => void;
+    verifySolution: (source: 'neon') => Promise<void>;
     applyValidationToDraft: (type: 'single' | 'multi') => void;
     resetDraft: () => void;
     updateDraft: (updates: Partial<ProblemDraft>) => void;
@@ -319,12 +302,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
     },
 
-    setSolutionType: (source: 'neon' | 's3') => {
+    setSolutionType: (source: 'neon') => {
       dispatch({ type: 'SET_SOLUTION_TYPE', payload: source });
-    },
-
-    updateS3SolutionConfig: (config: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => {
-      dispatch({ type: 'UPDATE_S3_SOLUTION_CONFIG', payload: config });
     },
 
     authenticate: async (key: string) => {
@@ -465,57 +444,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       }
     },
 
-    verifySolution: async (source: 'neon' | 's3', s3Config?: Pick<S3DatasetSource, 'bucket' | 'key' | 'description'>) => {
+    verifySolution: async (source: 'neon') => {
       try {
-        if (source === 's3') {
-          if (!s3Config?.bucket || !s3Config?.key) {
-            toast({
-              title: "Verification Error",
-              description: "S3 bucket and key are required for S3 solution verification",
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Verify S3 solution exists and is accessible
-          const response = await fetch('/api/admin/validate-dataset-s3', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${state.adminKey}`,
-            },
-            body: JSON.stringify({
-              bucket: s3Config.bucket,
-              key: s3Config.key,
-              table_name: 'solution'
-            }),
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: true, source, s3_solution_source: s3Config } });
-            toast({
-              title: "Solution Verified",
-              description: "S3 solution file is accessible and valid",
-            });
-          } else {
-            dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: false, source, s3_solution_source: s3Config } });
-            toast({
-              title: "Verification Failed",
-              description: result.error || "S3 solution file is not accessible",
-              variant: "destructive",
-            });
-          }
-        } else {
-          // For Neon, we just mark as verified since the solution will be in the database
-          dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: true, source, s3_solution_source: null } });
-          toast({
-            title: "Solution Verified",
-            description: "Neon database solution verification completed",
-          });
-        }
+        // For Neon, we just mark as verified since the solution will be in the database
+        dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: true, source } });
+        toast({
+          title: "Solution Verified",
+          description: "Neon database solution verification completed",
+        });
       } catch (error) {
-        dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: false, source, s3_solution_source: s3Config } });
+        dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: { verified: false, source } });
         toast({
           title: "Error",
           description: "Failed to verify solution",

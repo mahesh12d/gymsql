@@ -349,48 +349,20 @@ export function DataSourceTab() {
         <CardContent className="space-y-4">
           <div className="space-y-3">
             <div 
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                state.solutionVerification?.source === 'neon' 
-                  ? 'border-primary bg-primary/5' 
-                  : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => actions.setSolutionType('neon')}
+              className={`p-4 border-2 rounded-lg border-primary bg-primary/5`}
               data-testid="option-solution-source-neon"
             >
               <div className="flex items-center space-x-2">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  state.solutionVerification?.source === 'neon' ? 'border-primary bg-primary' : 'border-border'
-                }`}></div>
+                <div className={`w-4 h-4 rounded-full border-2 border-primary bg-primary`}></div>
                 <div>
                   <div className="font-medium">Neon Database</div>
-                  <div className="text-sm text-muted-foreground">Solution stored in PostgreSQL</div>
-                </div>
-              </div>
-            </div>
-
-            <div 
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                state.solutionVerification?.source === 's3' 
-                  ? 'border-primary bg-primary/5' 
-                  : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => actions.setSolutionType('s3')}
-              data-testid="option-solution-source-s3"
-            >
-              <div className="flex items-center space-x-2">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  state.solutionVerification?.source === 's3' ? 'border-primary bg-primary' : 'border-border'
-                }`}></div>
-                <div>
-                  <div className="font-medium">S3 Dataset</div>
-                  <div className="text-sm text-muted-foreground">Solution as parquet file in S3</div>
+                  <div className="text-sm text-muted-foreground">Solution stored in PostgreSQL (S3 solutions deprecated)</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Neon Database Configuration and Guidance */}
-          {state.solutionVerification?.source === 'neon' && (
             <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
               <div className="flex items-start space-x-2">
                 <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
@@ -433,75 +405,7 @@ export function DataSourceTab() {
                 </div>
               </div>
             </div>
-          )}
 
-          {/* S3 Solution Configuration */}
-          {state.solutionVerification?.source === 's3' && (
-            <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
-              <div>
-                <Label>S3 Solution Bucket</Label>
-                <Input
-                  value={state.solutionVerification.s3_solution_source?.bucket || ''}
-                  onChange={(e) => {
-                    const newConfig = {
-                      bucket: e.target.value,
-                      key: state.solutionVerification?.s3_solution_source?.key || '',
-                      description: state.solutionVerification?.s3_solution_source?.description || ''
-                    };
-                    actions.updateS3SolutionConfig(newConfig);
-                  }}
-                  placeholder="my-solutions-bucket"
-                  data-testid="input-s3-solution-bucket"
-                />
-              </div>
-
-              <div>
-                <Label>S3 Solution Key</Label>
-                <Input
-                  value={state.solutionVerification.s3_solution_source?.key || ''}
-                  onChange={(e) => {
-                    const newConfig = {
-                      bucket: state.solutionVerification?.s3_solution_source?.bucket || '',
-                      key: e.target.value,
-                      description: state.solutionVerification?.s3_solution_source?.description || ''
-                    };
-                    actions.updateS3SolutionConfig(newConfig);
-                  }}
-                  placeholder="solutions/problem001.parquet"
-                  data-testid="input-s3-solution-key"
-                />
-              </div>
-
-              <div>
-                <Label>Description (Optional)</Label>
-                <Input
-                  value={state.solutionVerification.s3_solution_source?.description || ''}
-                  onChange={(e) => {
-                    const newConfig = {
-                      bucket: state.solutionVerification?.s3_solution_source?.bucket || '',
-                      key: state.solutionVerification?.s3_solution_source?.key || '',
-                      description: e.target.value
-                    };
-                    actions.updateS3SolutionConfig(newConfig);
-                  }}
-                  placeholder="Solution description"
-                  data-testid="input-s3-solution-description"
-                />
-              </div>
-
-              <Button
-                onClick={() => {
-                  if (state.solutionVerification?.s3_solution_source) {
-                    actions.verifySolution('s3', state.solutionVerification.s3_solution_source);
-                  }
-                }}
-                size="sm"
-                data-testid="button-verify-s3-solution"
-              >
-                Verify S3 Solution
-              </Button>
-            </div>
-          )}
 
           {/* Verification Status */}
           {state.solutionVerification && (

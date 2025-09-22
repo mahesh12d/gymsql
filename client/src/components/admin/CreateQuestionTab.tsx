@@ -337,11 +337,6 @@ export function CreateQuestionTab() {
                   {state.solutionVerification.verified ? 'Verified' : 'Not Verified'} - {state.solutionVerification.source.toUpperCase()}
                 </span>
               </div>
-              {state.solutionVerification.s3_solution_source && (
-                <div className="text-xs text-gray-600 mt-1">
-                  S3: {state.solutionVerification.s3_solution_source.bucket}/{state.solutionVerification.s3_solution_source.key}
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
