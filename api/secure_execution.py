@@ -483,21 +483,21 @@ class SecureQueryExecutor:
                 # Execute against test cases (optimized)
                 return await self._execute_test_cases_fast(sandbox, query, test_cases)
             
-            # Check if problem has S3 solution source for verification
-            if hasattr(problem, 'solution_source') and problem.solution_source == 's3' and hasattr(problem, 's3_solution_source') and problem.s3_solution_source:
-                # Execute query and verify with S3 solution
+            # Check if problem has solution validation requirements (use Neon database instead of S3)
+            if hasattr(problem, 'solution_source') and problem.solution_source in ['neon', 's3']:
+                # Execute query and verify with Neon database solution
                 result = await self._execute_query_fast(sandbox, query)
                 
                 if result.get('success'):
                     user_results = result.get('results', [])
-                    s3_verification = await self._verify_with_s3_solution_fast(
-                        sandbox, problem, query, user_results
+                    neon_verification = await self._verify_with_neon_solution(
+                        sandbox, problem, query, user_results, db
                     )
-                    return s3_verification
+                    return neon_verification
                 else:
                     return [self._build_validation_result(
-                        test_case_id='s3_verification',
-                        test_case_name='S3 Solution Verification',
+                        test_case_id='neon_verification',
+                        test_case_name='Neon Solution Verification',
                         is_correct=False,
                         feedback=[result.get('error', 'Query execution failed')],
                         validation_details={
@@ -613,30 +613,12 @@ class SecureQueryExecutor:
                     user_output = result.get('results', [])
                     expected_output = test_case.expected_output or []
                     
-                    # Handle S3 expected output source if exists
-                    if test_case.expected_output_source:
-                        try:
-                            s3_config = test_case.expected_output_source
-                            if s3_config.get('bucket') and s3_config.get('key'):
-                                # Fetch from S3
-                                from .s3_service import s3_service
-                                from .schemas import S3AnswerSource
-                                
-                                s3_answer_source = S3AnswerSource(**s3_config)
-                                cache_result = s3_service.fetch_answer_file(
-                                    bucket=s3_answer_source.bucket,
-                                    key=s3_answer_source.key,
-                                    format=s3_answer_source.format,
-                                    etag=getattr(s3_answer_source, 'etag', None)
-                                )
-                                expected_output = cache_result.data
-                                logger.info(f"Fetched {len(expected_output)} expected rows from S3")
-                        except Exception as e:
-                            logger.error(f"Failed to fetch S3 expected output: {e}")
-                            # Continue with fallback expected_output
+                    # Use expected_output directly from database (Neon migration - removed S3 dependency)
                     
-                    # Enhanced comparison with detailed feedback
-                    is_correct, comparison_details = self._compare_results_detailed(user_output, expected_output)
+                    # Apply 6-step validation pipeline for enhanced comparison
+                    is_correct, comparison_details = self._six_step_validation_pipeline(
+                        user_output, expected_output, test_case.validation_rules or {}
+                    )
                     
                     feedback = []
                     if is_correct:
@@ -768,31 +750,27 @@ class SecureQueryExecutor:
                 }
             )]
     
-    async def _verify_with_s3_solution_fast(
+    async def _verify_with_neon_solution(
         self,
         sandbox: DuckDBSandbox,
         problem: Problem,
         query: str,
-        user_results: List[Dict[str, Any]]
+        user_results: List[Dict[str, Any]],
+        db: Session
     ) -> List[Dict[str, Any]]:
-        """Fast S3 solution verification"""
+        """6-step validation pipeline for Neon database expected results"""
         try:
-            from .s3_service import s3_service
+            # Get test cases from database
+            test_cases = db.query(TestCase).filter(TestCase.problem_id == problem.id).all()
             
-            s3_solution_data = problem.s3_solution_source
-            bucket = s3_solution_data.get('bucket')
-            solution_key = s3_solution_data.get('key')
-            
-            # Fetch expected results from S3
-            validation_result = s3_service.validate_dataset_file(bucket, solution_key, 'solution')
-            if not validation_result.get('is_valid'):
+            if not test_cases:
                 return [{
-                    'test_case_id': 's3_solution_verification',
-                    'test_case_name': 'S3 Solution Verification',
+                    'test_case_id': 'no_test_cases',
+                    'test_case_name': 'No Test Cases',
                     'is_hidden': False,
                     'is_correct': False,
                     'score': 0.0,
-                    'feedback': ['Failed to load expected results from S3'],
+                    'feedback': ['No test cases found for validation'],
                     'execution_time_ms': 0,
                     'user_output': user_results,
                     'expected_output': [],
@@ -801,44 +779,47 @@ class SecureQueryExecutor:
                         'row_comparisons': [],
                         'matching_row_count': 0,
                         'total_row_count': 0,
-                        'comparison_differences': ['Failed to load expected results from S3']
+                        'comparison_differences': ['No test cases found']
                     }
                 }]
             
-            expected_results = validation_result.get('sample_data', [])
+            results = []
+            for test_case in test_cases:
+                # Get expected output from test case
+                expected_results = test_case.expected_output or []
+                
+                # Apply 6-step validation pipeline
+                is_correct, feedback_details = self._six_step_validation_pipeline(
+                    user_results, expected_results, test_case.validation_rules or {}
+                )
+                
+                # Create detailed validation structure for frontend
+                validation_details = self._create_validation_details(user_results, expected_results)
+                
+                results.append(self._build_validation_result(
+                    test_case_id=test_case.id,
+                    test_case_name=test_case.name,
+                    is_hidden=test_case.is_hidden or False,
+                    is_correct=is_correct,
+                    score=100.0 if is_correct else 0.0,
+                    feedback=feedback_details,
+                    user_output=user_results,
+                    expected_output=expected_results,
+                    validation_details=validation_details,
+                    output_matches=is_correct
+                ))
             
-            # Enhanced comparison with detailed feedback and validation details
-            is_correct, comparison_details = self._compare_results_detailed(user_results, expected_results)
-            
-            feedback = []
-            if is_correct:
-                feedback.append('Results match S3 solution perfectly')
-            else:
-                feedback.extend(comparison_details)
-            
-            # Create detailed validation structure for frontend
-            validation_details = self._create_validation_details(user_results, expected_results)
-            
-            return [self._build_validation_result(
-                test_case_id='s3_solution_verification',
-                test_case_name='S3 Solution Verification',
-                is_correct=is_correct,
-                feedback=feedback,
-                user_output=user_results,
-                expected_output=expected_results,
-                validation_details=validation_details,
-                output_matches=is_correct
-            )]
+            return results
             
         except Exception as e:
-            logger.error(f"S3 solution verification failed: {e}")
+            logger.error(f"Neon solution verification failed: {e}")
             return [{
-                'test_case_id': 's3_solution_error',
-                'test_case_name': 'S3 Solution Error',
+                'test_case_id': 'neon_solution_error',
+                'test_case_name': 'Neon Solution Error',
                 'is_hidden': False,
                 'is_correct': False,
                 'score': 0.0,
-                'feedback': [f'S3 verification error: {str(e)}'],
+                'feedback': [f'Neon verification error: {str(e)}'],
                 'execution_time_ms': 0,
                 'user_output': user_results,
                 'expected_output': [],
@@ -847,9 +828,240 @@ class SecureQueryExecutor:
                     'row_comparisons': [],
                     'matching_row_count': 0,
                     'total_row_count': 0,
-                    'comparison_differences': [f'S3 verification error: {str(e)}']
+                    'comparison_differences': [f'Neon verification error: {str(e)}']
                 }
             }]
+    
+    def _six_step_validation_pipeline(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        validation_rules: Dict[str, Any]
+    ) -> Tuple[bool, List[str]]:
+        """
+        6-step validation pipeline for Neon expected results:
+        1. Column names (case-insensitive, ignore order)
+        2. Row count
+        3. Row data (normalized to JSON, ignoring order unless problem specifies)
+        4. Data type normalization (int vs float, NULL handling)
+        5. Optional tolerances (for numeric aggregates)
+        6. Optional strict ordering (if required by question)
+        """
+        feedback = []
+        
+        try:
+            # Step 1: Column names (case-insensitive, ignore order)
+            if not self._validate_column_names(user_results, expected_results, feedback):
+                return False, feedback
+            
+            # Step 2: Row count
+            if not self._validate_row_count(user_results, expected_results, feedback):
+                return False, feedback
+            
+            # Step 3 & 4: Row data with data type normalization
+            if not self._validate_row_data_with_normalization(
+                user_results, expected_results, validation_rules, feedback
+            ):
+                return False, feedback
+            
+            # Step 5: Optional tolerances (for numeric aggregates)
+            if validation_rules.get('numeric_tolerance'):
+                if not self._validate_numeric_tolerance(
+                    user_results, expected_results, validation_rules, feedback
+                ):
+                    return False, feedback
+            
+            # Step 6: Optional strict ordering (if required by question)
+            if validation_rules.get('strict_ordering', False):
+                if not self._validate_strict_ordering(
+                    user_results, expected_results, feedback
+                ):
+                    return False, feedback
+            
+            feedback.append('All validation steps passed - results match perfectly')
+            return True, feedback
+            
+        except Exception as e:
+            logger.error(f"Six-step validation pipeline error: {e}")
+            feedback.append(f'Validation pipeline error: {str(e)}')
+            return False, feedback
+    
+    def _validate_column_names(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        feedback: List[str]
+    ) -> bool:
+        """Step 1: Validate column names (case-insensitive, ignore order)"""
+        if not user_results or not expected_results:
+            return True  # Skip if either is empty
+        
+        user_columns = set(col.lower() for col in user_results[0].keys())
+        expected_columns = set(col.lower() for col in expected_results[0].keys())
+        
+        if user_columns != expected_columns:
+            missing_cols = expected_columns - user_columns
+            extra_cols = user_columns - expected_columns
+            
+            if missing_cols:
+                feedback.append(f"Missing columns: {', '.join(sorted(missing_cols))}")
+            if extra_cols:
+                feedback.append(f"Unexpected columns: {', '.join(sorted(extra_cols))}")
+            
+            return False
+        
+        return True
+    
+    def _validate_row_count(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        feedback: List[str]
+    ) -> bool:
+        """Step 2: Validate row count"""
+        user_count = len(user_results)
+        expected_count = len(expected_results)
+        
+        if user_count != expected_count:
+            feedback.append(f"Row count mismatch: got {user_count} rows, expected {expected_count} rows")
+            return False
+        
+        return True
+    
+    def _validate_row_data_with_normalization(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        validation_rules: Dict[str, Any], 
+        feedback: List[str]
+    ) -> bool:
+        """Steps 3 & 4: Validate row data with normalization (ignoring order unless specified)"""
+        if not user_results and not expected_results:
+            return True
+        
+        # Normalize data types for comparison
+        normalized_user = self._normalize_data_types(user_results)
+        normalized_expected = self._normalize_data_types(expected_results)
+        
+        # Check if strict ordering is required
+        ignore_order = not validation_rules.get('strict_ordering', False)
+        
+        if ignore_order:
+            # Sort both datasets for comparison (ignoring order)
+            try:
+                sorted_user = sorted(normalized_user, key=lambda x: str(sorted(x.items())))
+                sorted_expected = sorted(normalized_expected, key=lambda x: str(sorted(x.items())))
+            except Exception:
+                # Fallback to unsorted comparison if sorting fails
+                sorted_user = normalized_user
+                sorted_expected = normalized_expected
+        else:
+            sorted_user = normalized_user
+            sorted_expected = normalized_expected
+        
+        # Compare the data
+        for i, (user_row, expected_row) in enumerate(zip(sorted_user, sorted_expected)):
+            if user_row != expected_row:
+                # Find specific differences
+                differences = []
+                for col in expected_row.keys():
+                    if col in user_row:
+                        user_val = user_row[col]
+                        expected_val = expected_row[col]
+                        if user_val != expected_val:
+                            differences.append(f"{col}: got '{user_val}', expected '{expected_val}'")
+                
+                if differences and len(feedback) < 5:  # Limit feedback
+                    if i < 3:  # Show details for first few rows
+                        feedback.append(f"Row {i + 1} differs - {'; '.join(differences[:3])}")
+                    elif i == 3:  # Summarize if many differences
+                        feedback.append(f"... and more rows with differences")
+                        break
+                
+                return False
+        
+        return True
+    
+    def _normalize_data_types(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Step 4: Normalize data types (int vs float, NULL handling)"""
+        normalized = []
+        
+        for row in results:
+            normalized_row = {}
+            for key, value in row.items():
+                # Handle None/NULL values
+                if value is None:
+                    normalized_row[key] = None
+                # Normalize numeric types
+                elif isinstance(value, (int, float)):
+                    # Convert int to float for consistent comparison
+                    if isinstance(value, int) and not isinstance(value, bool):
+                        normalized_row[key] = float(value)
+                    else:
+                        normalized_row[key] = value
+                # Handle string representations of numbers
+                elif isinstance(value, str):
+                    try:
+                        # Try to convert to number if it's a numeric string
+                        if '.' in value:
+                            normalized_row[key] = float(value)
+                        else:
+                            normalized_row[key] = float(int(value))
+                    except (ValueError, TypeError):
+                        # Keep as string if not numeric
+                        normalized_row[key] = value
+                else:
+                    normalized_row[key] = value
+            
+            normalized.append(normalized_row)
+        
+        return normalized
+    
+    def _validate_numeric_tolerance(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        validation_rules: Dict[str, Any], 
+        feedback: List[str]
+    ) -> bool:
+        """Step 5: Validate with numeric tolerances for aggregates"""
+        tolerance = validation_rules.get('numeric_tolerance', 0.001)  # Default 0.1% tolerance
+        
+        for i, (user_row, expected_row) in enumerate(zip(user_results, expected_results)):
+            for col in expected_row.keys():
+                if col in user_row:
+                    user_val = user_row[col]
+                    expected_val = expected_row[col]
+                    
+                    # Apply tolerance for numeric values
+                    if isinstance(user_val, (int, float)) and isinstance(expected_val, (int, float)):
+                        if expected_val == 0:
+                            # For zero values, use absolute tolerance
+                            if abs(user_val) > tolerance:
+                                feedback.append(f"Row {i + 1}, column {col}: value {user_val} exceeds tolerance for expected 0")
+                                return False
+                        else:
+                            # For non-zero values, use relative tolerance
+                            relative_diff = abs((user_val - expected_val) / expected_val)
+                            if relative_diff > tolerance:
+                                feedback.append(f"Row {i + 1}, column {col}: value {user_val} differs from expected {expected_val} by {relative_diff*100:.2f}% (tolerance: {tolerance*100:.2f}%)")
+                                return False
+        
+        return True
+    
+    def _validate_strict_ordering(
+        self, 
+        user_results: List[Dict[str, Any]], 
+        expected_results: List[Dict[str, Any]], 
+        feedback: List[str]
+    ) -> bool:
+        """Step 6: Validate strict ordering if required"""
+        for i, (user_row, expected_row) in enumerate(zip(user_results, expected_results)):
+            if user_row != expected_row:
+                feedback.append(f"Strict ordering validation failed at row {i + 1}")
+                return False
+        
+        return True
     
     async def _validate_minimal(
         self,
