@@ -37,7 +37,7 @@ boto3==1.35.49
 
 # Additional packages for SQL sandbox
 fsspec==2024.10.0
-duckdb==1.1.3
+duckdb==1.4.0
 numpy==2.1.3
 pandas==2.2.2
 pyarrow==17.0.0
