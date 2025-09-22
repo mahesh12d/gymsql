@@ -340,6 +340,11 @@ def get_problems(
 def get_problem(problem_id: str, 
                 current_user: Optional[User] = Depends(get_current_user_optional),
                 db: Session = Depends(get_db)):
+    from .s3_service import s3_service
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -358,7 +363,53 @@ def get_problem(problem_id: str,
         problem_data.hints = []  # Hide hints for non-premium users
         return problem_data
     
-    return ProblemResponse.from_orm(problem)
+    # Create response from ORM
+    problem_data = ProblemResponse.from_orm(problem)
+    
+    # Fetch expected output from S3 if solution source is S3
+    if (problem.solution_source == 's3' and 
+        problem.s3_solution_source and 
+        problem_data.question):
+        
+        try:
+            s3_config = problem.s3_solution_source
+            bucket = s3_config.get('bucket')
+            key = s3_config.get('key')
+            
+            if bucket and key:
+                logger.info(f"Fetching expected output from S3: {bucket}/{key}")
+                
+                # Fetch the expected output from S3 parquet file
+                result = s3_service.fetch_answer_file(
+                    bucket=bucket,
+                    key=key,
+                    file_format='parquet'
+                )
+                
+                if result.status in ['cache_hit', 'fetched'] and result.data:
+                    # Update the question's expected output with S3 data
+                    # Limit to first 20 rows for frontend display
+                    preview_data = result.data[:20] if len(result.data) > 20 else result.data
+                    
+                    # Create new question data with updated expected output
+                    updated_question = QuestionData(
+                        description=problem_data.question.description,
+                        tables=problem_data.question.tables,
+                        expectedOutput=preview_data
+                    )
+                    problem_data.question = updated_question
+                    
+                    logger.info(f"Successfully updated expected output with {len(preview_data)} rows from S3")
+                else:
+                    logger.warning(f"Failed to fetch S3 data: {result.status}")
+                    
+        except Exception as e:
+            logger.error(f"Error fetching expected output from S3: {str(e)}")
+            # Continue with original data if S3 fetch fails
+    
+    # Sanitize result to prevent JSON serialization errors
+    from .secure_execution import sanitize_json_data
+    return sanitize_json_data(problem_data)
 
 
 # New secure execution endpoints
