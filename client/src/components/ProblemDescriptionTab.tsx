@@ -1,10 +1,11 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Lightbulb } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import TableDisplay from "@/components/table-display";
+import { queryClient } from "@/lib/queryClient";
 
 interface Problem {
   question?: {
@@ -19,14 +20,23 @@ interface Problem {
 interface ProblemDescriptionTabProps {
   problem?: Problem;
   className?: string;
+  problemId?: string;
 }
 
 const ProblemDescriptionTab = memo(function ProblemDescriptionTab({
   problem,
   className,
+  problemId,
 }: ProblemDescriptionTabProps) {
   const [showHint, setShowHint] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
+
+  // Force cache invalidation on mount to ensure fresh data
+  useEffect(() => {
+    if (problemId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/problems", problemId] });
+    }
+  }, [problemId]);
 
   const handleHintClick = useCallback(() => {
     if (!showHint) {

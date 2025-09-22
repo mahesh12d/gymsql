@@ -607,7 +607,7 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
           className="flex-1 overflow-auto p-6 pt-0 mt-0"
           data-testid="content-problem"
         >
-          <ProblemDescriptionTab problem={problem} />
+          <ProblemDescriptionTab problem={problem} problemId={problemId} />
         </TabsContent>
 
         <TabsContent
