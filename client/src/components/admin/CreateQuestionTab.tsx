@@ -74,13 +74,8 @@ export function CreateQuestionTab() {
       formData.append('file', file);
       
       // Use apiRequest and validate response in mutationFn for proper error handling
-      const result = await apiRequest('/api/admin/convert-parquet', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${state.adminKey}`,
-        },
-      });
+      const response = await apiRequest('POST', '/api/admin/convert-parquet', formData);
+      const result = await response.json();
       
       // Validate response shape in mutationFn so errors go to onError
       if (!result || !result.data || !Array.isArray(result.data)) {

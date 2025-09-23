@@ -32,7 +32,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const token = localStorage.getItem("auth_token");
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  const headers: Record<string, string> = {};
   
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -40,10 +40,19 @@ export async function apiRequest(
 
   const fullUrl = getFullUrl(url);
   
+  let body: string | FormData | undefined;
+  if (data instanceof FormData) {
+    // For FormData, don't set Content-Type - let the browser set it with boundary
+    body = data;
+  } else if (data) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(data);
+  }
+  
   const res = await fetch(fullUrl, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 
