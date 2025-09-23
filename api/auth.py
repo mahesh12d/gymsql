@@ -14,12 +14,21 @@ from .models import User
 from .schemas import TokenData
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "your-jwt-secret-key")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("SECURITY ERROR: JWT_SECRET environment variable is required. Set it to a cryptographically secure random value.")
+if JWT_SECRET in ["your-jwt-secret-key", "dev-secret", "test-secret", "secret", "jwt-secret"]:
+    raise ValueError("SECURITY ERROR: JWT_SECRET cannot use weak/default values. Generate a secure random key.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-# Admin Configuration
-ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "admin-dev-key-123")
+# Admin Configuration  
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY")
+if not ADMIN_SECRET_KEY:
+    raise ValueError("SECURITY ERROR: ADMIN_SECRET_KEY environment variable is required. Set it to a cryptographically secure random value.")
+if ADMIN_SECRET_KEY in ["admin-dev-key-123", "admin", "admin123", "password", "secret"]:
+    raise ValueError("SECURITY ERROR: ADMIN_SECRET_KEY cannot use weak/default values. Generate a secure random key.")
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -79,26 +88,8 @@ def get_current_user(
     """Get the current authenticated user"""
     token = credentials.credentials
     
-    # Development mode bypass - check for fake dev token
-    if token == "dev-token-123":
-        # Check if dev user already exists
-        dev_user = db.query(User).filter(User.id == "dev-user-1").first()
-        if not dev_user:
-            # Create development user
-            dev_user = User(
-                id="dev-user-1",
-                username="developer", 
-                email="dev@sqlgym.dev",
-                first_name="Dev",
-                last_name="User",
-                problems_solved=25,
-                premium=True,
-                is_admin=True
-            )
-            db.add(dev_user)
-            db.commit()
-            db.refresh(dev_user)
-        return dev_user
+    # SECURITY: Development token bypass has been removed for security
+    # All users must authenticate through proper JWT tokens
     
     # Normal JWT verification for production
     token_data = verify_token(token)

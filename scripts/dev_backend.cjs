@@ -48,6 +48,20 @@ async function startBackend() {
   process.env.LC_ALL = 'C.UTF-8';
   process.env.LANG = 'C.UTF-8';
   
+  // Security: Check for required environment variables
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ SECURITY ERROR: JWT_SECRET environment variable is required');
+    console.error('   Generate a secure random key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    console.error('   Then set it: export JWT_SECRET=<your_generated_key>');
+    process.exit(1);
+  }
+  if (!process.env.ADMIN_SECRET_KEY) {
+    console.error('❌ SECURITY ERROR: ADMIN_SECRET_KEY environment variable is required');
+    console.error('   Generate a secure random key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    console.error('   Then set it: export ADMIN_SECRET_KEY=<your_generated_key>');
+    process.exit(1);
+  }
+  
   console.log(`🐍 Using ${useUv ? 'uv' : 'pip'} for Python dependency management`);
   
   if (useUv) {
