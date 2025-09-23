@@ -1648,13 +1648,37 @@ async def convert_parquet_to_jsonb(
                 )
             
             # Clean problematic float values for JSON serialization
-            # Replace NaN, inf, -inf with None (which becomes null in JSON)
             import numpy as np
-            df = df.replace([np.inf, -np.inf], None)  # Replace inf and -inf with None
-            df = df.where(pd.notna(df), None)  # Replace NaN with None
+            import json
+            
+            # Replace NaN, inf, -inf with None (which becomes null in JSON)
+            df = df.replace([np.inf, -np.inf], None)
+            df = df.where(pd.notna(df), None)
             
             # Convert to list of dictionaries (JSONB format)
             jsonb_data = df.to_dict(orient='records')
+            
+            # Additional safety: Clean any remaining problematic values that pandas might have missed
+            def clean_value(value):
+                if isinstance(value, float):
+                    if np.isnan(value) or np.isinf(value):
+                        return None
+                return value
+            
+            # Deep clean the jsonb_data
+            for row in jsonb_data:
+                for key, value in row.items():
+                    row[key] = clean_value(value)
+            
+            # Test JSON serialization to catch any remaining issues
+            try:
+                json.dumps(jsonb_data)
+            except (ValueError, TypeError) as json_error:
+                logger.error(f"JSON serialization test failed: {json_error}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Data contains values that cannot be converted to JSON: {str(json_error)}"
+                )
             
             logger.info(f"Successfully converted Parquet file '{file.filename}' with {len(jsonb_data)} rows")
             
