@@ -99,10 +99,6 @@ class Problem(Base):
     # Display field - what users see on the problem page (separate from validation)
     expected_display = Column(JSONB, nullable=True)  # Expected output shown to users on problem page
     
-    # Legacy fields - to be removed in future migration
-    expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results  
-    preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)
-    expected_output = Column(JSONB, nullable=True)  # Old dedicated column - use master_solution instead
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
