@@ -113,6 +113,16 @@ interface AdminState {
   multiTableValidation: MultiTableValidationResponse | null;
   isValidatingMultiTable: boolean;
 
+  // Unified dataset management - supports both single and multiple
+  datasets: Array<{
+    bucket: string;
+    key: string;
+    table_name: string;
+    description: string;
+  }>;
+  datasetValidation: MultiTableValidationResponse | null;
+  isValidatingDatasets: boolean;
+
   // Solution verification
   solutionVerification: SolutionVerificationResult | null;
 
@@ -135,10 +145,14 @@ type AdminAction =
   | { type: 'SET_MULTI_TABLE_DATASETS'; payload: AdminState['multiTableDatasets'] }
   | { type: 'SET_MULTI_TABLE_VALIDATION'; payload: MultiTableValidationResponse | null }
   | { type: 'SET_VALIDATING_MULTI_TABLE'; payload: boolean }
+  | { type: 'SET_DATASETS'; payload: AdminState['datasets'] }
+  | { type: 'SET_DATASET_VALIDATION'; payload: MultiTableValidationResponse | null }
+  | { type: 'SET_VALIDATING_DATASETS'; payload: boolean }
   | { type: 'SET_SOLUTION_VERIFICATION'; payload: SolutionVerificationResult | null }
   | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'APPLY_SINGLE_VALIDATION_TO_DRAFT' }
-  | { type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' };
+  | { type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' }
+  | { type: 'APPLY_UNIFIED_VALIDATION_TO_DRAFT' };
 
 // Initial state
 const initialState: AdminState = {
@@ -172,6 +186,9 @@ const initialState: AdminState = {
   multiTableDatasets: [],
   multiTableValidation: null,
   isValidatingMultiTable: false,
+  datasets: [],
+  datasetValidation: null,
+  isValidatingDatasets: false,
   solutionVerification: null,
   activeTab: 'create'
 };
@@ -205,6 +222,12 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       return { ...state, multiTableValidation: action.payload };
     case 'SET_VALIDATING_MULTI_TABLE':
       return { ...state, isValidatingMultiTable: action.payload };
+    case 'SET_DATASETS':
+      return { ...state, datasets: action.payload };
+    case 'SET_DATASET_VALIDATION':
+      return { ...state, datasetValidation: action.payload };
+    case 'SET_VALIDATING_DATASETS':
+      return { ...state, isValidatingDatasets: action.payload };
     case 'SET_SOLUTION_VERIFICATION':
       return { ...state, solutionVerification: action.payload };
     case 'SET_ACTIVE_TAB':
@@ -256,6 +279,30 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
         };
       }
       return state;
+    case 'APPLY_UNIFIED_VALIDATION_TO_DRAFT':
+      if (state.datasetValidation?.success && state.datasetValidation.validated_datasets) {
+        const tables = state.datasetValidation.validated_datasets.map((dataset) => ({
+          name: dataset.table_name,
+          columns: (dataset.table_schema || []).map((col) => ({
+            name: col.column,
+            type: col.type,
+            description: `${col.column} column (${col.type})`
+          })),
+          sample_data: dataset.sample_data || []
+        }));
+        return {
+          ...state,
+          problemDraft: {
+            ...state.problemDraft,
+            question: {
+              ...state.problemDraft.question,
+              tables: tables,
+              s3DataSources: state.datasets // Store the datasets for backend submission (uses camelCase alias)
+            }
+          }
+        };
+      }
+      return state;
     default:
       return state;
   }
@@ -269,16 +316,19 @@ interface AdminContextType {
     // Setter actions
     setS3Source: (source: S3DatasetSource) => void;
     setMultiTableDatasets: (datasets: AdminState['multiTableDatasets']) => void;
+    setDatasets: (datasets: AdminState['datasets']) => void;
     setActiveTab: (tab: string) => void;
     
     // Core actions
     authenticate: (key: string) => Promise<void>;
     validateS3Dataset: () => Promise<void>;
     validateMultiTableDatasets: (solutionPath: string) => Promise<void>;
+    validateDatasets: (solutionPath: string) => Promise<void>;
     setSolutionType: (source: 'neon') => Promise<void>;
+    setSolutionVerification: (verification: SolutionVerificationResult) => void;
     setSelectedProblemId: (problemId: string) => void;
     verifySolution: (source: 'neon') => Promise<void>;
-    applyValidationToDraft: (type: 'single' | 'multi') => void;
+    applyValidationToDraft: (type: 'single' | 'multi' | 'unified') => void;
     resetDraft: () => void;
     updateDraft: (updates: Partial<ProblemDraft>) => void;
   };
@@ -301,12 +351,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_MULTI_TABLE_DATASETS', payload: datasets });
     },
 
+    setDatasets: (datasets: AdminState['datasets']) => {
+      dispatch({ type: 'SET_DATASETS', payload: datasets });
+    },
+
     setActiveTab: (tab: string) => {
       dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
     },
 
     setSelectedProblemId: (problemId: string) => {
       dispatch({ type: 'SET_SELECTED_PROBLEM_ID', payload: problemId });
+    },
+
+    setSolutionVerification: (verification: SolutionVerificationResult) => {
+      dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: verification });
     },
 
     setSolutionType: async (source: 'neon') => {
@@ -502,6 +560,49 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       }
     },
 
+    validateDatasets: async (solutionPath: string) => {
+      dispatch({ type: 'SET_VALIDATING_DATASETS', payload: true });
+      dispatch({ type: 'SET_DATASET_VALIDATION', payload: null });
+
+      try {
+        const response = await fetch('/api/admin/validate-multitable-s3', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.adminKey}`,
+          },
+          body: JSON.stringify({
+            datasets: state.datasets,
+            solution_path: solutionPath
+          }),
+        });
+
+        const result = await response.json();
+        dispatch({ type: 'SET_DATASET_VALIDATION', payload: result });
+
+        if (result.success) {
+          toast({
+            title: "Dataset Validation Success",
+            description: `Successfully validated ${result.validated_datasets?.length} dataset(s)`,
+          });
+        } else {
+          toast({
+            title: "Validation Failed",
+            description: result.error || "Unknown error occurred",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to validate datasets",
+          variant: "destructive",
+        });
+      } finally {
+        dispatch({ type: 'SET_VALIDATING_DATASETS', payload: false });
+      }
+    },
+
     verifySolution: async (source: 'neon') => {
       try {
         // For Neon, we just mark as verified since the solution will be in the database
@@ -520,7 +621,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       }
     },
 
-    applyValidationToDraft: (type: 'single' | 'multi') => {
+    applyValidationToDraft: (type: 'single' | 'multi' | 'unified') => {
       let hasValidData = false;
       
       if (type === 'single') {
@@ -528,10 +629,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         if (hasValidData) {
           dispatch({ type: 'APPLY_SINGLE_VALIDATION_TO_DRAFT' });
         }
-      } else {
+      } else if (type === 'multi') {
         hasValidData = state.multiTableValidation?.success && !!state.multiTableValidation.validated_datasets?.length;
         if (hasValidData) {
           dispatch({ type: 'APPLY_MULTI_VALIDATION_TO_DRAFT' });
+        }
+      } else if (type === 'unified') {
+        hasValidData = state.datasetValidation?.success && !!state.datasetValidation.validated_datasets?.length;
+        if (hasValidData) {
+          dispatch({ type: 'APPLY_UNIFIED_VALIDATION_TO_DRAFT' });
         }
       }
 
