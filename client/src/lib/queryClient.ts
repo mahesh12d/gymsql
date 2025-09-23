@@ -10,17 +10,20 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-function getFullUrl(url: string): string {
+function getFullUrl(url: string | unknown): string {
+  // Ensure url is a string
+  const urlString = String(url);
+  
   // If URL is already absolute, return as-is
-  if (url.startsWith('http')) {
-    return url;
+  if (urlString.startsWith('http')) {
+    return urlString;
   }
   // If URL already starts with /api, return as-is (avoid double /api/api)
-  if (url.startsWith('/api')) {
-    return url;
+  if (urlString.startsWith('/api')) {
+    return urlString;
   }
   // Convert relative URLs to absolute using API base URL
-  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  return `${API_BASE_URL}${urlString.startsWith('/') ? urlString : `/${urlString}`}`;
 }
 
 export async function apiRequest(
