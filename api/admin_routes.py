@@ -1647,6 +1647,12 @@ async def convert_parquet_to_jsonb(
                     detail=f"File contains {len(df)} rows. Maximum allowed is {row_limit} rows for performance reasons."
                 )
             
+            # Clean problematic float values for JSON serialization
+            # Replace NaN, inf, -inf with None (which becomes null in JSON)
+            import numpy as np
+            df = df.replace([np.inf, -np.inf], None)  # Replace inf and -inf with None
+            df = df.where(pd.notna(df), None)  # Replace NaN with None
+            
             # Convert to list of dictionaries (JSONB format)
             jsonb_data = df.to_dict(orient='records')
             
