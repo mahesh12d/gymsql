@@ -465,9 +465,7 @@ def create_problem(
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
         premium=problem_data.premium,
-        topic_id=problem_data.topic_id if problem_data.topic_id else None,
-        solution_source=problem_data.solution_source,
-        s3_solution_source=s3_solution_source
+        topic_id=problem_data.topic_id if problem_data.topic_id else None
     )
     
     db.add(problem)
