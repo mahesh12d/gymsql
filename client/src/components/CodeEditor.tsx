@@ -15,6 +15,7 @@ interface Problem {
 
 interface CodeEditorProps {
   problem?: Problem;
+  problemId?: string;
   onRunQuery: (query: string) => Promise<any>;
   onSubmitSolution: (query: string) => Promise<any>;
   isRunning?: boolean;
@@ -24,6 +25,7 @@ interface CodeEditorProps {
 
 const CodeEditor = memo(function CodeEditor({
   problem,
+  problemId,
   onRunQuery,
   onSubmitSolution,
   isRunning = false,
@@ -31,50 +33,49 @@ const CodeEditor = memo(function CodeEditor({
   className,
 }: CodeEditorProps) {
   const [query, setQuery] = useState('');
-  const [hasUserEdited, setHasUserEdited] = useState(false);
-  const [initializedProblemId, setInitializedProblemId] = useState<string | null>(null);
   const isDarkMode = useTheme();
 
-  // Get problem ID for tracking problem changes
-  const currentProblemId = problem?.question?.tables?.[0]?.name || 
-                          (problem?.question?.starterQuery ? 'starter' : null);
+  // Get storage key for this problem
+  const storageKey = problemId ? `sqlgym_query_${problemId}` : null;
 
-  // Initialize query only on first load or when switching problems
+  // Initialize query with priority: saved query > starter query > default table query
   useEffect(() => {
-    // Only initialize if we haven't initialized this problem yet
-    // or if we're switching to a completely different problem
-    if (problem && currentProblemId && currentProblemId !== initializedProblemId) {
+    if (!problem || !problemId) return;
+
+    // Try to restore saved query first
+    let initialQuery = '';
+    if (storageKey) {
+      const savedQuery = localStorage.getItem(storageKey);
+      if (savedQuery) {
+        initialQuery = savedQuery;
+      }
+    }
+
+    // Fall back to starter query or default if no saved query
+    if (!initialQuery) {
       if (problem?.question?.starterQuery) {
-        setQuery(problem.question.starterQuery);
+        initialQuery = problem.question.starterQuery;
       } else if (problem?.question?.tables && problem.question.tables.length > 0) {
         const firstTable = problem.question.tables[0];
         const tableName = firstTable.name;
-        setQuery(`SELECT * FROM "${tableName}";`);
+        initialQuery = `SELECT * FROM "${tableName}";`;
       }
-      
-      // Mark this problem as initialized and reset user edit flag
-      setInitializedProblemId(currentProblemId);
-      setHasUserEdited(false);
     }
-  }, [problem, currentProblemId, initializedProblemId]);
 
-  // Handle query changes and track user edits
+    if (initialQuery) {
+      setQuery(initialQuery);
+    }
+  }, [problem, problemId, storageKey]);
+
+  // Handle query changes and persist to localStorage
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
     
-    // Mark as user edited if they've made meaningful changes beyond initial setup
-    const starterQuery = problem?.question?.starterQuery;
-    const defaultQuery = problem?.question?.tables?.[0]?.name ? 
-                         `SELECT * FROM "${problem.question.tables[0].name}";` : '';
-    
-    // Consider it edited if it's not the original starter query or default table query
-    if (value.trim() && 
-        value !== starterQuery && 
-        value !== defaultQuery &&
-        value.length > 0) {
-      setHasUserEdited(true);
+    // Save to localStorage immediately to survive remounts
+    if (storageKey) {
+      localStorage.setItem(storageKey, value);
     }
-  }, [problem?.question?.starterQuery, problem?.question?.tables]);
+  }, [storageKey]);
 
   // Memoized handlers to prevent recreation
   const handleRun = useCallback(async () => {
