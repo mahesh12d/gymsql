@@ -1604,6 +1604,7 @@ async def convert_parquet_to_jsonb(
     converted to the JSONB format expected by the master_solution field.
     Parquet files offer superior compression and performance for large datasets.
     """
+    logger = logging.getLogger(__name__)
     try:
         # Validate file type
         if not file.filename.endswith('.parquet'):
