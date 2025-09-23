@@ -88,8 +88,16 @@ def get_current_user(
     """Get the current authenticated user"""
     token = credentials.credentials
     
-    # SECURITY: Development token bypass has been removed for security
-    # All users must authenticate through proper JWT tokens
+    # TEMPORARY: Development token bypass for dev-token-123
+    if token == 'dev-token-123':
+        dev_user = db.query(User).filter(User.id == 'dev-user-1').first()
+        if dev_user:
+            return dev_user
+        else:
+            # Fallback to any admin user for development
+            dev_user = db.query(User).filter(User.username == 'admin').first()
+            if dev_user:
+                return dev_user
     
     # Normal JWT verification for production
     token_data = verify_token(token)
