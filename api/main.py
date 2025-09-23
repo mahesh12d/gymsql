@@ -332,6 +332,19 @@ def get_problems(
         problem_data.is_user_solved = bool(
             is_user_solved) if current_user else False
         
+        # Use expected_display for user-facing expected output (separate from validation)
+        if hasattr(problem, 'expected_display') and problem.expected_display is not None:
+            problem_data.expected_output = problem.expected_display
+        elif hasattr(problem, 'expected_output') and problem.expected_output is not None:
+            # Fallback to legacy expected_output field for backward compatibility
+            problem_data.expected_output = problem.expected_output
+        else:
+            # No expected output available for display
+            problem_data.expected_output = []
+            
+        # Clear master_solution from user response - this should only be used during submission validation
+        problem_data.master_solution = None
+        
         # For premium problems, filter content for non-premium users
         if problem.premium is True and (not current_user or not current_user.premium):
             # Create a limited question data for premium problems
@@ -392,18 +405,21 @@ def get_problem(problem_id: str,
     # Create response from ORM
     problem_data = ProblemResponse.from_orm(problem)
     
-    # Use master_solution as the primary source for expected output
-    if hasattr(problem, 'master_solution') and problem.master_solution is not None:
-        problem_data.expected_output = problem.master_solution
-        logger.info(f"Using master_solution with {len(problem.master_solution)} rows for expected output")
+    # Use expected_display for user-facing expected output (separate from validation)
+    if hasattr(problem, 'expected_display') and problem.expected_display is not None:
+        problem_data.expected_output = problem.expected_display
+        logger.info(f"Using expected_display with {len(problem.expected_display)} rows for user display")
     elif hasattr(problem, 'expected_output') and problem.expected_output is not None:
-        # Fallback to legacy expected_output field
+        # Fallback to legacy expected_output field for backward compatibility
         problem_data.expected_output = problem.expected_output
         logger.info(f"Using legacy expected_output field with {len(problem.expected_output)} rows")
     else:
-        # No expected output available
+        # No expected output available for display
         problem_data.expected_output = []
-        logger.warning(f"No expected output found for problem {problem_id}")
+        logger.warning(f"No expected display output found for problem {problem_id}")
+        
+    # Clear master_solution from user response - this should only be used during submission validation
+    problem_data.master_solution = None
     
     return problem_data
 
