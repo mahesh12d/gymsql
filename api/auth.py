@@ -120,9 +120,14 @@ def get_current_user_optional(
         return None
 
 def verify_admin_access(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)
 ) -> bool:
     """Verify admin access using the admin secret key"""
+    
+    # TEMPORARY DEV BYPASS - Remove when Google auth is implemented
+    if os.getenv("TEMP_ADMIN_BYPASS") == "true":
+        return True
+    
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -140,10 +145,29 @@ def verify_admin_access(
     return True
 
 def verify_admin_user_access(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
     """Verify admin access using either admin secret key or admin user token"""
+    
+    # TEMPORARY DEV BYPASS - Remove when Google auth is implemented
+    if os.getenv("TEMP_ADMIN_BYPASS") == "true":
+        # Create/find a temp admin user for development
+        admin_user = db.query(User).filter(User.username == "temp_admin").first()
+        if admin_user is None:
+            from uuid import uuid4
+            admin_user = User(
+                id=str(uuid4()),
+                username="temp_admin",
+                email="temp_admin@dev.local",
+                is_admin=True,
+                premium=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+        return admin_user
+    
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
