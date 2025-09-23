@@ -141,6 +141,20 @@ def run_schema_migrations():
             conn.execute(text("ALTER TABLE problems ALTER COLUMN question SET NOT NULL"))
             print("Schema migration completed successfully!")
         
+        # Add expected_display column if it doesn't exist
+        if 'expected_display' not in columns:
+            print("Adding expected_display JSONB column to problems table...")
+            conn.execute(text("ALTER TABLE problems ADD COLUMN expected_display JSONB NULL"))
+            
+            # Backfill expected_display from expected_output for existing problems
+            print("Backfilling expected_display from expected_output for existing problems...")
+            conn.execute(text("""
+                UPDATE problems 
+                SET expected_display = expected_output 
+                WHERE expected_display IS NULL AND expected_output IS NOT NULL
+            """))
+            print("expected_display column added and backfilled successfully!")
+        
         # Add s3_data_source column if it doesn't exist
         if 's3_data_source' not in columns:
             print("Adding s3_data_source JSONB column to problems table...")

@@ -133,7 +133,8 @@ class ProblemBase(CamelCaseModel):
     company: Optional[str] = None
     hints: List[str] = []
     premium: Optional[bool] = None  # null = free, True = premium
-    master_solution: Optional[List[dict]] = Field(default=None, alias="masterSolution")  # Complete expected output for validation and display
+    master_solution: Optional[List[dict]] = Field(default=None, alias="masterSolution")  # Complete expected output for validation (admin only)
+    expected_display: Optional[List[dict]] = Field(default=None, alias="expectedDisplay")  # Expected output for user display
     expected_output: Optional[List[dict]] = Field(default=None, alias="expectedOutput")  # Legacy field - use master_solution instead
     parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data (legacy)
     s3_data_source: Optional[S3DatasetSource] = None  # S3 dataset source configuration (legacy)

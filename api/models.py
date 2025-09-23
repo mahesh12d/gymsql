@@ -96,6 +96,9 @@ class Problem(Base):
     # Master solution field - the definitive expected output for validation
     master_solution = Column(JSONB, nullable=True)  # Complete expected output for validation and display
     
+    # Display field - what users see on the problem page (separate from validation)
+    expected_display = Column(JSONB, nullable=True)  # Expected output shown to users on problem page
+    
     # Legacy fields - to be removed in future migration
     expected_hash = Column(String(32), nullable=True)  # MD5 hash of sorted expected results  
     preview_rows = Column(JSONB, nullable=True)  # First 5 rows of expected output (JSON)

@@ -30,6 +30,7 @@ export interface ProblemDraft {
   hints: string[];
   premium: boolean;
   topic_id: string;
+  expectedDisplay?: Record<string, any>[];  // Display output for users (not validation)
 }
 
 export interface SchemaInfo {

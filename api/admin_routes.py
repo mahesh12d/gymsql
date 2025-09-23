@@ -47,6 +47,7 @@ class AdminProblemCreate(BaseModel):
     difficulty: str
     question: AdminQuestionData
     master_solution: Optional[List[Dict[str, Any]]] = Field(None, alias="masterSolution")  # New master solution field
+    expected_display: Optional[List[Dict[str, Any]]] = Field(None, alias="expectedDisplay")  # Display output for users (not validation)
     tags: List[str] = []
     company: str = ""
     hints: List[str] = []
@@ -459,6 +460,7 @@ def create_problem(
         difficulty=problem_data.difficulty,
         question=question_data,
         master_solution=master_solution_data,  # Use normalized master solution
+        expected_display=problem_data.expected_display,  # Display output for users (not validation)
         expected_output=problem_data.question.expected_output,  # Keep legacy field for backward compatibility
         s3_data_source=s3_data_source,
         tags=problem_data.tags,

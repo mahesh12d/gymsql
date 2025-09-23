@@ -23,6 +23,14 @@ export function CreateQuestionTab() {
   const [solutionInputMode, setSolutionInputMode] = useState<'json' | 'table'>('json');
   const [tableColumns, setTableColumns] = useState<Array<{name: string, type: string}>>([]);
   const [tableRows, setTableRows] = useState<Array<Record<string, any>>>([]);
+  
+  // Expected Display state variables
+  const [expectedDisplayJson, setExpectedDisplayJson] = useState('[]');
+  const [showDisplayPreview, setShowDisplayPreview] = useState(false);
+  const [displayJsonValidationError, setDisplayJsonValidationError] = useState('');
+  const [displayInputMode, setDisplayInputMode] = useState<'json' | 'table'>('json');
+  const [displayTableColumns, setDisplayTableColumns] = useState<Array<{name: string, type: string}>>([]);
+  const [displayTableRows, setDisplayTableRows] = useState<Array<Record<string, any>>>([]);
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
@@ -69,9 +77,14 @@ export function CreateQuestionTab() {
         ? JSON.parse(masterSolutionJson) 
         : tableRows;
       
+      const expectedDisplay = displayInputMode === 'json' 
+        ? JSON.parse(expectedDisplayJson) 
+        : displayTableRows;
+      
       const problemData = {
         ...state.problemDraft,
-        masterSolution, // Use the new master_solution field
+        masterSolution, // Use the new master_solution field for validation
+        expectedDisplay, // Display output for users (not validation)
         question: {
           ...state.problemDraft.question,
           // Include s3_data_source if it exists in the question
@@ -85,7 +98,7 @@ export function CreateQuestionTab() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Invalid JSON in master solution",
+        description: "Invalid JSON in master solution or expected display",
         variant: "destructive",
       });
     }
@@ -136,6 +149,51 @@ export function CreateQuestionTab() {
 
   const convertTableToJson = () => {
     return JSON.stringify(tableRows, null, 2);
+  };
+
+  // Expected Display helper functions
+  const handleDisplayJsonChange = (value: string) => {
+    setExpectedDisplayJson(value);
+    
+    if (!value.trim()) {
+      setDisplayJsonValidationError('');
+      return;
+    }
+    
+    try {
+      JSON.parse(value);
+      setDisplayJsonValidationError('');
+    } catch (error) {
+      setDisplayJsonValidationError(error instanceof Error ? error.message : 'Invalid JSON');
+    }
+  };
+
+  const getParsedDisplayJson = () => {
+    if (displayInputMode === 'table') {
+      return displayTableRows;
+    }
+    try {
+      return JSON.parse(expectedDisplayJson);
+    } catch {
+      return null;
+    }
+  };
+
+  const convertDisplayJsonToTable = (jsonData: any[]) => {
+    if (!Array.isArray(jsonData) || jsonData.length === 0) return;
+    
+    const columns = Object.keys(jsonData[0]).map(key => ({
+      name: key,
+      type: typeof jsonData[0][key] === 'number' ? 'number' : 
+            typeof jsonData[0][key] === 'boolean' ? 'boolean' : 'text'
+    }));
+    
+    setDisplayTableColumns(columns);
+    setDisplayTableRows(jsonData);
+  };
+
+  const convertDisplayTableToJson = () => {
+    return JSON.stringify(displayTableRows, null, 2);
   };
 
   const addTag = () => {
@@ -384,7 +442,7 @@ export function CreateQuestionTab() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Define the definitive expected results for this problem. This will be used for validation and displayed to users as the expected output.
+            Define the definitive expected results for validation. This is used internally to check if user submissions are correct.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -631,6 +689,245 @@ export function CreateQuestionTab() {
             <div>• Multiple rows: <code>[{"{\"id\": 1, \"name\": \"Alice\""}, {"{\"id\": 2, \"name\": \"Bob\"}"}]</code></div>
             <div>• Numbers: <code>[{"{\"total\": 15000, \"count\": 42}"}]</code></div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Expected Display - What users see on the problem page */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Expected Display</CardTitle>
+            <div className="flex space-x-2">
+              <select
+                value={displayInputMode}
+                onChange={(e) => setDisplayInputMode(e.target.value as 'json' | 'table')}
+                className="text-sm border rounded px-2 py-1"
+                data-testid="select-display-input-mode"
+              >
+                <option value="json">JSON Input</option>
+                <option value="table">Table Builder</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDisplayPreview(!showDisplayPreview)}
+                data-testid="button-toggle-display-preview"
+              >
+                {showDisplayPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {showDisplayPreview ? 'Hide Preview' : 'Show Preview'}
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Define what users see as the expected output on the problem page. This is for display purposes only and is not used for validation.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {displayInputMode === 'json' ? (
+            <div>
+              <Label>JSON Input</Label>
+              <Textarea
+                value={expectedDisplayJson}
+                onChange={(e) => handleDisplayJsonChange(e.target.value)}
+                placeholder={`[\n  {"REGION": "North", "TOTAL_SALES": 15000},\n  {"REGION": "South", "TOTAL_SALES": 12000}\n]`}
+                rows={8}
+                className={`font-mono text-sm ${displayJsonValidationError ? 'border-red-500' : ''}`}
+                data-testid="textarea-expected-display"
+              />
+              {displayJsonValidationError && (
+                <Alert className="mt-2">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-red-600">
+                    <strong>JSON Error:</strong> {displayJsonValidationError}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>Table Builder</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Build your expected display table by defining columns and adding rows
+                </p>
+              </div>
+              
+              {/* Column Management for Display */}
+              <div className="border rounded-lg p-4">
+                <h4 className="font-medium mb-2">Display Columns</h4>
+                <div className="space-y-2">
+                  {displayTableColumns.map((col, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Input
+                        value={col.name}
+                        onChange={(e) => {
+                          const newCols = [...displayTableColumns];
+                          newCols[index].name = e.target.value;
+                          setDisplayTableColumns(newCols);
+                        }}
+                        placeholder="Column name"
+                        className="flex-1"
+                      />
+                      <select
+                        value={col.type}
+                        onChange={(e) => {
+                          const newCols = [...displayTableColumns];
+                          newCols[index].type = e.target.value;
+                          setDisplayTableColumns(newCols);
+                        }}
+                        className="w-24 p-2 border rounded"
+                      >
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newCols = displayTableColumns.filter((_, i) => i !== index);
+                          setDisplayTableColumns(newCols);
+                          // Remove this column from all rows
+                          const newRows = displayTableRows.map(row => {
+                            const newRow = { ...row };
+                            delete newRow[col.name];
+                            return newRow;
+                          });
+                          setDisplayTableRows(newRows);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setDisplayTableColumns([...displayTableColumns, { name: '', type: 'text' }]);
+                    }}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Column
+                  </Button>
+                </div>
+              </div>
+
+              {/* Row Management for Display */}
+              {displayTableColumns.length > 0 && (
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-2">Display Rows</h4>
+                  <div className="space-y-2">
+                    {displayTableRows.map((row, rowIndex) => (
+                      <div key={rowIndex} className="flex items-center space-x-2">
+                        {displayTableColumns.map((col, colIndex) => (
+                          <Input
+                            key={colIndex}
+                            value={row[col.name] || ''}
+                            onChange={(e) => {
+                              const newRows = [...displayTableRows];
+                              newRows[rowIndex][col.name] = col.type === 'number' ? 
+                                (e.target.value === '' ? '' : Number(e.target.value)) : 
+                                e.target.value;
+                              setDisplayTableRows(newRows);
+                            }}
+                            placeholder={col.name}
+                            type={col.type === 'number' ? 'number' : 'text'}
+                            className="flex-1"
+                          />
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newRows = displayTableRows.filter((_, i) => i !== rowIndex);
+                            setDisplayTableRows(newRows);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const newRow: Record<string, any> = {};
+                        displayTableColumns.forEach(col => {
+                          newRow[col.name] = col.type === 'number' ? 0 : '';
+                        });
+                        setDisplayTableRows([...displayTableRows, newRow]);
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Row
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Display JSON Preview */}
+          {showDisplayPreview && (
+            <div className="border rounded-md">
+              <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-b">
+                <h4 className="text-sm font-medium">Display Preview</h4>
+              </div>
+              <div className="p-3">
+                {getParsedDisplayJson() ? (
+                  <div className="space-y-2">
+                    {Array.isArray(getParsedDisplayJson()) ? (
+                      <>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {getParsedDisplayJson().length} rows found
+                        </div>
+                        {getParsedDisplayJson().length > 0 && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="border-b">
+                                  {Object.keys(getParsedDisplayJson()[0]).map((key) => (
+                                    <th key={key} className="text-left p-2 font-medium bg-gray-50 dark:bg-gray-700">
+                                      {key}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {getParsedDisplayJson().slice(0, 5).map((row: any, index: number) => (
+                                  <tr key={index} className="border-b">
+                                    {Object.values(row).map((value: any, colIndex: number) => (
+                                      <td key={colIndex} className="p-2">
+                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {getParsedDisplayJson().length > 5 && (
+                              <div className="text-xs text-gray-500 mt-2">
+                                ... and {getParsedDisplayJson().length - 5} more rows
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Expected display should be an array of objects
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    Enter valid JSON or use table builder to see preview
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
