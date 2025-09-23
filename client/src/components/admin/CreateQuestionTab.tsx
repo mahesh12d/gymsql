@@ -37,18 +37,11 @@ export function CreateQuestionTab() {
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
-      // Use apiRequest for consistency and remove problematic s3_solution_source
-      return await apiRequest('/api/admin/problems', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.adminKey}`,
-        },
-        body: JSON.stringify({
-          ...problemData,
-          solution_source: state.solutionVerification?.source || 'neon',
-          // Remove s3_solution_source to avoid 422 errors
-        }),
+      // Use correct apiRequest signature: (method, url, data)
+      return await apiRequest('POST', '/api/admin/problems', {
+        ...problemData,
+        solution_source: state.solutionVerification?.source || 'neon',
+        // Remove s3_solution_source to avoid 422 errors
       });
     },
     onSuccess: (result) => {
