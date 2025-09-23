@@ -2,12 +2,16 @@
 Admin routes for creating and managing problems
 """
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, Field
 import uuid
 import duckdb
 import logging
+import pandas as pd
+import pyarrow.parquet as pq
+import io
+import tempfile
 
 from .database import get_db
 from .models import Problem, Topic, Solution, User, TestCase
@@ -1585,4 +1589,102 @@ async def create_multitable_question(
             message=f"Failed to create question: {str(e)}",
             problem_id=request.problem_id,
             error=f"Internal server error: {str(e)}"
+        )
+
+
+@admin_router.post("/convert-parquet")
+async def convert_parquet_to_jsonb(
+    file: UploadFile = File(...),
+    admin_key: str = Depends(verify_admin_access)
+):
+    """
+    Convert uploaded Parquet file to JSONB format for master_solution field.
+    
+    This endpoint allows admins to upload large Parquet files which are then
+    converted to the JSONB format expected by the master_solution field.
+    Parquet files offer superior compression and performance for large datasets.
+    """
+    try:
+        # Validate file type
+        if not file.filename.endswith('.parquet'):
+            raise HTTPException(
+                status_code=400,
+                detail="Only Parquet files (.parquet) are supported"
+            )
+        
+        # Read the uploaded file content
+        file_content = await file.read()
+        
+        # Validate file size (25MB limit)
+        max_size_mb = 25
+        if len(file_content) > max_size_mb * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size {len(file_content) / (1024 * 1024):.1f}MB exceeds maximum allowed size of {max_size_mb}MB"
+            )
+        
+        # Validate content type (basic check)
+        if file.content_type and not file.content_type.startswith('application/'):
+            logger.warning(f"Unexpected content type: {file.content_type}")
+        
+        # Create a temporary file to work with pyarrow
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as temp_file:
+                temp_file_path = temp_file.name
+                temp_file.write(file_content)
+                temp_file.flush()
+            
+            # Read the parquet file using pandas
+            df = pd.read_parquet(temp_file_path)
+            
+            # Validate the data size (10k rows limit for better performance)
+            row_limit = 10000
+            if len(df) > row_limit:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File contains {len(df)} rows. Maximum allowed is {row_limit} rows for performance reasons."
+                )
+            
+            # Convert to list of dictionaries (JSONB format)
+            jsonb_data = df.to_dict(orient='records')
+            
+            logger.info(f"Successfully converted Parquet file '{file.filename}' with {len(jsonb_data)} rows")
+            
+            return {
+                "success": True,
+                "message": f"Parquet file converted successfully",
+                "data": jsonb_data,
+                "metadata": {
+                    "filename": file.filename,
+                    "rows": len(jsonb_data),
+                    "columns": list(df.columns),
+                    "file_size_mb": len(file_content) / (1024 * 1024)
+                }
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error reading Parquet file: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid Parquet file format: {str(e)}"
+            )
+        finally:
+            # Always clean up temporary file
+            if temp_file_path:
+                try:
+                    import os
+                    os.unlink(temp_file_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temp file {temp_file_path}: {cleanup_error}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in Parquet conversion: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
         )

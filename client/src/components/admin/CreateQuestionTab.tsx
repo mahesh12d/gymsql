@@ -20,7 +20,10 @@ export function CreateQuestionTab() {
   const [masterSolutionJson, setMasterSolutionJson] = useState('[]');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   const [jsonValidationError, setJsonValidationError] = useState('');
-  const [solutionInputMode, setSolutionInputMode] = useState<'json' | 'table'>('json');
+  const [solutionInputMode, setSolutionInputMode] = useState<'json' | 'table' | 'file'>('json');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [tableColumns, setTableColumns] = useState<Array<{name: string, type: string}>>([]);
   const [tableRows, setTableRows] = useState<Array<Record<string, any>>>([]);
   
@@ -34,7 +37,8 @@ export function CreateQuestionTab() {
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
-      const response = await fetch('/api/admin/problems', {
+      // Use apiRequest for consistency and remove problematic s3_solution_source
+      return await apiRequest('/api/admin/problems', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,16 +47,9 @@ export function CreateQuestionTab() {
         body: JSON.stringify({
           ...problemData,
           solution_source: state.solutionVerification?.source || 'neon',
-          s3_solution_source: state.solutionVerification?.s3_solution_source
+          // Remove s3_solution_source to avoid 422 errors
         }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to create problem');
-      }
-      
-      return response.json();
     },
     onSuccess: (result) => {
       toast({
@@ -63,6 +60,64 @@ export function CreateQuestionTab() {
       queryClient.invalidateQueries({ queryKey: ['/api/problems'] });
     },
     onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const convertParquetMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Use apiRequest and validate response in mutationFn for proper error handling
+      const result = await apiRequest('/api/admin/convert-parquet', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${state.adminKey}`,
+        },
+      });
+      
+      // Validate response shape in mutationFn so errors go to onError
+      if (!result || !result.data || !Array.isArray(result.data)) {
+        throw new Error('Invalid response format from Parquet conversion');
+      }
+      
+      const rows = result.data;
+      
+      // Validate data size
+      if (rows.length === 0) {
+        throw new Error('Parquet file is empty - no data was converted');
+      }
+      
+      return result;
+    },
+    onSuccess: (result) => {
+      const rows = result.data;
+      const metadata = result.metadata || {};
+      
+      // Update the master solution with converted data
+      setMasterSolutionJson(JSON.stringify(rows, null, 2));
+      actions.updateDraft({ masterSolution: rows });
+      
+      // Switch back to JSON view to show the converted data
+      setSolutionInputMode('json');
+      
+      toast({
+        title: "Success",
+        description: `Parquet file converted successfully! ${rows.length} rows loaded (${metadata.columns?.length || 'unknown'} columns).`,
+      });
+      
+      // Clear the uploaded file
+      setUploadedFile(null);
+      setUploadError('');
+    },
+    onError: (error: Error) => {
+      setUploadError(error.message);
       toast({
         title: "Error",
         description: error.message,
@@ -423,12 +478,13 @@ export function CreateQuestionTab() {
             <div className="flex space-x-2">
               <select
                 value={solutionInputMode}
-                onChange={(e) => setSolutionInputMode(e.target.value as 'json' | 'table')}
+                onChange={(e) => setSolutionInputMode(e.target.value as 'json' | 'table' | 'file')}
                 className="text-sm border rounded px-2 py-1"
                 data-testid="select-input-mode"
               >
                 <option value="json">JSON Input</option>
                 <option value="table">Table Builder</option>
+                <option value="file">Parquet File Upload</option>
               </select>
               <Button
                 variant="outline"
@@ -465,6 +521,88 @@ export function CreateQuestionTab() {
                   </AlertDescription>
                 </Alert>
               )}
+            </div>
+          ) : solutionInputMode === 'file' ? (
+            <div>
+              <Label>Parquet File Upload</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Upload a Parquet file containing your expected results. Parquet files offer superior compression and performance for large datasets.
+              </p>
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+                  <input
+                    type="file"
+                    accept=".parquet"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setUploadedFile(file);
+                        setUploadError('');
+                      }
+                    }}
+                    className="hidden"
+                    id="parquet-upload"
+                    data-testid="input-parquet-file"
+                  />
+                  <label
+                    htmlFor="parquet-upload"
+                    className="cursor-pointer flex flex-col items-center space-y-2"
+                  >
+                    <div className="text-4xl text-gray-400">📄</div>
+                    <div className="text-sm text-center">
+                      <span className="font-medium text-blue-600 hover:text-blue-500">
+                        Click to upload
+                      </span>{" "}
+                      or drag and drop
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Parquet files only (.parquet)
+                    </div>
+                  </label>
+                </div>
+                
+                {uploadedFile && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                    <div className="flex items-center space-x-2">
+                      <div className="text-green-600">📄</div>
+                      <div>
+                        <div className="text-sm font-medium">{uploadedFile.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUploadedFile(null)}
+                      data-testid="button-remove-file"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {uploadError && (
+                  <Alert className="mt-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-red-600">
+                      <strong>Upload Error:</strong> {uploadError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {uploadedFile && !isUploading && (
+                  <Button
+                    onClick={() => convertParquetMutation.mutate(uploadedFile)}
+                    disabled={isUploading || convertParquetMutation.isPending}
+                    className="w-full"
+                    data-testid="button-convert-parquet"
+                  >
+                    {convertParquetMutation.isPending ? 'Converting...' : 'Convert to Master Solution'}
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
