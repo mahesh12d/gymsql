@@ -286,17 +286,15 @@ class DuckDBSandbox:
             logger.error(f"Failed to initialize DuckDB connection: {e}")
             raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
     
-    async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, s3_data_sources: List[Dict[str, str]] = None, parquet_data_source: Dict[str, str] = None, question_tables: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def setup_problem_data(self, problem_id: str, s3_data_source: Dict[str, str] = None, parquet_data_source: Dict[str, str] = None, question_tables: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Load problem dataset into DuckDB from multiple sources:
-        1. Multiple S3 datasets from s3_data_sources[] (preferred for multi-table S3 problems)
-        2. Multiple tables from question.tables[] definitions (for in-memory table definitions)
-        3. Single table from S3 parquet file (legacy single-table support)
+        1. Multiple tables from question.tables[] definitions (for in-memory table definitions)
+        2. Single table from S3 parquet file (legacy single-table support)
         
         Args:
             problem_id: Unique identifier for the problem
             s3_data_source: Dict containing bucket, key, table_name, description, etag (legacy)
-            s3_data_sources: List of dicts for multi-table S3 support (bucket, key, table_name, description)
             parquet_data_source: Unused legacy parameter (Git integration removed)
             question_tables: List of table definitions from question.tables[] field
             
@@ -307,96 +305,8 @@ class DuckDBSandbox:
             tables_created = []
             total_rows = 0
             
-            # Priority order: 1) Multi-table S3, 2) question_tables, 3) single S3
-            if s3_data_sources and len(s3_data_sources) > 0:
-                # Multi-table S3 support (highest priority)
-                if len(s3_data_sources) > self.MAX_TABLES_PER_PROBLEM:
-                    return {"success": False, "error": f"Too many S3 datasets: {len(s3_data_sources)}. Maximum allowed: {self.MAX_TABLES_PER_PROBLEM}"}
-                
-                logger.info(f"Loading {len(s3_data_sources)} tables from S3 datasets for problem {problem_id}")
-                
-                for dataset in s3_data_sources:
-                    try:
-                        bucket = dataset.get('bucket', '')
-                        key = dataset.get('key', '')
-                        table_name = dataset.get('table_name', f'table_{len(tables_created) + 1}')
-                        description = dataset.get('description', '')
-                        
-                        if not bucket or not key:
-                            return {"success": False, "error": f"S3 dataset missing bucket or key: {dataset}"}
-                        
-                        # Security validation
-                        if not self._validate_table_name(table_name):
-                            return {"success": False, "error": f"Invalid table name: {table_name}"}
-                        
-                        logger.info(f"Loading S3 dataset: s3://{bucket}/{key} -> {table_name}")
-                        
-                        # Use S3 service to download to temporary file
-                        temp_file_path = s3_service.download_to_temp_file(bucket, key)
-                        
-                        try:
-                            # Load parquet from local temp file
-                            escaped_table_name = self._escape_identifier(table_name)
-                            
-                            # Test if parquet file is readable and get row count
-                            result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [temp_file_path]).fetchone()
-                            
-                            if result is None:
-                                return {"success": False, "error": f"Parquet file not readable: s3://{bucket}/{key}"}
-                            
-                            row_count = result[0] if result else 0
-                            
-                            # Drop table if it exists and create new one
-                            self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
-                            self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [temp_file_path])
-                            
-                            # Get table schema for user reference
-                            schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
-                            schema = [{"column": row[0], "type": row[1]} for row in schema_result]
-                            
-                            # Get sample data (limit to 3 rows)
-                            sample_result = self.conn.execute(f"SELECT * FROM {escaped_table_name} LIMIT 3").fetchdf()
-                            sample_data = sample_result.to_dict(orient="records") if not sample_result.empty else []
-                            
-                            # Track loaded table for security validation
-                            self.loaded_table_names.add(table_name)
-                            
-                            tables_created.append({
-                                "name": table_name,
-                                "source": f"s3://{bucket}/{key}",
-                                "row_count": row_count,
-                                "schema": schema,
-                                "sample_data": sample_data,
-                                "description": description
-                            })
-                            
-                            total_rows += row_count
-                            
-                        except Exception as e:
-                            logger.error(f"Failed to load S3 dataset s3://{bucket}/{key}: {e}")
-                            return {"success": False, "error": f"Failed to load S3 dataset s3://{bucket}/{key}: {str(e)}"}
-                        
-                        finally:
-                            # Clean up temp file
-                            try:
-                                if os.path.exists(temp_file_path):
-                                    os.unlink(temp_file_path)
-                            except:
-                                pass
-                    
-                    except Exception as e:
-                        logger.error(f"Error processing S3 dataset {dataset}: {e}")
-                        return {"success": False, "error": f"Error processing S3 dataset: {str(e)}"}
-                
-                return {
-                    "success": True,
-                    "message": f"Successfully loaded {len(tables_created)} S3 datasets with {total_rows:,} total rows",
-                    "tables_created": tables_created,
-                    "total_rows": total_rows,
-                    "total_tables": len(tables_created)
-                }
-            
-            elif question_tables and len(question_tables) > 0:
+            # Priority order: 1) question_tables, 2) single S3
+            if question_tables and len(question_tables) > 0:
                 # Resource limits enforcement
                 if len(question_tables) > self.MAX_TABLES_PER_PROBLEM:
                     return {"success": False, "error": f"Too many tables: {len(question_tables)}. Maximum allowed: {self.MAX_TABLES_PER_PROBLEM}"}

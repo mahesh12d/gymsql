@@ -40,7 +40,6 @@ class AdminQuestionData(BaseModel):
     tables: List[AdminTableData] = []
     expected_output: Optional[List[Dict[str, Any]]] = Field(None, alias="expectedOutput")  # Optional for backward compatibility
     s3_data_source: Optional[S3DatasetSource] = None
-    s3_data_sources: List[S3DatasetSource] = Field(default_factory=list, alias="s3DataSources")
     
     model_config = {"populate_by_name": True}
 
@@ -450,18 +449,6 @@ def create_problem(
             "description": problem_data.question.s3_data_source.description
         }
     
-    # Extract S3 data sources for multi-table support
-    s3_data_sources = []
-    if hasattr(problem_data.question, 's3_data_sources') and problem_data.question.s3_data_sources:
-        s3_data_sources = [
-            {
-                "bucket": source.bucket,
-                "key": source.key,
-                "table_name": source.table_name,
-                "description": source.description
-            }
-            for source in problem_data.question.s3_data_sources
-        ]
     
     # Solution source is always 'neon' - S3 solutions deprecated
     s3_solution_source = None
@@ -483,7 +470,6 @@ def create_problem(
         expected_display=problem_data.expected_display,  # Display output for users (not validation)
         expected_output=problem_data.question.expected_output,  # Keep legacy field for backward compatibility
         s3_data_source=s3_data_source,
-        s3_data_sources=s3_data_sources if s3_data_sources else None,  # Add multi-table support
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
@@ -1572,7 +1558,6 @@ async def create_multitable_question(
             hints=request.hints,
             premium=request.premium,
             topic_id=request.topic_id,
-            s3_data_sources=validated_datasets,  # Store as array for multi-table
             solution_source='s3',
             s3_solution_source={
                 "bucket": solution_bucket,
