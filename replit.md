@@ -91,6 +91,15 @@ Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
 
 ## Recent Changes
+- **September 23, 2025**: Fixed critical admin panel JSON parsing error during question creation
+  - **Issue**: "Failed to execute 'json' on 'Response': Unexpected token 'I'" error when creating questions
+    - **Root Cause**: `TypeError: 'solution_source' is an invalid keyword argument for Problem` causing 500 errors
+    - **Problem**: Backend returned HTML error pages instead of JSON, causing frontend parsing failures
+    - **Fix**: Removed invalid `solution_source` and `s3_solution_source` parameters from Problem constructor in `admin_routes.py`
+    - **Solution**: Problem model doesn't have these fields; removed lines 469-470 from create_problem function
+    - **Impact**: ✅ Admin panel now works correctly, returns proper JSON responses, 200 OK status codes
+  - **Verification**: Successfully created test problem with proper authentication using Bearer token
+  - **Status**: ✅ Admin panel problem creation fully functional
 - **September 21, 2025**: Successfully completed GitHub import and resolved critical encoding issues
   - **Issue**: UnicodeDecodeError causing JSON parsing failures in sandbox API routes
     - **Root Cause**: UTF-8 encoding errors when processing query results containing non-UTF-8 characters (byte 0xa0)
