@@ -25,6 +25,7 @@ export interface ProblemDraft {
   title: string;
   difficulty: string;
   question: QuestionData;
+  s3_datasets?: S3DatasetSource[];  // Multiple S3 dataset sources
   tags: string[];
   company: string;
   hints: string[];
@@ -290,10 +291,20 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
           })),
           sample_data: dataset.sample_data || []
         }));
+        
+        // Extract S3 datasets info from validated datasets
+        const s3_datasets = state.datasets.map((dataset) => ({
+          bucket: dataset.bucket,
+          key: dataset.key,
+          table_name: dataset.table_name,
+          description: dataset.description || ''
+        }));
+        
         return {
           ...state,
           problemDraft: {
             ...state.problemDraft,
+            s3_datasets: s3_datasets,  // Include S3 datasets info
             question: {
               ...state.problemDraft.question,
               tables: tables,

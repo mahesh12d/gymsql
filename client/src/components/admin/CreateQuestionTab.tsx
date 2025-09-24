@@ -129,6 +129,10 @@ export function CreateQuestionTab() {
         ...state.problemDraft,
         masterSolution, // Use the new master_solution field for validation
         expectedDisplay, // Display output for users (not validation)
+        // Include s3_datasets if they exist at the top level
+        ...(state.problemDraft.s3_datasets && {
+          s3_datasets: state.problemDraft.s3_datasets
+        }),
         question: {
           ...state.problemDraft.question,
           // Include s3_data_source if it exists in the question
