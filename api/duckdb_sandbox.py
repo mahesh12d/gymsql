@@ -322,7 +322,7 @@ class DuckDBSandbox:
                 # Track successes and failures for partial success support
                 dataset_errors = []
                 
-                for dataset in datasets_list:
+                for dataset in s3_datasets:
                     dataset_table_name = dataset.get('table_name', 'unknown')
                     dataset_s3_path = f"s3://{dataset.get('bucket', 'unknown')}/{dataset.get('key', 'unknown')}"
                     
@@ -432,12 +432,12 @@ class DuckDBSandbox:
                 
                 else:
                     # Partial success - some tables loaded, some failed
-                    warnings_msg = f"Loaded {len(tables_created)} of {len(datasets_list)} tables. Failed: " + "; ".join([f"{err['table']}: {err['error']}" for err in dataset_errors])
+                    warnings_msg = f"Loaded {len(tables_created)} of {len(s3_datasets)} tables. Failed: " + "; ".join([f"{err['table']}: {err['error']}" for err in dataset_errors])
                     logger.warning(f"Partial success loading S3 datasets for problem {problem_id}: {warnings_msg}")
                     
                     return {
                         "success": True,
-                        "message": f"Partially loaded {len(tables_created)} of {len(datasets_list)} tables from S3 datasets",
+                        "message": f"Partially loaded {len(tables_created)} of {len(s3_datasets)} tables from S3 datasets",
                         "tables": tables_created,
                         "total_tables": len(tables_created),
                         "total_rows": total_rows,
@@ -445,9 +445,73 @@ class DuckDBSandbox:
                         "warnings": warnings_msg,
                         "dataset_errors": dataset_errors
                     }
+            
+            # Fallback to S3 data source (legacy single-table support)
+            elif s3_data_source:
+                # Use S3 data source
+                bucket = s3_data_source.get('bucket', '')
+                key = s3_data_source.get('key', '')
+                table_name = s3_data_source.get('table_name', 'problem_data')
+                description = s3_data_source.get('description', '')
+                etag = s3_data_source.get('etag', '')
+                
+                logger.info(f"Loading problem data from S3: s3://{bucket}/{key}")
+                
+                # Security validation
+                if not self._validate_table_name(table_name):
+                    return {"success": False, "error": f"Invalid table name: {table_name}"}
+                
+                # Use S3 service to download to temporary file
+                try:
+                    temp_file_path = s3_service.download_to_temp_file(bucket, key)
+                    
+                    try:
+                        # Load parquet from local temp file (no remote access needed)
+                        escaped_table_name = self._escape_identifier(table_name)
+                        
+                        # Test if parquet file is readable
+                        result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [temp_file_path]).fetchone()
+                        
+                        if result is None:
+                            return {"success": False, "error": f"Parquet file not readable: s3://{bucket}/{key}"}
+                        
+                        # Drop table if it exists and create new one
+                        self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
+                        self.conn.execute(f"CREATE TABLE {escaped_table_name} AS SELECT * FROM read_parquet(?)", [temp_file_path])
+                        
+                        # Get table schema for user reference
+                        schema_result = self.conn.execute(f"DESCRIBE {escaped_table_name}").fetchall()
+                        schema = [{"column": row[0], "type": row[1]} for row in schema_result]
+                        
+                        row_count = result[0] if result else 0
+                        
+                        # Track loaded table for security validation
+                        self.loaded_table_names.add(table_name)
+                        
+                        return {
+                            "success": True,
+                            "message": f"Problem data loaded successfully from S3 into {table_name}",
+                            "schema": schema,
+                            "row_count": row_count,
+                            "data_source": f"s3://{bucket}/{key}",
+                            "table_name": table_name,
+                            "etag": etag
+                        }
+                        
+                    finally:
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
+                            
+                except Exception as e:
+                    logger.error(f"Failed to load from S3: {e}")
+                    return {"success": False, "error": f"Failed to load S3 dataset: {str(e)}"}
+            
             else:
-                # This should not happen since we already validated s3_datasets exists
-                return {"success": False, "error": "No valid S3 datasets provided"}
+                # No data source provided
+                return {"success": False, "error": "Either question_tables or s3_data_source is required"}
             
         except Exception as e:
             error_msg = f"Failed to load problem data for {problem_id}: {str(e)}"
