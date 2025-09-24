@@ -439,7 +439,7 @@ def create_problem(
         # expectedOutput removed - now stored in dedicated expected_output column
     }
     
-    # Extract S3 data source if present
+    # Extract S3 data source if present (legacy single dataset)
     s3_data_source = None
     if hasattr(problem_data.question, 's3_data_source') and problem_data.question.s3_data_source:
         s3_data_source = {
@@ -448,6 +448,19 @@ def create_problem(
             "table_name": problem_data.question.s3_data_source.table_name,
             "description": problem_data.question.s3_data_source.description
         }
+
+    # Extract multiple S3 datasets if present
+    s3_datasets = None
+    if hasattr(problem_data, 's3_datasets') and problem_data.s3_datasets:
+        s3_datasets = [
+            {
+                "bucket": dataset.bucket,
+                "key": dataset.key,
+                "table_name": dataset.table_name,
+                "description": dataset.description or ""
+            }
+            for dataset in problem_data.s3_datasets
+        ]
     
     
     # Solution source is always 'neon' - S3 solutions deprecated
@@ -469,7 +482,8 @@ def create_problem(
         master_solution=master_solution_data,  # Use normalized master solution
         expected_display=problem_data.expected_display,  # Display output for users (not validation)
         expected_output=problem_data.question.expected_output,  # Keep legacy field for backward compatibility
-        s3_data_source=s3_data_source,
+        s3_data_source=s3_data_source,  # Legacy single dataset
+        s3_datasets=s3_datasets,  # New multiple datasets field
         tags=problem_data.tags,
         company=problem_data.company if problem_data.company else None,
         hints=problem_data.hints,
