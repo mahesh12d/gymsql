@@ -54,6 +54,7 @@ class AdminProblemCreate(BaseModel):
     question: AdminQuestionData
     master_solution: Optional[List[Dict[str, Any]]] = Field(None, alias="masterSolution")  # New master solution field
     expected_display: Optional[List[Dict[str, Any]]] = Field(None, alias="expectedDisplay")  # Display output for users (not validation)
+    s3_datasets: Optional[List[S3DatasetSource]] = None  # Multiple S3 dataset sources configuration
     tags: List[str] = []
     company: str = ""
     hints: List[str] = []
