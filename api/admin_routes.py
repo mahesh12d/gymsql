@@ -481,7 +481,6 @@ def create_problem(
         question=question_data,
         master_solution=master_solution_data,  # Use normalized master solution
         expected_display=problem_data.expected_display,  # Display output for users (not validation)
-        expected_output=problem_data.question.expected_output,  # Keep legacy field for backward compatibility
         s3_data_source=s3_data_source,  # Legacy single dataset
         s3_datasets=s3_datasets,  # New multiple datasets field
         tags=problem_data.tags,
