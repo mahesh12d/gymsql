@@ -368,7 +368,13 @@ class DuckDBSandbox:
                 
                 logger.info(f"Loading {len(s3_datasets)} tables from S3 datasets for problem {problem_id}")
                 
+                # Track successes and failures for partial success support
+                dataset_errors = []
+                
                 for dataset in s3_datasets:
+                    dataset_table_name = dataset.get('table_name', 'unknown')
+                    dataset_s3_path = f"s3://{dataset.get('bucket', 'unknown')}/{dataset.get('key', 'unknown')}"
+                    
                     try:
                         bucket = dataset.get('bucket', '').strip()
                         key = dataset.get('key', '').strip()
@@ -377,11 +383,17 @@ class DuckDBSandbox:
                         etag = dataset.get('etag', '')
                         
                         if not bucket or not key or not table_name:
-                            return {"success": False, "error": f"Invalid S3 dataset configuration: bucket, key, and table_name are required"}
+                            error_msg = f"Invalid S3 dataset configuration: bucket, key, and table_name are required"
+                            logger.error(f"Dataset {dataset_table_name} ({dataset_s3_path}): {error_msg}")
+                            dataset_errors.append({"table": dataset_table_name, "s3_path": dataset_s3_path, "error": error_msg})
+                            continue
                         
                         # Security validation
                         if not self._validate_table_name(table_name):
-                            return {"success": False, "error": f"Invalid table name: {table_name}"}
+                            error_msg = f"Invalid table name: {table_name}"
+                            logger.error(f"Dataset {dataset_table_name} ({dataset_s3_path}): {error_msg}")
+                            dataset_errors.append({"table": dataset_table_name, "s3_path": dataset_s3_path, "error": error_msg})
+                            continue
                         
                         logger.info(f"Loading table '{table_name}' from S3: s3://{bucket}/{key}")
                         
@@ -396,7 +408,10 @@ class DuckDBSandbox:
                             result = self.conn.execute("SELECT COUNT(*) as row_count FROM read_parquet(?)", [temp_file_path]).fetchone()
                             
                             if result is None:
-                                return {"success": False, "error": f"Parquet file not readable: s3://{bucket}/{key}"}
+                                error_msg = f"Parquet file not readable: s3://{bucket}/{key}"
+                                logger.error(f"Dataset {dataset_table_name} ({dataset_s3_path}): {error_msg}")
+                                dataset_errors.append({"table": dataset_table_name, "s3_path": dataset_s3_path, "error": error_msg})
+                                continue
                             
                             # Drop table if it exists and create new one
                             self.conn.execute(f"DROP TABLE IF EXISTS {escaped_table_name}")
@@ -437,17 +452,48 @@ class DuckDBSandbox:
                                 pass
                         
                     except Exception as e:
-                        logger.error(f"Failed to load S3 dataset {dataset}: {e}")
-                        return {"success": False, "error": f"Failed to load S3 dataset '{table_name}': {str(e)}"}
+                        error_msg = f"Failed to load S3 dataset: {str(e)}"
+                        logger.error(f"Dataset {dataset_table_name} ({dataset_s3_path}): {error_msg}", exc_info=True)
+                        dataset_errors.append({"table": dataset_table_name, "s3_path": dataset_s3_path, "error": error_msg})
+                        continue
                 
-                return {
-                    "success": True,
-                    "message": f"Successfully loaded {len(tables_created)} tables from S3 datasets",
-                    "tables": tables_created,
-                    "total_tables": len(tables_created),
-                    "total_rows": total_rows,
-                    "data_source": "s3_datasets"
-                }
+                # Determine success based on partial results
+                if len(tables_created) == 0:
+                    # No tables loaded successfully - return complete failure
+                    if len(dataset_errors) > 0:
+                        consolidated_error = f"Failed to load any S3 datasets. Errors: " + "; ".join([f"{err['table']}: {err['error']}" for err in dataset_errors])
+                    else:
+                        consolidated_error = "Failed to load any S3 datasets due to unknown errors"
+                    
+                    logger.error(f"Complete failure loading S3 datasets for problem {problem_id}: {consolidated_error}")
+                    return {"success": False, "error": consolidated_error, "dataset_errors": dataset_errors}
+                
+                elif len(dataset_errors) == 0:
+                    # All tables loaded successfully
+                    return {
+                        "success": True,
+                        "message": f"Successfully loaded all {len(tables_created)} tables from S3 datasets",
+                        "tables": tables_created,
+                        "total_tables": len(tables_created),
+                        "total_rows": total_rows,
+                        "data_source": "s3_datasets"
+                    }
+                
+                else:
+                    # Partial success - some tables loaded, some failed
+                    warnings_msg = f"Loaded {len(tables_created)} of {len(s3_datasets)} tables. Failed: " + "; ".join([f"{err['table']}: {err['error']}" for err in dataset_errors])
+                    logger.warning(f"Partial success loading S3 datasets for problem {problem_id}: {warnings_msg}")
+                    
+                    return {
+                        "success": True,
+                        "message": f"Partially loaded {len(tables_created)} of {len(s3_datasets)} tables from S3 datasets",
+                        "tables": tables_created,
+                        "total_tables": len(tables_created),
+                        "total_rows": total_rows,
+                        "data_source": "s3_datasets",
+                        "warnings": warnings_msg,
+                        "dataset_errors": dataset_errors
+                    }
             
             # Fallback to S3 data source (legacy single-table support)
             elif s3_data_source:
