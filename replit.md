@@ -91,6 +91,15 @@ Use the setup script for zero-analysis imports
 Expert mode enabled for faster agent operations
 
 ## Recent Changes
+- **September 24, 2025**: Fixed s3_datasets query failure issue with partial success support
+  - **Issue**: "Query failed" errors when users tried to query tables (e.g., `SELECT * FROM s1`) from problems using s3_datasets configuration  
+    - **Root Cause**: s3_datasets had all-or-nothing behavior - if ANY single dataset failed to load, the entire sandbox setup would fail and no tables would be created
+    - **Problem**: Users couldn't query any tables, even ones that should have loaded successfully, because the sandbox setup aborted completely on first dataset error
+    - **Fix**: Implemented partial success support in `api/duckdb_sandbox.py` setup_problem_data method for s3_datasets processing
+    - **Solution**: Added per-dataset error tracking, continue-on-failure behavior, and three outcome paths (complete success, partial success, complete failure)
+    - **Impact**: ✅ Users can now query tables that load successfully even if other datasets in the same problem fail
+  - **Technical Details**: Enhanced error handling with structured error responses, improved logging with exc_info=True, and consolidated error reporting
+  - **Status**: ✅ s3_datasets now works reliably with same robustness as s3_data_source (legacy single-table support)
 - **September 23, 2025**: Fixed critical admin panel JSON parsing error during question creation
   - **Issue**: "Failed to execute 'json' on 'Response': Unexpected token 'I'" error when creating questions
     - **Root Cause**: `TypeError: 'solution_source' is an invalid keyword argument for Problem` causing 500 errors
