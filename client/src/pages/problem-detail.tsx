@@ -53,7 +53,7 @@ export default function ProblemDetail() {
       // Check if problem has parquet data source OR S3 data source(s) to determine which endpoint to use
       const hasParquetData = problem?.parquetDataSource !== null && problem?.parquetDataSource !== undefined;
       const hasS3Data = problem?.s3DataSource !== null && problem?.s3DataSource !== undefined;
-      const hasS3Datasets = problem?.s3_datasets && Array.isArray(problem.s3_datasets) && problem.s3_datasets.length > 0;
+      const hasS3Datasets = problem?.s3Datasets && Array.isArray(problem.s3Datasets) && problem.s3Datasets.length > 0;
       
       if (hasParquetData || hasS3Data || hasS3Datasets) {
         // Use DuckDB endpoint for parquet/S3 data
