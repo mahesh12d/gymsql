@@ -16,10 +16,14 @@ interface Problem {
 }
 
 interface QueryResult {
-  error?: boolean;
-  message?: string;
-  isCorrect?: boolean;
-  executionTime?: number;
+  success: boolean;
+  results?: any[];
+  execution_time_ms?: number;
+  rows_affected?: number;
+  console_info?: string;
+  error?: string;
+  feedback?: string[];
+  test_results?: any[];
 }
 
 interface OptimizedEditorOutputSplitProps {
@@ -63,8 +67,8 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
         return runResult;
       } catch (error) {
         const errorResult = {
-          error: true,
-          message:
+          success: false,
+          error:
             error instanceof Error ? error.message : "Query execution failed",
         };
         setResult(errorResult);
@@ -88,8 +92,8 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
         return submitResult;
       } catch (error) {
         const errorResult = {
-          error: true,
-          message: error instanceof Error ? error.message : "Submission failed",
+          success: false,
+          error: error instanceof Error ? error.message : "Submission failed",
         };
         setSubmissionResult(errorResult);
         return errorResult;
