@@ -148,6 +148,9 @@ class ProblemResponse(ProblemBase):
     created_at: datetime
     solved_count: Optional[int] = 0
     is_user_solved: Optional[bool] = False
+    is_bookmarked: Optional[bool] = False
+    is_liked: Optional[bool] = False
+    likes_count: Optional[int] = 0
 
 # Submission schemas
 class SubmissionBase(CamelCaseModel):

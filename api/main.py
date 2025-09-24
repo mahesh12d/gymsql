@@ -13,7 +13,8 @@ from datetime import timedelta
 import random
 
 from .database import get_db, create_tables
-from .models import User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution
+from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
+                     ProblemBookmark, ProblemLike, ProblemSession)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -332,6 +333,31 @@ def get_problems(
         problem_data.is_user_solved = bool(
             is_user_solved) if current_user else False
         
+        # Add bookmark and like status for authenticated users
+        if current_user:
+            # Check if user has bookmarked this problem
+            bookmark = db.query(ProblemBookmark).filter(
+                ProblemBookmark.user_id == current_user.id,
+                ProblemBookmark.problem_id == problem.id
+            ).first()
+            problem_data.is_bookmarked = bookmark is not None
+            
+            # Check if user has liked this problem
+            like = db.query(ProblemLike).filter(
+                ProblemLike.user_id == current_user.id,
+                ProblemLike.problem_id == problem.id
+            ).first()
+            problem_data.is_liked = like is not None
+        else:
+            problem_data.is_bookmarked = False
+            problem_data.is_liked = False
+        
+        # Get total likes count for this problem
+        likes_count = db.query(ProblemLike).filter(
+            ProblemLike.problem_id == problem.id
+        ).count()
+        problem_data.likes_count = likes_count
+        
         # Use expected_display for user-facing expected output (separate from validation)
         if hasattr(problem, 'expected_display') and problem.expected_display is not None:
             problem_data.expected_output = problem.expected_display
@@ -358,6 +384,73 @@ def get_problems(
         problems.append(problem_data)
 
     return problems
+
+
+# Bookmark and Like endpoints
+@app.post("/api/problems/{problem_id}/bookmark")
+def toggle_bookmark(problem_id: str,
+                   current_user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    """Toggle bookmark status for a problem"""
+    # Check if problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Check if bookmark already exists
+    existing_bookmark = db.query(ProblemBookmark).filter(
+        ProblemBookmark.user_id == current_user.id,
+        ProblemBookmark.problem_id == problem_id
+    ).first()
+    
+    if existing_bookmark:
+        # Remove bookmark
+        db.delete(existing_bookmark)
+        db.commit()
+        return {"bookmarked": False, "message": "Bookmark removed"}
+    else:
+        # Add bookmark
+        bookmark = ProblemBookmark(
+            user_id=current_user.id,
+            problem_id=problem_id
+        )
+        db.add(bookmark)
+        db.commit()
+        return {"bookmarked": True, "message": "Problem bookmarked"}
+
+
+@app.post("/api/problems/{problem_id}/like")
+def toggle_like(problem_id: str,
+               current_user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    """Toggle like status for a problem"""
+    # Check if problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Check if like already exists
+    existing_like = db.query(ProblemLike).filter(
+        ProblemLike.user_id == current_user.id,
+        ProblemLike.problem_id == problem_id
+    ).first()
+    
+    if existing_like:
+        # Remove like
+        db.delete(existing_like)
+        db.commit()
+        return {"liked": False, "message": "Like removed"}
+    else:
+        # Add like
+        like = ProblemLike(
+            user_id=current_user.id,
+            problem_id=problem_id
+        )
+        db.add(like)
+        db.commit()
+        return {"liked": True, "message": "Problem liked"}
 
 
 @app.get("/api/problems/{problem_id}",
@@ -404,6 +497,31 @@ def get_problem(problem_id: str,
     
     # Create response from ORM
     problem_data = ProblemResponse.from_orm(problem)
+    
+    # Add bookmark and like status for authenticated users
+    if current_user:
+        # Check if user has bookmarked this problem
+        bookmark = db.query(ProblemBookmark).filter(
+            ProblemBookmark.user_id == current_user.id,
+            ProblemBookmark.problem_id == problem_id
+        ).first()
+        problem_data.is_bookmarked = bookmark is not None
+        
+        # Check if user has liked this problem
+        like = db.query(ProblemLike).filter(
+            ProblemLike.user_id == current_user.id,
+            ProblemLike.problem_id == problem_id
+        ).first()
+        problem_data.is_liked = like is not None
+    else:
+        problem_data.is_bookmarked = False
+        problem_data.is_liked = False
+    
+    # Get total likes count for this problem
+    likes_count = db.query(ProblemLike).filter(
+        ProblemLike.problem_id == problem_id
+    ).count()
+    problem_data.likes_count = likes_count
     
     # Use expected_display for user-facing expected output (separate from validation)
     if hasattr(problem, 'expected_display') and problem.expected_display is not None:
