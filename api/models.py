@@ -378,6 +378,61 @@ class UserBadge(Base):
     # Unique constraint: one badge per user (prevent duplicate awards)
     __table_args__ = (UniqueConstraint('user_id', 'badge_id', name='uq_user_badges_user_badge'),)
 
+class ProblemBookmark(Base):
+    """User bookmarks for problems"""
+    __tablename__ = "problem_bookmarks"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="bookmarks")
+    problem = relationship("Problem", backref="bookmarks")
+    
+    # Unique constraint: one bookmark per user per problem
+    __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_bookmarks_user_problem'),)
+
+class ProblemLike(Base):
+    """User likes for problems"""
+    __tablename__ = "problem_likes"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="problem_likes")
+    problem = relationship("Problem", backref="likes")
+    
+    # Unique constraint: one like per user per problem
+    __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_likes_user_problem'),)
+
+class ProblemSession(Base):
+    """Track user engagement timing for problems"""
+    __tablename__ = "problem_sessions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
+    first_query_at = Column(DateTime, nullable=True)  # When user first runs a query
+    completed_at = Column(DateTime, nullable=True)    # When user successfully submits
+    total_time_spent_seconds = Column(Integer, nullable=True)  # Calculated time difference
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="problem_sessions")
+    problem = relationship("Problem", backref="sessions")
+    
+    # Index for performance
+    __table_args__ = (
+        Index('idx_problem_sessions_user_problem', 'user_id', 'problem_id'),
+        Index('idx_problem_sessions_completed_at', 'completed_at'),
+    )
+
 class Solution(Base):
     """Official solutions for problems posted by admins"""
     __tablename__ = "solutions"
