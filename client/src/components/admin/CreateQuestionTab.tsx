@@ -11,6 +11,7 @@ import { Trash2, Plus, Info, Eye, EyeOff } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { EnhancedTablePreview } from './EnhancedTablePreview';
 
 export function CreateQuestionTab() {
   const { state, actions } = useAdmin();
@@ -369,32 +370,18 @@ export function CreateQuestionTab() {
         </CardContent>
       </Card>
 
-      {/* Table Preview */}
-      {state.problemDraft.question.tables.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Tables Preview ({state.problemDraft.question.tables.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {state.problemDraft.question.tables.map((table, index) => (
-              <div key={index} className="border rounded p-4">
-                <h4 className="font-medium mb-2">{table.name}</h4>
-                <div className="text-sm text-gray-600 mb-2">
-                  {table.columns.length} columns, {table.sample_data.length} sample rows
-                </div>
-                <div className="grid grid-cols-4 gap-2 text-xs">
-                  {table.columns.slice(0, 4).map((col, colIndex) => (
-                    <div key={colIndex} className="font-medium">{col.name}</div>
-                  ))}
-                  {table.columns.length > 4 && (
-                    <div className="text-gray-500">...and {table.columns.length - 4} more</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Enhanced Table Preview */}
+      <EnhancedTablePreview 
+        tables={state.problemDraft.question.tables}
+        onTableUpdate={(updatedTables) => {
+          actions.updateDraft({
+            question: { 
+              ...state.problemDraft.question, 
+              tables: updatedTables 
+            }
+          });
+        }}
+      />
 
       {/* Tags */}
       <Card>
