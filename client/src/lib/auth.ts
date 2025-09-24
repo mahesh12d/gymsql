@@ -99,6 +99,18 @@ export const problemsApi = {
   async getById(id: string): Promise<any> {
     return apiRequest(`/problems/${id}`);
   },
+
+  async toggleBookmark(problemId: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/bookmark`, {
+      method: "POST",
+    });
+  },
+
+  async toggleLike(problemId: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/like`, {
+      method: "POST",
+    });
+  },
 };
 
 export const submissionsApi = {
