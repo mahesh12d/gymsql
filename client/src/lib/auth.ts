@@ -111,6 +111,18 @@ export const problemsApi = {
       method: "POST",
     });
   },
+
+  async toggleUpvote(problemId: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/upvote`, {
+      method: "POST",
+    });
+  },
+
+  async toggleDownvote(problemId: string): Promise<any> {
+    return apiRequest(`/problems/${problemId}/downvote`, {
+      method: "POST",
+    });
+  },
 };
 
 export const submissionsApi = {

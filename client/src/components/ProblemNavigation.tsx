@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Users, Star, Lock, Bookmark, Heart } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Users, Star, Lock, Bookmark, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,12 +11,15 @@ import { useToast } from '@/hooks/use-toast';
 interface Problem {
   id?: string;
   title?: string;
-  likes?: number;
+  likes?: number; // For backward compatibility
+  upvotesCount?: number;
   company?: string;
   difficulty?: string;
   premium?: boolean | null;
   isBookmarked?: boolean;
-  isLiked?: boolean;
+  isLiked?: boolean; // For backward compatibility
+  isUpvoted?: boolean;
+  isDownvoted?: boolean;
 }
 
 interface ProblemNavigationProps {
@@ -74,27 +77,54 @@ const ProblemNavigation = memo(function ProblemNavigation({
     },
   });
 
-  // Like mutation
-  const likeMutation = useMutation({
+  // Upvote mutation
+  const upvoteMutation = useMutation({
     mutationFn: async () => {
       if (!problem?.id) throw new Error("No problem ID");
-      return problemsApi.toggleLike(problem.id);
+      return problemsApi.toggleUpvote(problem.id);
     },
     onSuccess: () => {
-      // Invalidate and refetch problem data to get updated like status
+      // Invalidate and refetch problem data to get updated vote status
       queryClient.invalidateQueries({
         queryKey: ["/api/problems", problem?.id],
       });
       toast({
-        title: problem?.isLiked ? "Like removed" : "Problem liked",
-        description: problem?.isLiked 
-          ? "You removed your like from this problem" 
-          : "You liked this problem",
+        title: problem?.isUpvoted ? "Upvote removed" : "Problem upvoted",
+        description: problem?.isUpvoted 
+          ? "You removed your upvote from this problem" 
+          : "You upvoted this problem",
       });
     },
     onError: (error) => {
       toast({
-        title: "Failed to update like",
+        title: "Failed to update upvote",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Downvote mutation
+  const downvoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!problem?.id) throw new Error("No problem ID");
+      return problemsApi.toggleDownvote(problem.id);
+    },
+    onSuccess: () => {
+      // Invalidate and refetch problem data to get updated vote status
+      queryClient.invalidateQueries({
+        queryKey: ["/api/problems", problem?.id],
+      });
+      toast({
+        title: problem?.isDownvoted ? "Downvote removed" : "Problem downvoted",
+        description: problem?.isDownvoted 
+          ? "You removed your downvote from this problem" 
+          : "You downvoted this problem",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update downvote",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
@@ -155,29 +185,49 @@ const ProblemNavigation = memo(function ProblemNavigation({
       <div className="flex items-center space-x-4">
         {problem && user && (
           <>
-            {/* Bookmark and Like Buttons */}
+            {/* Bookmark, Upvote and Downvote Buttons */}
             <div className="flex items-center space-x-2">
               <Button
                 onClick={() => bookmarkMutation.mutate()}
                 disabled={bookmarkMutation.isPending}
                 variant="ghost"
                 size="sm"
-                className={`h-8 w-8 p-0 ${problem.isBookmarked ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`}
+                className={`h-8 w-8 p-0 ${problem.isBookmarked ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}
                 data-testid="button-bookmark"
               >
                 <Bookmark className={`h-4 w-4 ${problem.isBookmarked ? 'fill-current' : ''}`} />
               </Button>
               
-              <Button
-                onClick={() => likeMutation.mutate()}
-                disabled={likeMutation.isPending}
-                variant="ghost"
-                size="sm"
-                className={`h-8 w-8 p-0 ${problem.isLiked ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}
-                data-testid="button-like"
-              >
-                <Heart className={`h-4 w-4 ${problem.isLiked ? 'fill-current' : ''}`} />
-              </Button>
+              <div className="flex items-center space-x-1">
+                <Button
+                  onClick={() => upvoteMutation.mutate()}
+                  disabled={upvoteMutation.isPending}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${problem.isUpvoted ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
+                  data-testid="button-upvote"
+                >
+                  <ThumbsUp className={`h-4 w-4 ${problem.isUpvoted ? 'fill-current' : ''}`} />
+                </Button>
+                
+                {/* Show upvote count */}
+                {(problem.upvotesCount && problem.upvotesCount > 0) && (
+                  <span className="text-sm text-muted-foreground min-w-[1rem]">
+                    {problem.upvotesCount}
+                  </span>
+                )}
+                
+                <Button
+                  onClick={() => downvoteMutation.mutate()}
+                  disabled={downvoteMutation.isPending}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${problem.isDownvoted ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}
+                  data-testid="button-downvote"
+                >
+                  <ThumbsDown className={`h-4 w-4 ${problem.isDownvoted ? 'fill-current' : ''}`} />
+                </Button>
+              </div>
             </div>
             
             {/* Problem Stats */}
@@ -187,8 +237,8 @@ const ProblemNavigation = memo(function ProblemNavigation({
                 <span>2.1k</span>
               </div>
               <div className="flex items-center space-x-1">
-                <Star className="h-3 w-3" />
-                <span>{problem.likes || 0}</span>
+                <ThumbsUp className="h-3 w-3" />
+                <span>{problem.upvotesCount || problem.likes || 0}</span>
               </div>
             </div>
 
@@ -205,8 +255,8 @@ const ProblemNavigation = memo(function ProblemNavigation({
                 <span>2.1k</span>
               </div>
               <div className="flex items-center space-x-1">
-                <Star className="h-3 w-3" />
-                <span>{problem.likes || 0}</span>
+                <ThumbsUp className="h-3 w-3" />
+                <span>{problem.upvotesCount || problem.likes || 0}</span>
               </div>
             </div>
 
