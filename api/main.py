@@ -26,6 +26,66 @@ from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
 
+# Helper function for time tracking
+def track_first_query(user_id: str, problem_id: str, db: Session):
+    """Track when user first runs a query on a problem"""
+    # Check if session already exists
+    session = db.query(ProblemSession).filter(
+        ProblemSession.user_id == user_id,
+        ProblemSession.problem_id == problem_id
+    ).first()
+    
+    if not session:
+        # Create new session
+        session = ProblemSession(
+            user_id=user_id,
+            problem_id=problem_id,
+            first_query_at=func.now()
+        )
+        db.add(session)
+        db.commit()
+    elif session.first_query_at is None:
+        # Update existing session with first query time
+        session.first_query_at = func.now()
+        db.commit()
+
+def track_successful_submission(user_id: str, problem_id: str, db: Session):
+    """Track when user successfully submits a solution and calculate total time"""
+    session = db.query(ProblemSession).filter(
+        ProblemSession.user_id == user_id,
+        ProblemSession.problem_id == problem_id
+    ).first()
+    
+    from datetime import datetime
+    now = datetime.now()
+    
+    if not session:
+        # Create new session for direct submissions (no prior testing)
+        session = ProblemSession(
+            user_id=user_id,
+            problem_id=problem_id,
+            first_query_at=now,  # Backfill with submission time
+            completed_at=now,
+            total_time_spent_seconds=0  # Immediate submission
+        )
+        db.add(session)
+        db.commit()
+    elif session.completed_at is None:
+        # Update existing session with completion
+        session.completed_at = now
+        
+        # Calculate total time spent if first_query_at exists
+        if session.first_query_at:
+            time_diff = session.completed_at - session.first_query_at
+            session.total_time_spent_seconds = int(time_diff.total_seconds())
+        else:
+            # Backfill missing first_query_at
+            session.first_query_at = now
+            session.total_time_spent_seconds = 0
+        
+        session.updated_at = func.now()
+        db.commit()
+
 # Create FastAPI app
 app = FastAPI(title="SQLGym API",
               description="A gamified SQL learning platform API",
@@ -574,6 +634,10 @@ async def submit_solution(problem_id: str,
                             detail=result.get('feedback',
                                               ['Submission failed'])[0])
 
+    # Track successful submission for recommendation system
+    if result['success']:
+        track_successful_submission(current_user.id, problem_id, db)
+
     # Add console output to submission response
     result['console_output'] = format_console_output(result)
     
@@ -609,6 +673,9 @@ async def test_query(problem_id: str,
     if not query:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Query is required")
+
+    # Track first query time for recommendation system
+    track_first_query(current_user.id, problem_id, db)
 
     result = await secure_executor.test_query(current_user.id, problem_id,
                                               query, db, include_hidden)
