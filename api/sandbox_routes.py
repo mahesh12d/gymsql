@@ -47,16 +47,10 @@ async def create_duckdb_sandbox(
         # Create DuckDB sandbox
         sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
         
-        # Setup problem data with question tables (preferred) or S3 data sources (fallback)
-        s3_data_source = problem.s3_data_source if hasattr(problem, 's3_data_source') and problem.s3_data_source else None
+        # Setup problem data using S3 datasets only
         s3_datasets = problem.s3_datasets if hasattr(problem, 's3_datasets') and problem.s3_datasets else None
-        question_tables = None
         
-        # Extract tables from question field if available
-        if hasattr(problem, 'question') and problem.question:
-            question_tables = problem.question.get('tables', [])
-        
-        setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, s3_datasets, None, question_tables)
+        setup_result = await sandbox.setup_problem_data(problem_id, s3_datasets)
         
         if not setup_result["success"]:
             sandbox.cleanup()
@@ -115,16 +109,10 @@ async def execute_duckdb_query(
         sandbox = duckdb_sandbox_manager.get_sandbox(current_user.id, problem_id)
         if not sandbox:
             sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
-            # Get S3 data sources and question tables for the problem
-            s3_data_source = problem.s3_data_source if hasattr(problem, 's3_data_source') and problem.s3_data_source else None
+            # Get S3 datasets for the problem
             s3_datasets = problem.s3_datasets if hasattr(problem, 's3_datasets') and problem.s3_datasets else None
-            question_tables = None
             
-            # Extract tables from question field if available
-            if hasattr(problem, 'question') and problem.question:
-                question_tables = problem.question.get('tables', [])
-            
-            setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, s3_datasets, None, question_tables)
+            setup_result = await sandbox.setup_problem_data(problem_id, s3_datasets)
             if not setup_result["success"]:
                 sandbox.cleanup()
                 raise HTTPException(
@@ -264,24 +252,19 @@ async def test_duckdb_connection(
         
         # Create temporary sandbox to test connection
         with DuckDBSandbox() as test_sandbox:
-            # Get S3 data source for testing
-            s3_data_source = problem.s3_data_source if hasattr(problem, 's3_data_source') and problem.s3_data_source else None
+            # Get S3 datasets for testing
+            s3_datasets = problem.s3_datasets if hasattr(problem, 's3_datasets') and problem.s3_datasets else None
             
-            if not s3_data_source:
+            if not s3_datasets:
                 return {
                     "success": False,
-                    "message": "No S3 data source configured for this problem",
+                    "message": "No S3 datasets configured for this problem",
                     "problem_id": problem_id,
                     "sandbox_type": "duckdb"
                 }
             
-            # Extract question tables for testing
-            question_tables = None
-            if hasattr(problem, 'question') and problem.question:
-                question_tables = problem.question.get('tables', [])
-            
             # Test data setup
-            test_result = await test_sandbox.setup_problem_data(problem_id, s3_data_source, None, question_tables)
+            test_result = await test_sandbox.setup_problem_data(problem_id, s3_datasets)
             
             return {
                 "success": test_result["success"],

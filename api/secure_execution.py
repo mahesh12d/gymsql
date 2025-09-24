@@ -394,24 +394,25 @@ class SecureQueryExecutor:
                 # Check if sandbox needs data reloading (from original logic)
                 problem = db.query(Problem).filter(
                     Problem.id == problem_id).first()
-                if problem and problem.s3_data_source:
-                    # Verify table exists
+                if problem and hasattr(problem, 's3_datasets') and problem.s3_datasets:
+                    # Verify if any tables exist
                     table_info = sandbox.get_table_info()
-                    expected_table_name = problem.s3_data_source.get(
-                        'table_name', 'problem_data')
+                    existing_tables = [table.get('name') for table in table_info.get('tables', [])]
 
-                    table_exists = any(
-                        table.get('name') == expected_table_name
-                        for table in table_info.get('tables', []))
+                    # Check if we need to reload data
+                    needs_reload = len(existing_tables) == 0
+                    if not needs_reload and isinstance(problem.s3_datasets, list):
+                        # Check if all expected tables exist
+                        expected_tables = [dataset.get('table_name') for dataset in problem.s3_datasets if dataset.get('table_name')]
+                        needs_reload = not all(table in existing_tables for table in expected_tables)
 
-                    if not table_exists:
+                    if needs_reload:
                         logger.info(
-                            f"Reloading S3 data for existing sandbox - table {expected_table_name} not found"
+                            f"Reloading S3 data for existing sandbox - missing tables"
                         )
                         # Properly await async operation
                         setup_result = await sandbox.setup_problem_data(
-                            problem_id=problem_id,
-                            s3_data_source=problem.s3_data_source)
+                            problem_id, problem.s3_datasets)
                         if not setup_result.get('success', False):
                             logger.error(
                                 f"Failed to reload problem data: {setup_result.get('error')}"
@@ -420,7 +421,7 @@ class SecureQueryExecutor:
                 return sandbox
 
             # Get problem info for new sandbox
-            problem = db.query(Problem.id, Problem.s3_data_source).filter(
+            problem = db.query(Problem).filter(
                 Problem.id == problem_id).first()
             if not problem:
                 logger.error(f"Problem {problem_id} not found")
@@ -431,11 +432,10 @@ class SecureQueryExecutor:
                 user_id, problem_id)
 
             # Load S3 data if needed
-            if problem.s3_data_source:
+            if hasattr(problem, 's3_datasets') and problem.s3_datasets:
                 logger.info(f"Loading S3 data for problem {problem_id}")
                 setup_result = await sandbox.setup_problem_data(
-                    problem_id=problem_id,
-                    s3_data_source=problem.s3_data_source)
+                    problem_id, problem.s3_datasets)
 
                 if not setup_result.get('success', False):
                     logger.error(
