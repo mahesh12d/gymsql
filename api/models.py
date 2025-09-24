@@ -90,6 +90,7 @@ class Problem(Base):
     # Match DB schema: jsonb
     question = Column(JSONB, nullable=False)  # description, schema, expected_output
     s3_data_source = Column(JSONB, nullable=True)  # bucket, key, table_name, description, etag (single table - legacy)
+    s3_datasets = Column(JSONB, nullable=True)  # array of multiple dataset configs: [{'bucket': str, 'key': str, 'table_name': str, 'description': str, 'etag': str}]
     premium = Column(Boolean, nullable=True, default=None)  # null = free, True = premium
     
     # Master solution field - the definitive expected output for validation

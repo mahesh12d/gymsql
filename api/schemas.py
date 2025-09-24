@@ -138,6 +138,7 @@ class ProblemBase(CamelCaseModel):
     expected_output: Optional[List[dict]] = Field(default=None, alias="expectedOutput")  # Legacy field - use master_solution instead
     parquet_data_source: Optional[Dict[str, Any]] = None  # JSONB field for DuckDB parquet data (legacy)
     s3_data_source: Optional[S3DatasetSource] = None  # S3 dataset source configuration (legacy)
+    s3_datasets: Optional[List[S3DatasetSource]] = None  # Multiple S3 dataset sources configuration
 
 class ProblemCreate(ProblemBase):
     pass
