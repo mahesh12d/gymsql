@@ -149,8 +149,11 @@ class ProblemResponse(ProblemBase):
     solved_count: Optional[int] = 0
     is_user_solved: Optional[bool] = False
     is_bookmarked: Optional[bool] = False
-    is_liked: Optional[bool] = False
-    likes_count: Optional[int] = 0
+    is_liked: Optional[bool] = False  # For backward compatibility
+    is_upvoted: Optional[bool] = False
+    is_downvoted: Optional[bool] = False
+    likes_count: Optional[int] = 0  # For backward compatibility
+    upvotes_count: Optional[int] = 0
 
 # Submission schemas
 class SubmissionBase(CamelCaseModel):

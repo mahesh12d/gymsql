@@ -540,7 +540,7 @@ def migrate_to_unified_interactions(db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                           detail=f"Migration failed: {str(e)}")
 
-# Bookmark and Like endpoints
+# Unified Problem Interaction endpoints (bookmark, upvote, downvote)
 @app.post("/api/problems/{problem_id}/bookmark")
 def toggle_bookmark(problem_id: str,
                    current_user: User = Depends(get_current_user),
@@ -552,59 +552,151 @@ def toggle_bookmark(problem_id: str,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Problem not found")
     
-    # Check if bookmark already exists
-    existing_bookmark = db.query(ProblemBookmark).filter(
-        ProblemBookmark.user_id == current_user.id,
-        ProblemBookmark.problem_id == problem_id
+    # Get or create interaction record
+    interaction = db.query(ProblemInteraction).filter(
+        ProblemInteraction.user_id == current_user.id,
+        ProblemInteraction.problem_id == problem_id
     ).first()
     
-    if existing_bookmark:
-        # Remove bookmark
-        db.delete(existing_bookmark)
-        db.commit()
-        return {"bookmarked": False, "message": "Bookmark removed"}
-    else:
-        # Add bookmark
-        bookmark = ProblemBookmark(
+    if not interaction:
+        # Create new interaction with bookmark
+        interaction = ProblemInteraction(
             user_id=current_user.id,
-            problem_id=problem_id
+            problem_id=problem_id,
+            bookmark=True,
+            upvote=False,
+            downvote=False
         )
-        db.add(bookmark)
-        db.commit()
-        return {"bookmarked": True, "message": "Problem bookmarked"}
+        db.add(interaction)
+        bookmarked = True
+        message = "Problem bookmarked"
+    else:
+        # Toggle bookmark status
+        interaction.bookmark = not interaction.bookmark
+        bookmarked = interaction.bookmark
+        message = "Problem bookmarked" if bookmarked else "Bookmark removed"
+        
+        # If no interactions left, delete the record
+        if not interaction.bookmark and not interaction.upvote and not interaction.downvote:
+            db.delete(interaction)
+    
+    db.commit()
+    return {"bookmarked": bookmarked, "message": message}
 
-
-@app.post("/api/problems/{problem_id}/like")
-def toggle_like(problem_id: str,
-               current_user: User = Depends(get_current_user),
-               db: Session = Depends(get_db)):
-    """Toggle like status for a problem"""
+@app.post("/api/problems/{problem_id}/upvote")
+def toggle_upvote(problem_id: str,
+                 current_user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    """Toggle upvote status for a problem"""
     # Check if problem exists
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Problem not found")
     
-    # Check if like already exists
-    existing_like = db.query(ProblemLike).filter(
-        ProblemLike.user_id == current_user.id,
-        ProblemLike.problem_id == problem_id
+    # Get or create interaction record
+    interaction = db.query(ProblemInteraction).filter(
+        ProblemInteraction.user_id == current_user.id,
+        ProblemInteraction.problem_id == problem_id
     ).first()
     
-    if existing_like:
-        # Remove like
-        db.delete(existing_like)
-        db.commit()
-        return {"liked": False, "message": "Like removed"}
-    else:
-        # Add like
-        like = ProblemLike(
+    if not interaction:
+        # Create new interaction with upvote
+        interaction = ProblemInteraction(
             user_id=current_user.id,
-            problem_id=problem_id
+            problem_id=problem_id,
+            bookmark=False,
+            upvote=True,
+            downvote=False
         )
-        db.add(like)
-        db.commit()
-        return {"liked": True, "message": "Problem liked"}
+        db.add(interaction)
+        upvoted = True
+        message = "Problem upvoted"
+    else:
+        # Toggle upvote status and ensure mutual exclusion with downvote
+        if interaction.upvote:
+            # Remove upvote
+            interaction.upvote = False
+            upvoted = False
+            message = "Upvote removed"
+        else:
+            # Add upvote and remove downvote if present
+            interaction.upvote = True
+            interaction.downvote = False
+            upvoted = True
+            message = "Problem upvoted"
+        
+        # If no interactions left, delete the record
+        if not interaction.bookmark and not interaction.upvote and not interaction.downvote:
+            db.delete(interaction)
+    
+    db.commit()
+    
+    # Get current upvote count
+    upvote_count = db.query(ProblemInteraction).filter(
+        ProblemInteraction.problem_id == problem_id,
+        ProblemInteraction.upvote == True
+    ).count()
+    
+    return {"upvoted": upvoted, "upvote_count": upvote_count, "message": message}
+
+@app.post("/api/problems/{problem_id}/downvote")
+def toggle_downvote(problem_id: str,
+                   current_user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    """Toggle downvote status for a problem"""
+    # Check if problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Problem not found")
+    
+    # Get or create interaction record
+    interaction = db.query(ProblemInteraction).filter(
+        ProblemInteraction.user_id == current_user.id,
+        ProblemInteraction.problem_id == problem_id
+    ).first()
+    
+    if not interaction:
+        # Create new interaction with downvote
+        interaction = ProblemInteraction(
+            user_id=current_user.id,
+            problem_id=problem_id,
+            bookmark=False,
+            upvote=False,
+            downvote=True
+        )
+        db.add(interaction)
+        downvoted = True
+        message = "Problem downvoted"
+    else:
+        # Toggle downvote status and ensure mutual exclusion with upvote
+        if interaction.downvote:
+            # Remove downvote
+            interaction.downvote = False
+            downvoted = False
+            message = "Downvote removed"
+        else:
+            # Add downvote and remove upvote if present
+            interaction.downvote = True
+            interaction.upvote = False
+            downvoted = True
+            message = "Problem downvoted"
+        
+        # If no interactions left, delete the record
+        if not interaction.bookmark and not interaction.upvote and not interaction.downvote:
+            db.delete(interaction)
+    
+    db.commit()
+    return {"downvoted": downvoted, "message": message}
+
+# Legacy endpoints (maintain compatibility during transition)
+@app.post("/api/problems/{problem_id}/like")
+def toggle_like_legacy(problem_id: str,
+                      current_user: User = Depends(get_current_user),
+                      db: Session = Depends(get_db)):
+    """Legacy like endpoint - redirects to upvote"""
+    return toggle_upvote(problem_id, current_user, db)
 
 
 @app.get("/api/problems/{problem_id}",
@@ -652,30 +744,40 @@ def get_problem(problem_id: str,
     # Create response from ORM
     problem_data = ProblemResponse.from_orm(problem)
     
-    # Add bookmark and like status for authenticated users
+    # Add interaction status for authenticated users
     if current_user:
-        # Check if user has bookmarked this problem
-        bookmark = db.query(ProblemBookmark).filter(
-            ProblemBookmark.user_id == current_user.id,
-            ProblemBookmark.problem_id == problem_id
+        # Check user's interaction with this problem
+        interaction = db.query(ProblemInteraction).filter(
+            ProblemInteraction.user_id == current_user.id,
+            ProblemInteraction.problem_id == problem_id
         ).first()
-        problem_data.is_bookmarked = bookmark is not None
         
-        # Check if user has liked this problem
-        like = db.query(ProblemLike).filter(
-            ProblemLike.user_id == current_user.id,
-            ProblemLike.problem_id == problem_id
-        ).first()
-        problem_data.is_liked = like is not None
+        if interaction:
+            problem_data.is_bookmarked = interaction.bookmark
+            problem_data.is_upvoted = interaction.upvote
+            problem_data.is_downvoted = interaction.downvote
+        else:
+            problem_data.is_bookmarked = False
+            problem_data.is_upvoted = False
+            problem_data.is_downvoted = False
+        
+        # For backward compatibility, set is_liked = is_upvoted
+        problem_data.is_liked = problem_data.is_upvoted
     else:
         problem_data.is_bookmarked = False
+        problem_data.is_upvoted = False
+        problem_data.is_downvoted = False
         problem_data.is_liked = False
     
-    # Get total likes count for this problem
-    likes_count = db.query(ProblemLike).filter(
-        ProblemLike.problem_id == problem_id
+    # Get total upvotes count for this problem
+    upvotes_count = db.query(ProblemInteraction).filter(
+        ProblemInteraction.problem_id == problem_id,
+        ProblemInteraction.upvote == True
     ).count()
-    problem_data.likes_count = likes_count
+    problem_data.upvotes_count = upvotes_count
+    
+    # For backward compatibility, set likes_count = upvotes_count
+    problem_data.likes_count = upvotes_count
     
     # Use expected_display for user-facing expected output (separate from validation)
     if hasattr(problem, 'expected_display') and problem.expected_display is not None:
