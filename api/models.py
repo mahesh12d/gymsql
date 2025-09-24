@@ -378,8 +378,32 @@ class UserBadge(Base):
     # Unique constraint: one badge per user (prevent duplicate awards)
     __table_args__ = (UniqueConstraint('user_id', 'badge_id', name='uq_user_badges_user_badge'),)
 
+class ProblemInteraction(Base):
+    """Unified user interactions for problems (bookmark, upvote, downvote)"""
+    __tablename__ = "problem_interactions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
+    
+    # Interaction flags - all optional
+    bookmark = Column(Boolean, default=False, nullable=False)
+    upvote = Column(Boolean, default=False, nullable=False)
+    downvote = Column(Boolean, default=False, nullable=False)
+    
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="problem_interactions")
+    problem = relationship("Problem", backref="interactions")
+    
+    # Unique constraint: one interaction record per user per problem
+    __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_interactions_user_problem'),)
+
+# Keep old models for migration purposes - will be removed after migration
 class ProblemBookmark(Base):
-    """User bookmarks for problems"""
+    """User bookmarks for problems - DEPRECATED: Use ProblemInteraction instead"""
     __tablename__ = "problem_bookmarks"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -388,14 +412,14 @@ class ProblemBookmark(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
     # Relationships
-    user = relationship("User", backref="bookmarks")
-    problem = relationship("Problem", backref="bookmarks")
+    user = relationship("User")
+    problem = relationship("Problem")
     
     # Unique constraint: one bookmark per user per problem
     __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_bookmarks_user_problem'),)
 
 class ProblemLike(Base):
-    """User likes for problems"""
+    """User likes for problems - DEPRECATED: Use ProblemInteraction instead"""
     __tablename__ = "problem_likes"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -404,8 +428,8 @@ class ProblemLike(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
     # Relationships
-    user = relationship("User", backref="problem_likes")
-    problem = relationship("Problem", backref="likes")
+    user = relationship("User")
+    problem = relationship("Problem")
     
     # Unique constraint: one like per user per problem
     __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_likes_user_problem'),)

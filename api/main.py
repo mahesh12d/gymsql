@@ -14,7 +14,7 @@ import random
 
 from .database import get_db, create_tables
 from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
-                     ProblemBookmark, ProblemLike, ProblemSession)
+                     ProblemBookmark, ProblemLike, ProblemInteraction, ProblemSession, Base)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -445,6 +445,100 @@ def get_problems(
 
     return problems
 
+
+# Migration endpoint (temporary - for migrating to unified interactions)
+@app.post("/api/admin/migrate-interactions")
+def migrate_to_unified_interactions(db: Session = Depends(get_db)):
+    """Admin endpoint to migrate bookmark and like data to unified ProblemInteraction table"""
+    try:
+        # Create the new table if it doesn't exist
+        Base.metadata.create_all(bind=db.bind)
+        
+        # Get all existing bookmarks and likes
+        bookmarks = db.query(ProblemBookmark).all()
+        likes = db.query(ProblemLike).all()
+        
+        # Create a dictionary to track user-problem combinations
+        interactions = {}
+        
+        # Process bookmarks
+        for bookmark in bookmarks:
+            key = (bookmark.user_id, bookmark.problem_id)
+            if key not in interactions:
+                interactions[key] = {
+                    'user_id': bookmark.user_id,
+                    'problem_id': bookmark.problem_id,
+                    'bookmark': True,
+                    'upvote': False,
+                    'downvote': False,
+                    'created_at': bookmark.created_at
+                }
+            else:
+                interactions[key]['bookmark'] = True
+                if bookmark.created_at < interactions[key]['created_at']:
+                    interactions[key]['created_at'] = bookmark.created_at
+        
+        # Process likes (convert to upvotes)
+        for like in likes:
+            key = (like.user_id, like.problem_id)
+            if key not in interactions:
+                interactions[key] = {
+                    'user_id': like.user_id,
+                    'problem_id': like.problem_id,
+                    'bookmark': False,
+                    'upvote': True,
+                    'downvote': False,
+                    'created_at': like.created_at
+                }
+            else:
+                interactions[key]['upvote'] = True
+                if like.created_at < interactions[key]['created_at']:
+                    interactions[key]['created_at'] = like.created_at
+        
+        # Insert into ProblemInteraction table
+        migrated_count = 0
+        for interaction_data in interactions.values():
+            # Check if this interaction already exists
+            existing = db.query(ProblemInteraction).filter(
+                ProblemInteraction.user_id == interaction_data['user_id'],
+                ProblemInteraction.problem_id == interaction_data['problem_id']
+            ).first()
+            
+            if not existing:
+                new_interaction = ProblemInteraction(
+                    user_id=interaction_data['user_id'],
+                    problem_id=interaction_data['problem_id'],
+                    bookmark=interaction_data['bookmark'],
+                    upvote=interaction_data['upvote'],
+                    downvote=interaction_data['downvote'],
+                    created_at=interaction_data['created_at']
+                )
+                db.add(new_interaction)
+                migrated_count += 1
+        
+        db.commit()
+        
+        # Verify migration
+        total_interactions = db.query(ProblemInteraction).count()
+        bookmark_count = db.query(ProblemInteraction).filter(ProblemInteraction.bookmark == True).count()
+        upvote_count = db.query(ProblemInteraction).filter(ProblemInteraction.upvote == True).count()
+        
+        return {
+            "success": True,
+            "message": f"Successfully migrated {migrated_count} interactions",
+            "stats": {
+                "total_interactions": total_interactions,
+                "with_bookmarks": bookmark_count,
+                "with_upvotes": upvote_count,
+                "original_bookmarks": len(bookmarks),
+                "original_likes": len(likes)
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                          detail=f"Migration failed: {str(e)}")
 
 # Bookmark and Like endpoints
 @app.post("/api/problems/{problem_id}/bookmark")
