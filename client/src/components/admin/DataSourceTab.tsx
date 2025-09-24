@@ -149,7 +149,7 @@ export function DataSourceTab() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => actions.validateDatasets(solutionPath)}
-                  disabled={state.isValidatingDatasets || datasets.some(d => !d.bucket.trim() || !d.key.trim())}
+                  disabled={state.isValidatingDatasets || datasets.some(d => !d.bucket?.trim() || !d.key?.trim())}
                   data-testid="button-validate-datasets"
                 >
                   {state.isValidatingDatasets ? 'Validating...' : 'Validate Datasets'}
