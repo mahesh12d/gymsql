@@ -486,7 +486,7 @@ class SecureQueryExecutor:
                 ]
 
             # Check if this is an enhanced S3-based question with hash validation (fastest path)
-            if problem.expected_hash and problem.s3_data_source:
+            if hasattr(problem, 'expected_hash') and problem.expected_hash and problem.s3_data_source:
                 logger.info(
                     f"Using S3 hash validation for problem {problem_id}")
                 return await self._hash_validation_fast(

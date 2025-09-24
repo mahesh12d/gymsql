@@ -99,6 +99,8 @@ class Problem(Base):
     # Display field - what users see on the problem page (separate from validation)
     expected_display = Column(JSONB, nullable=True)  # Expected output shown to users on problem page
     
+    # Hash field for fast validation
+    expected_hash = Column(String, nullable=True)  # MD5 hash of sorted expected results for fast comparison
 
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
