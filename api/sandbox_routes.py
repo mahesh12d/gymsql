@@ -47,15 +47,16 @@ async def create_duckdb_sandbox(
         # Create DuckDB sandbox
         sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
         
-        # Setup problem data with question tables (preferred) or S3 data source (fallback)
+        # Setup problem data with question tables (preferred) or S3 data sources (fallback)
         s3_data_source = problem.s3_data_source if hasattr(problem, 's3_data_source') and problem.s3_data_source else None
+        s3_datasets = problem.s3_datasets if hasattr(problem, 's3_datasets') and problem.s3_datasets else None
         question_tables = None
         
         # Extract tables from question field if available
         if hasattr(problem, 'question') and problem.question:
             question_tables = problem.question.get('tables', [])
         
-        setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, None, question_tables)
+        setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, s3_datasets, None, question_tables)
         
         if not setup_result["success"]:
             sandbox.cleanup()
@@ -114,15 +115,16 @@ async def execute_duckdb_query(
         sandbox = duckdb_sandbox_manager.get_sandbox(current_user.id, problem_id)
         if not sandbox:
             sandbox = await duckdb_sandbox_manager.create_sandbox(current_user.id, problem_id)
-            # Get S3 data source and question tables for the problem
+            # Get S3 data sources and question tables for the problem
             s3_data_source = problem.s3_data_source if hasattr(problem, 's3_data_source') and problem.s3_data_source else None
+            s3_datasets = problem.s3_datasets if hasattr(problem, 's3_datasets') and problem.s3_datasets else None
             question_tables = None
             
             # Extract tables from question field if available
             if hasattr(problem, 'question') and problem.question:
                 question_tables = problem.question.get('tables', [])
             
-            setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, None, question_tables)
+            setup_result = await sandbox.setup_problem_data(problem_id, s3_data_source, s3_datasets, None, question_tables)
             if not setup_result["success"]:
                 sandbox.cleanup()
                 raise HTTPException(
