@@ -728,18 +728,7 @@ def get_problem(problem_id: str,
                 "expectedOutput": []
             }
     
-    # Check if problem is premium and user doesn't have premium access
-    if problem.premium is True and (not current_user or not current_user.premium):
-        # Return problem with premium message instead of throwing error
-        problem_data = ProblemResponse.from_orm(problem)
-        premium_question = QuestionData(
-            description="Want to lift try Premium 🏋️‍♂️",
-            tables=[],
-            expectedOutput=[]
-        )
-        problem_data.question = premium_question
-        problem_data.hints = []  # Hide hints for non-premium users
-        return problem_data
+    # Premium access is handled at frontend level - no backend modification needed
     
     # Create response from ORM
     problem_data = ProblemResponse.from_orm(problem)
