@@ -128,9 +128,9 @@ export function SolutionsTab() {
   useEffect(() => {
     if (existingSolution) {
       setSolutionForm({
-        title: existingSolution.title,
-        content: existingSolution.content,
-        sql_code: existingSolution.sql_code
+        title: existingSolution.title || '',
+        content: existingSolution.content || '',
+        sql_code: existingSolution.sql_code || ''
       });
     } else {
       setSolutionForm({
@@ -246,7 +246,7 @@ export function SolutionsTab() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleSubmit}
-                disabled={!solutionForm.title.trim() || !solutionForm.sql_code.trim() || saveSolutionMutation.isPending}
+                disabled={!solutionForm.title?.trim() || !solutionForm.sql_code?.trim() || saveSolutionMutation.isPending}
                 data-testid="button-submit-solution"
               >
                 <Save className="w-4 h-4 mr-2" />
