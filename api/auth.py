@@ -88,8 +88,8 @@ def get_current_user(
     """Get the current authenticated user"""
     token = credentials.credentials
     
-    # TEMPORARY: Development token bypass for dev-token-123
-    if token == 'dev-token-123':
+    # TEMPORARY: Development token bypass - only in explicit dev mode
+    if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
         dev_user = db.query(User).filter(User.id == 'dev-user-1').first()
         if dev_user:
             return dev_user
@@ -132,8 +132,8 @@ def verify_admin_access(
 ) -> bool:
     """Verify admin access using the admin secret key"""
     
-    # TEMPORARY DEV BYPASS - Remove when Google auth is implemented
-    if os.getenv("TEMP_ADMIN_BYPASS") == "true":
+    # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
+    if os.getenv("DEV_ADMIN_BYPASS") == "true":
         return True
     
     if not credentials:
@@ -158,8 +158,8 @@ def verify_admin_user_access(
 ) -> User:
     """Verify admin access using either admin secret key or admin user token"""
     
-    # TEMPORARY DEV BYPASS - Remove when Google auth is implemented
-    if os.getenv("TEMP_ADMIN_BYPASS") == "true":
+    # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
+    if os.getenv("DEV_ADMIN_BYPASS") == "true":
         # Create/find a temp admin user for development
         admin_user = db.query(User).filter(User.username == "temp_admin").first()
         if admin_user is None:
