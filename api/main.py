@@ -14,7 +14,7 @@ import random
 
 from .database import get_db, create_tables
 from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
-                     ProblemBookmark, ProblemLike, ProblemInteraction, ProblemSession, Base)
+                     ProblemInteraction, ProblemSession, Base)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -395,26 +395,22 @@ def get_problems(
         
         # Add bookmark and like status for authenticated users
         if current_user:
-            # Check if user has bookmarked this problem
-            bookmark = db.query(ProblemBookmark).filter(
-                ProblemBookmark.user_id == current_user.id,
-                ProblemBookmark.problem_id == problem.id
+            # Check if user has interactions with this problem
+            interaction = db.query(ProblemInteraction).filter(
+                ProblemInteraction.user_id == current_user.id,
+                ProblemInteraction.problem_id == problem.id
             ).first()
-            problem_data.is_bookmarked = bookmark is not None
             
-            # Check if user has liked this problem
-            like = db.query(ProblemLike).filter(
-                ProblemLike.user_id == current_user.id,
-                ProblemLike.problem_id == problem.id
-            ).first()
-            problem_data.is_liked = like is not None
+            problem_data.is_bookmarked = interaction.bookmark if interaction else False
+            problem_data.is_liked = interaction.upvote if interaction else False
         else:
             problem_data.is_bookmarked = False
             problem_data.is_liked = False
         
         # Get total likes count for this problem
-        likes_count = db.query(ProblemLike).filter(
-            ProblemLike.problem_id == problem.id
+        likes_count = db.query(ProblemInteraction).filter(
+            ProblemInteraction.problem_id == problem.id,
+            ProblemInteraction.upvote == True
         ).count()
         problem_data.likes_count = likes_count
         
@@ -454,9 +450,26 @@ def migrate_to_unified_interactions(db: Session = Depends(get_db)):
         # Create the new table if it doesn't exist
         Base.metadata.create_all(bind=db.bind)
         
-        # Get all existing bookmarks and likes
-        bookmarks = db.query(ProblemBookmark).all()
-        likes = db.query(ProblemLike).all()
+        # Get all existing bookmarks and likes (legacy tables may not exist)
+        try:
+            # Try to import old models if they still exist in database
+            from sqlalchemy import text
+            bookmarks = []
+            likes = []
+            
+            # Check if old tables still exist before querying
+            result = db.execute(text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'problem_bookmarks')"))
+            if result.scalar():
+                bookmarks = db.execute(text("SELECT user_id, problem_id, created_at FROM problem_bookmarks")).fetchall()
+            
+            result = db.execute(text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'problem_likes')"))
+            if result.scalar():
+                likes = db.execute(text("SELECT user_id, problem_id, created_at FROM problem_likes")).fetchall()
+                
+        except Exception as e:
+            print(f"Legacy tables not found or error accessing them: {e}")
+            bookmarks = []
+            likes = []
         
         # Create a dictionary to track user-problem combinations
         interactions = {}
