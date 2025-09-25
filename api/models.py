@@ -284,10 +284,7 @@ class ExecutionResult(Base):
     query_result = Column(JSONB)  # Actual query output
     error_message = Column(Text)  # Error details if any
     
-    # Performance metrics
-    cpu_time_ms = Column(Integer)
-    io_operations = Column(Integer)
-    query_plan = Column(JSONB)  # EXPLAIN output
+    # Performance metrics (unused columns removed for database optimization)
     
     # Validation
     is_correct = Column(Boolean, nullable=False)
