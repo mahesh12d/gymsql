@@ -49,8 +49,9 @@ async function startBackend() {
   process.env.LANG = 'C.UTF-8';
   
   // TEMPORARY: Enable admin bypass for development - REMOVE when Google auth is implemented
-  process.env.TEMP_ADMIN_BYPASS = 'true';
-  console.log('🔓 TEMPORARY: Admin panel bypass enabled for development');
+  process.env.DEV_ADMIN_BYPASS = 'true';
+  process.env.DEV_TOKEN_BYPASS = 'true';
+  console.log('🔓 TEMPORARY: Development authentication bypasses enabled');
   
   // Generate temporary secure keys for development if not set
   if (!process.env.JWT_SECRET) {
