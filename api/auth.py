@@ -167,7 +167,7 @@ def verify_admin_user_access(
             admin_user = User(
                 id=str(uuid4()),
                 username="temp_admin",
-                email="temp_admin@dev.local",
+                email="temp_admin@example.com",
                 is_admin=True,
                 premium=True
             )
@@ -193,7 +193,7 @@ def verify_admin_user_access(
             admin_user = User(
                 id=str(uuid4()),
                 username="admin",
-                email="admin@system.local",
+                email="admin@example.com",
                 is_admin=True,
                 premium=True
             )
