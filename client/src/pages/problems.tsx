@@ -746,7 +746,7 @@ export default function Problems() {
                   <div>
                     <div className="text-3xl font-bold text-green-600">
                       {
-                        filteredProblems.filter((p) => p.difficulty === "Easy")
+                        filteredProblems.filter((p) => p.difficulty?.toLowerCase() === "easy")
                           .length
                       }
                     </div>
@@ -756,7 +756,7 @@ export default function Problems() {
                     <div className="text-3xl font-bold text-orange-600">
                       {
                         filteredProblems.filter(
-                          (p) => p.difficulty === "Medium"
+                          (p) => p.difficulty?.toLowerCase() === "medium"
                         ).length
                       }
                     </div>
@@ -765,7 +765,7 @@ export default function Problems() {
                   <div>
                     <div className="text-3xl font-bold text-red-600">
                       {
-                        filteredProblems.filter((p) => p.difficulty === "Hard")
+                        filteredProblems.filter((p) => p.difficulty?.toLowerCase() === "hard")
                           .length
                       }
                     </div>
