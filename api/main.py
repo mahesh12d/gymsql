@@ -1028,15 +1028,19 @@ def get_official_solution(problem_id: str, db: Session = Depends(get_db)):
             detail="Problem not found"
         )
     
-    logger.info(f"Problem {problem_id} solution_source: {problem.solution_source}")
+    # Check if problem has solution_source attribute (legacy support)
+    solution_source = getattr(problem, 'solution_source', None)
+    s3_solution_source = getattr(problem, 's3_solution_source', None)
+    
+    logger.info(f"Problem {problem_id} solution_source: {solution_source}")
     
     # Admin-controlled hybrid logic: check the solution_source field
-    if problem.solution_source == 's3' and problem.s3_solution_source:
+    if solution_source == 's3' and s3_solution_source:
         logger.info(f"Using S3 solution source for problem {problem_id}")
         
         try:
             # Extract S3 solution source info configured by admin
-            s3_solution_data = problem.s3_solution_source
+            s3_solution_data = s3_solution_source
             bucket = s3_solution_data.get('bucket')
             solution_key = s3_solution_data.get('key')
             

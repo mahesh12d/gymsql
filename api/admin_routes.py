@@ -554,13 +554,13 @@ def validate_problem_json(
 
 # Solution management routes
 @admin_router.post("/problems/{problem_id}/solutions", response_model=SolutionResponse)
-def create_solution(
+def create_or_update_solution(
     problem_id: str,
     solution_data: SolutionCreate,
     current_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
-    """Create an official solution for a problem"""
+    """Create or update the solution for a problem (one solution per problem)"""
     # Verify problem exists
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
@@ -569,38 +569,66 @@ def create_solution(
             detail="Problem not found"
         )
     
-    # Check for existing official solution if this is meant to be official
-    if solution_data.is_official:
-        existing_official = db.query(Solution).filter(
-            Solution.problem_id == problem_id,
-            Solution.is_official == True
+    # Check for existing solution for this problem
+    existing_solution = db.query(Solution).filter(
+        Solution.problem_id == problem_id
+    ).first()
+    
+    if existing_solution:
+        # Update existing solution
+        existing_solution.title = solution_data.title
+        existing_solution.content = solution_data.content
+        existing_solution.sql_code = solution_data.sql_code
+        existing_solution.is_official = True  # Always official since it's the only solution
+        
+        db.commit()
+        db.refresh(existing_solution)
+        
+        # Load creator relationship
+        solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
+            Solution.id == existing_solution.id
         ).first()
         
-        if existing_official:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"An official solution already exists for this problem. Use PUT /api/admin/solutions/{existing_official.id} to update it instead."
-            )
-    
-    # Create solution
-    solution = Solution(
-        id=str(uuid.uuid4()),
-        problem_id=problem_id,
-        created_by=current_user.id,
-        title=solution_data.title,
-        content=solution_data.content,
-        sql_code=solution_data.sql_code,
-        is_official=solution_data.is_official
-    )
-    
-    db.add(solution)
-    db.commit()
-    db.refresh(solution)
-    
-    # Load creator relationship
+        return SolutionResponse.from_orm(solution)
+    else:
+        # Create new solution
+        solution = Solution(
+            id=str(uuid.uuid4()),
+            problem_id=problem_id,
+            created_by=current_user.id,
+            title=solution_data.title,
+            content=solution_data.content,
+            sql_code=solution_data.sql_code,
+            is_official=True  # Always official since it's the only solution
+        )
+        
+        db.add(solution)
+        db.commit()
+        db.refresh(solution)
+        
+        # Load creator relationship
+        solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
+            Solution.id == solution.id
+        ).first()
+        
+        return SolutionResponse.from_orm(solution)
+
+@admin_router.get("/problems/{problem_id}/solution", response_model=SolutionResponse)
+def get_problem_solution(
+    problem_id: str,
+    _: bool = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """Get the single solution for a problem (admin view)"""
     solution = db.query(Solution).options(joinedload(Solution.creator)).filter(
-        Solution.id == solution.id
+        Solution.problem_id == problem_id
     ).first()
+    
+    if not solution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No solution found for this problem"
+        )
     
     return SolutionResponse.from_orm(solution)
 
@@ -610,7 +638,7 @@ def get_problem_solutions(
     _: bool = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
-    """Get all solutions for a problem (admin view)"""
+    """Get all solutions for a problem (admin view) - legacy endpoint"""
     solutions = db.query(Solution).options(joinedload(Solution.creator)).filter(
         Solution.problem_id == problem_id
     ).order_by(Solution.created_at.desc()).all()

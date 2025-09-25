@@ -5,10 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Edit, Save, X } from 'lucide-react';
+import { Save, FileText, Plus } from 'lucide-react';
 import { useAdmin } from '@/contexts/AdminContext';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
@@ -27,23 +25,20 @@ interface Solution {
   };
 }
 
-interface SolutionCreate {
+interface SolutionForm {
   title: string;
   content: string;
   sql_code: string;
-  is_official: boolean;
 }
 
 export function SolutionsTab() {
   const { state } = useAdmin();
   const { toast } = useToast();
   const [selectedProblemId, setSelectedProblemId] = useState('');
-  const [editingSolution, setEditingSolution] = useState<Solution | null>(null);
-  const [solutionForm, setSolutionForm] = useState<SolutionCreate>({
+  const [solutionForm, setSolutionForm] = useState<SolutionForm>({
     title: '',
     content: '',
-    sql_code: '',
-    is_official: true
+    sql_code: ''
   });
 
   // React Query for problems
@@ -52,26 +47,29 @@ export function SolutionsTab() {
     enabled: state.isAuthenticated
   });
 
-  // React Query for solutions
-  const { data: solutions = [], isLoading: solutionsLoading, refetch: refetchSolutions } = useQuery({
-    queryKey: ['/api/admin/problems', selectedProblemId, 'solutions'],
+  // React Query for existing solution (new endpoint)
+  const { data: existingSolution, isLoading: solutionLoading, error: solutionError } = useQuery({
+    queryKey: ['/api/admin/problems', selectedProblemId, 'solution'],
     enabled: !!selectedProblemId && state.isAuthenticated,
     queryFn: async () => {
-      const response = await fetch(`/api/admin/problems/${selectedProblemId}/solutions`, {
+      const response = await fetch(`/api/admin/problems/${selectedProblemId}/solution`, {
         headers: {
           'Authorization': `Bearer ${state.adminKey}`
         }
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch solutions');
+        if (response.status === 404) {
+          return null; // No solution exists yet
+        }
+        throw new Error('Failed to fetch solution');
       }
       return response.json();
     }
   });
 
-  // Create solution mutation
-  const createSolutionMutation = useMutation({
-    mutationFn: async (solutionData: SolutionCreate) => {
+  // Create or update solution mutation
+  const saveSolutionMutation = useMutation({
+    mutationFn: async (solutionData: SolutionForm) => {
       const response = await fetch(`/api/admin/problems/${selectedProblemId}/solutions`, {
         method: 'POST',
         headers: {
@@ -83,7 +81,7 @@ export function SolutionsTab() {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || 'Failed to create solution');
+        throw new Error(error.detail || 'Failed to save solution');
       }
       
       return response.json();
@@ -91,10 +89,9 @@ export function SolutionsTab() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Solution created successfully"
+        description: existingSolution ? "Solution updated successfully" : "Solution created successfully"
       });
-      setSolutionForm({ title: '', content: '', sql_code: '', is_official: true });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/problems', selectedProblemId, 'solutions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/problems', selectedProblemId, 'solution'] });
     },
     onError: (error: Error) => {
       toast({
@@ -104,89 +101,6 @@ export function SolutionsTab() {
       });
     }
   });
-
-  // Update solution mutation
-  const updateSolutionMutation = useMutation({
-    mutationFn: async ({ solutionId, data }: { solutionId: string, data: SolutionCreate }) => {
-      const response = await fetch(`/api/admin/solutions/${solutionId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.adminKey}`
-        },
-        body: JSON.stringify(data)
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to update solution');
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Solution updated successfully"
-      });
-      setEditingSolution(null);
-      setSolutionForm({ title: '', content: '', sql_code: '', is_official: true });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/problems', selectedProblemId, 'solutions'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Delete solution mutation
-  const deleteSolutionMutation = useMutation({
-    mutationFn: async (solutionId: string) => {
-      const response = await fetch(`/api/admin/solutions/${solutionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${state.adminKey}`
-        }
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to delete solution');
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Solution deleted successfully"
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/problems', selectedProblemId, 'solutions'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
-  const deleteSolution = (solutionId: string) => {
-    if (!confirm('Are you sure you want to delete this solution?')) return;
-    deleteSolutionMutation.mutate(solutionId);
-  };
-
-  const editSolution = (solution: Solution) => {
-    setEditingSolution(solution);
-    setSolutionForm({
-      title: solution.title,
-      content: solution.content,
-      sql_code: solution.sql_code,
-      is_official: solution.is_official
-    });
-  };
 
   const handleSubmit = () => {
     if (!selectedProblemId) {
@@ -198,231 +112,163 @@ export function SolutionsTab() {
       return;
     }
 
-    if (editingSolution) {
-      updateSolutionMutation.mutate({
-        solutionId: editingSolution.id,
-        data: solutionForm
+    if (!solutionForm.title.trim() || !solutionForm.sql_code.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in the title and SQL code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    saveSolutionMutation.mutate(solutionForm);
+  };
+
+  // Load existing solution data when problem changes
+  useEffect(() => {
+    if (existingSolution) {
+      setSolutionForm({
+        title: existingSolution.title,
+        content: existingSolution.content,
+        sql_code: existingSolution.sql_code
       });
     } else {
-      createSolutionMutation.mutate(solutionForm);
+      setSolutionForm({
+        title: '',
+        content: '',
+        sql_code: ''
+      });
     }
-  };
-
-  const cancelEdit = () => {
-    setEditingSolution(null);
-    setSolutionForm({ title: '', content: '', sql_code: '', is_official: true });
-  };
-
-  // Clear editing state when problem changes
-  useEffect(() => {
-    if (editingSolution) {
-      setEditingSolution(null);
-      setSolutionForm({ title: '', content: '', sql_code: '', is_official: true });
-    }
-  }, [selectedProblemId, editingSolution]);
+  }, [existingSolution, selectedProblemId]);
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Solutions Management</CardTitle>
+          <CardTitle>Solution Management</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Manage solutions for existing problems. Select a problem to view and edit its solutions.
+            Create or edit solutions for problems. Each problem has one solution.
           </p>
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="manage" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="manage" data-testid="tab-manage-solutions">Manage Solutions</TabsTrigger>
-          <TabsTrigger value="create" data-testid="tab-create-solution">Create Solution</TabsTrigger>
-        </TabsList>
+      {/* Problem Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Problem</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <Label htmlFor="problem-select">Choose a Problem</Label>
+            <select
+              id="problem-select"
+              value={selectedProblemId}
+              onChange={(e) => setSelectedProblemId(e.target.value)}
+              className="w-full p-2 border rounded-md"
+              data-testid="select-problem"
+            >
+              <option value="">Choose a problem...</option>
+              {problems.map((problem: any) => (
+                <option key={problem.id} value={problem.id}>
+                  {problem.title} ({problem.difficulty})
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="manage" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Problem Selection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label htmlFor="problem-select">Select a Problem</Label>
-                <select
-                  id="problem-select"
-                  value={selectedProblemId}
-                  onChange={(e) => setSelectedProblemId(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                  data-testid="select-problem"
-                >
-                  <option value="">Choose a problem...</option>
-                  {problems.map((problem: any) => (
-                    <option key={problem.id} value={problem.id}>
-                      {problem.title} ({problem.difficulty})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {selectedProblemId && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Solutions for Selected Problem</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {solutionsLoading ? (
-                  <div>Loading solutions...</div>
-                ) : solutions.length === 0 ? (
-                  <Alert>
-                    <AlertDescription>
-                      No solutions found for this problem. Create one using the "Create Solution" tab.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-4">
-                    {solutions.map((solution: Solution) => (
-                      <div key={solution.id} className="border rounded p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{solution.title}</h4>
-                            {solution.is_official && (
-                              <Badge variant="default">Official</Badge>
-                            )}
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => editSolution(solution)}
-                              data-testid={`button-edit-solution-${solution.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteSolution(solution.id)}
-                              data-testid={`button-delete-solution-${solution.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <p className="text-sm text-gray-600 mb-2">{solution.content}</p>
-                        
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 mb-2">
-                          <code className="text-sm">{solution.sql_code}</code>
-                        </div>
-
-                        <div className="text-xs text-gray-500">
-                          By {solution.creator.username} • {new Date(solution.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="create" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {editingSolution ? 'Edit Solution' : 'Create New Solution'}
-              </CardTitle>
-              {editingSolution && (
-                <Alert>
-                  <AlertDescription>
-                    Editing solution: {editingSolution.title}
-                  </AlertDescription>
-                </Alert>
+      {/* Solution Form */}
+      {selectedProblemId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {existingSolution ? (
+                <>
+                  <FileText className="w-5 h-5" />
+                  Edit Solution
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5" />
+                  Create Solution
+                </>
               )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!selectedProblemId && (
-                <Alert>
-                  <AlertDescription>
-                    Please select a problem from the "Manage Solutions" tab first.
-                  </AlertDescription>
-                </Alert>
-              )}
+            </CardTitle>
+            {solutionLoading && (
+              <p className="text-sm text-muted-foreground">Loading solution...</p>
+            )}
+            {existingSolution && (
+              <Alert>
+                <AlertDescription>
+                  Editing existing solution for this problem.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="solution-title">Solution Title</Label>
+              <Input
+                id="solution-title"
+                value={solutionForm.title}
+                onChange={(e) => setSolutionForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g., Optimized JOIN solution"
+                data-testid="input-solution-title"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="solution-title">Solution Title</Label>
-                <Input
-                  id="solution-title"
-                  value={solutionForm.title}
-                  onChange={(e) => setSolutionForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g., Optimized JOIN solution"
-                  disabled={!selectedProblemId}
-                  data-testid="input-solution-title"
-                />
-              </div>
+            <div>
+              <Label htmlFor="solution-content">Solution Explanation</Label>
+              <Textarea
+                id="solution-content"
+                value={solutionForm.content}
+                onChange={(e) => setSolutionForm(prev => ({ ...prev, content: e.target.value }))}
+                placeholder="Explain the approach and key insights..."
+                rows={4}
+                data-testid="textarea-solution-content"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="solution-content">Solution Explanation</Label>
-                <Textarea
-                  id="solution-content"
-                  value={solutionForm.content}
-                  onChange={(e) => setSolutionForm(prev => ({ ...prev, content: e.target.value }))}
-                  placeholder="Explain the approach and key insights..."
-                  rows={4}
-                  disabled={!selectedProblemId}
-                  data-testid="textarea-solution-content"
-                />
-              </div>
+            <div>
+              <Label htmlFor="solution-sql">SQL Code</Label>
+              <Textarea
+                id="solution-sql"
+                value={solutionForm.sql_code}
+                onChange={(e) => setSolutionForm(prev => ({ ...prev, sql_code: e.target.value }))}
+                placeholder="SELECT ..."
+                rows={8}
+                className="font-mono text-sm"
+                data-testid="textarea-solution-sql"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="solution-sql">SQL Code</Label>
-                <Textarea
-                  id="solution-sql"
-                  value={solutionForm.sql_code}
-                  onChange={(e) => setSolutionForm(prev => ({ ...prev, sql_code: e.target.value }))}
-                  placeholder="SELECT ..."
-                  rows={8}
-                  className="font-mono text-sm"
-                  disabled={!selectedProblemId}
-                  data-testid="textarea-solution-sql"
-                />
-              </div>
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSubmit}
+                disabled={!solutionForm.title.trim() || !solutionForm.sql_code.trim() || saveSolutionMutation.isPending}
+                data-testid="button-submit-solution"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {saveSolutionMutation.isPending 
+                  ? 'Saving...' 
+                  : existingSolution 
+                    ? 'Update Solution' 
+                    : 'Create Solution'
+                }
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-              <div>
-                <Label>Solution Type</Label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={solutionForm.is_official}
-                    onChange={(e) => setSolutionForm(prev => ({ ...prev, is_official: e.target.checked }))}
-                    disabled={!selectedProblemId}
-                    data-testid="checkbox-official-solution"
-                  />
-                  <span>Mark as official solution</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                {editingSolution && (
-                  <Button variant="outline" onClick={cancelEdit} data-testid="button-cancel-edit">
-                    <X className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
-                )}
-                <Button 
-                  onClick={handleSubmit}
-                  disabled={!selectedProblemId || !solutionForm.title.trim() || !solutionForm.sql_code.trim() || createSolutionMutation.isPending || updateSolutionMutation.isPending}
-                  data-testid="button-submit-solution"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {editingSolution ? 'Update Solution' : 'Create Solution'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {!selectedProblemId && (
+        <Alert>
+          <AlertDescription>
+            Please select a problem above to create or edit its solution.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
