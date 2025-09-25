@@ -401,38 +401,7 @@ class ProblemInteraction(Base):
     # Unique constraint: one interaction record per user per problem
     __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_interactions_user_problem'),)
 
-# Keep old models for migration purposes - will be removed after migration
-class ProblemBookmark(Base):
-    """User bookmarks for problems - DEPRECATED: Use ProblemInteraction instead"""
-    __tablename__ = "problem_bookmarks"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    
-    # Relationships
-    user = relationship("User")
-    problem = relationship("Problem")
-    
-    # Unique constraint: one bookmark per user per problem
-    __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_bookmarks_user_problem'),)
-
-class ProblemLike(Base):
-    """User likes for problems - DEPRECATED: Use ProblemInteraction instead"""
-    __tablename__ = "problem_likes"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    
-    # Relationships
-    user = relationship("User")
-    problem = relationship("Problem")
-    
-    # Unique constraint: one like per user per problem
-    __table_args__ = (UniqueConstraint('user_id', 'problem_id', name='uq_problem_likes_user_problem'),)
+# Migration completed - old ProblemBookmark and ProblemLike models removed
 
 class ProblemSession(Base):
     """Track user engagement timing for problems"""
