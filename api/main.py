@@ -1381,6 +1381,248 @@ def get_problem_solutions_public(
     
     return [SolutionResponse.from_orm(solution) for solution in solutions]
 
+# User Profile API routes for comprehensive profile data
+@app.get("/api/user/profile")
+async def get_user_profile(current_user: User = Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    """Get comprehensive user profile with enhanced statistics"""
+    from sqlalchemy import func, case, distinct
+    from datetime import datetime, timedelta
+    
+    user_id = current_user.id
+    
+    # Basic user info
+    basic_stats = {
+        'user_id': user_id,
+        'username': current_user.username,
+        'email': current_user.email,
+        'first_name': current_user.first_name,
+        'last_name': current_user.last_name,
+        'profile_image_url': current_user.profile_image_url,
+        'problems_solved': current_user.problems_solved or 0,
+        'premium': current_user.premium,
+        'created_at': current_user.created_at
+    }
+    
+    # Performance stats
+    total_submissions = db.query(Submission).filter(Submission.user_id == user_id).count()
+    correct_submissions = db.query(Submission).filter(
+        Submission.user_id == user_id,
+        Submission.is_correct == True
+    ).count()
+    
+    accuracy = (correct_submissions / total_submissions * 100) if total_submissions > 0 else 0
+    
+    # Difficulty breakdown
+    difficulty_stats = db.query(
+        Problem.difficulty,
+        func.count(distinct(Problem.id)).label('solved_count')
+    ).join(Submission, Submission.problem_id == Problem.id).filter(
+        Submission.user_id == user_id,
+        Submission.is_correct == True
+    ).group_by(Problem.difficulty).all()
+    
+    difficulty_breakdown = {
+        'Easy': 0,
+        'Medium': 0, 
+        'Hard': 0
+    }
+    for stat in difficulty_stats:
+        if stat.difficulty in difficulty_breakdown:
+            difficulty_breakdown[stat.difficulty] = stat.solved_count
+    
+    # Topic breakdown (if topics exist)
+    topic_stats = db.query(
+        Problem.tags,
+        func.count(distinct(Problem.id)).label('solved_count')
+    ).join(Submission, Submission.problem_id == Problem.id).filter(
+        Submission.user_id == user_id,
+        Submission.is_correct == True
+    ).group_by(Problem.tags).all()
+    
+    # Process tags to get topic breakdown
+    topic_breakdown = {}
+    for stat in topic_stats:
+        if stat.tags:
+            for tag in stat.tags:
+                topic_breakdown[tag] = topic_breakdown.get(tag, 0) + stat.solved_count
+    
+    # Recent activity (last 5 successful submissions)
+    recent_activity = db.query(Submission, Problem.title, Problem.difficulty).join(
+        Problem, Submission.problem_id == Problem.id
+    ).filter(
+        Submission.user_id == user_id,
+        Submission.is_correct == True
+    ).order_by(desc(Submission.submitted_at)).limit(5).all()
+    
+    recent_submissions = []
+    for submission, title, difficulty in recent_activity:
+        recent_submissions.append({
+            'problem_title': title,
+            'difficulty': difficulty,
+            'submitted_at': submission.submitted_at,
+            'execution_time': submission.execution_time
+        })
+    
+    # Calculate streaks
+    recent_submissions_all = db.query(Submission).filter(
+        Submission.user_id == user_id
+    ).order_by(desc(Submission.submitted_at)).limit(50).all()
+    
+    current_streak = 0
+    longest_streak = 0
+    temp_streak = 0
+    
+    for submission in recent_submissions_all:
+        if submission.is_correct:
+            temp_streak += 1
+            if temp_streak > longest_streak:
+                longest_streak = temp_streak
+        else:
+            if current_streak == 0:  # First streak we're calculating
+                current_streak = temp_streak
+            temp_streak = 0
+    
+    if current_streak == 0:  # If we haven't hit an incorrect submission yet
+        current_streak = temp_streak
+    
+    # Performance over time (last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    daily_progress = db.query(
+        func.date(Submission.submitted_at).label('date'),
+        func.count(case([(Submission.is_correct == True, 1)])).label('solved_count')
+    ).filter(
+        Submission.user_id == user_id,
+        Submission.submitted_at >= thirty_days_ago
+    ).group_by(func.date(Submission.submitted_at)).order_by('date').all()
+    
+    progress_over_time = []
+    for entry in daily_progress:
+        progress_over_time.append({
+            'date': entry.date.isoformat(),
+            'solved_count': entry.solved_count
+        })
+    
+    # User badges (if any exist)
+    user_badges = db.query(UserBadge, Badge).join(
+        Badge, UserBadge.badge_id == Badge.id
+    ).filter(UserBadge.user_id == user_id).all()
+    
+    badges = []
+    for user_badge, badge in user_badges:
+        badges.append({
+            'id': badge.id,
+            'name': badge.name,
+            'description': badge.description,
+            'icon_url': badge.icon_url,
+            'rarity': badge.rarity,
+            'earned_at': user_badge.earned_at
+        })
+    
+    # Calculate rank in leaderboard
+    users_above = db.query(User).filter(
+        User.problems_solved > current_user.problems_solved
+    ).count()
+    rank = users_above + 1
+    
+    return {
+        'success': True,
+        'basic_info': basic_stats,
+        'performance_stats': {
+            'total_submissions': total_submissions,
+            'correct_submissions': correct_submissions,
+            'accuracy_rate': round(accuracy, 1),
+            'current_streak': current_streak,
+            'longest_streak': longest_streak,
+            'rank': rank
+        },
+        'difficulty_breakdown': difficulty_breakdown,
+        'topic_breakdown': topic_breakdown,
+        'recent_activity': recent_submissions,
+        'progress_over_time': progress_over_time,
+        'badges': badges
+    }
+
+@app.get("/api/user/profile/recommendations")
+async def get_user_recommendations(current_user: User = Depends(get_current_user),
+                                 db: Session = Depends(get_db)):
+    """Get personalized recommendations for user improvement"""
+    user_id = current_user.id
+    
+    # Find topics with low performance
+    solved_problems = db.query(Problem.tags).join(
+        Submission, Submission.problem_id == Problem.id
+    ).filter(
+        Submission.user_id == user_id,
+        Submission.is_correct == True
+    ).all()
+    
+    # Count solved problems by tag
+    topic_solved_count = {}
+    for problem in solved_problems:
+        if problem.tags:
+            for tag in problem.tags:
+                topic_solved_count[tag] = topic_solved_count.get(tag, 0) + 1
+    
+    # Find topics with few solved problems (weak areas)
+    all_topics = db.query(Problem.tags).distinct().all()
+    all_topic_set = set()
+    for problem in all_topics:
+        if problem.tags:
+            all_topic_set.update(problem.tags)
+    
+    weak_topics = []
+    for topic in all_topic_set:
+        solved_count = topic_solved_count.get(topic, 0)
+        if solved_count <= 2:  # Less than 3 problems solved in this topic
+            weak_topics.append({
+                'topic': topic,
+                'solved_count': solved_count,
+                'recommendation': f"Practice more {topic} problems to improve"
+            })
+    
+    # Recommend next difficulty level
+    current_difficulty_counts = {
+        'Easy': topic_solved_count.get('Easy', 0),
+        'Medium': topic_solved_count.get('Medium', 0), 
+        'Hard': topic_solved_count.get('Hard', 0)
+    }
+    
+    next_difficulty = "Easy"
+    if current_difficulty_counts['Easy'] >= 5:
+        next_difficulty = "Medium"
+    if current_difficulty_counts['Medium'] >= 3:
+        next_difficulty = "Hard"
+    
+    # Get recommended problems
+    recommended_problems = db.query(Problem).filter(
+        Problem.difficulty == next_difficulty,
+        ~Problem.id.in_(
+            db.query(Submission.problem_id).filter(
+                Submission.user_id == user_id,
+                Submission.is_correct == True
+            )
+        )
+    ).limit(5).all()
+    
+    recommendations = []
+    for problem in recommended_problems:
+        recommendations.append({
+            'id': problem.id,
+            'title': problem.title,
+            'difficulty': problem.difficulty,
+            'tags': problem.tags,
+            'company': problem.company
+        })
+    
+    return {
+        'success': True,
+        'weak_topics': weak_topics[:5],  # Top 5 weak areas
+        'recommended_difficulty': next_difficulty,
+        'recommended_problems': recommendations,
+        'learning_path': f"Focus on {next_difficulty} problems, especially in: {', '.join([wt['topic'] for wt in weak_topics[:3]])}"
+    }
+
 # Enhanced discussion API routes for problem-specific discussions  
 @app.get("/api/problems/{problem_id}/discussions", response_model=List[CommunityPostResponse])
 def get_problem_discussions(
