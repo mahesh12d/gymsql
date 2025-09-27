@@ -69,7 +69,8 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
-    const wsUrl = `ws://${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
