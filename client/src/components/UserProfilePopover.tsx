@@ -43,14 +43,11 @@ export function UserProfilePopover({
 
   const createChatMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/chat/rooms', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `${currentUser?.username} & ${user.username}`,
-          description: `Direct message between ${currentUser?.username} and ${user.username}`,
-          is_group: false,
-          participants: [user.id] // Current user is automatically added by backend
-        }),
+      const response = await apiRequest('POST', '/api/chat/rooms', {
+        name: `${currentUser?.username} & ${user.username}`,
+        description: `Direct message between ${currentUser?.username} and ${user.username}`,
+        is_group: false,
+        participants: [user.id] // Current user is automatically added by backend
       });
       return response;
     },
