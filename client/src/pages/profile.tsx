@@ -6,8 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, ResponsiveContainer } from "recharts";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb } from "lucide-react";
+import ReactECharts from "echarts-for-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon } from "lucide-react";
 import { format } from "date-fns";
 
 interface BasicInfo {
