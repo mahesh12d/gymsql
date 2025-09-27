@@ -69,8 +69,20 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+    // In Replit development, frontend is HTTPS but backend WebSocket is HTTP
+    // Use WS for development, WSS for production
+    const isReplit = window.location.hostname.includes('replit.dev') || window.location.hostname.includes('replit.app');
+    const isDev = import.meta.env.DEV;
+    
+    let wsUrl;
+    if (isDev && isReplit) {
+      // Replit development: Connect to local backend WebSocket over WS
+      wsUrl = `ws://localhost:8000/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+    } else {
+      // Production or local development: Use standard protocol detection
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+    }
     console.log('🔗 Attempting WebSocket connection to:', wsUrl);
     console.log('🔑 Using token:', token);
     const ws = new WebSocket(wsUrl);
