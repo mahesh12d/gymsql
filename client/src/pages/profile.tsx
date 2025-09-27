@@ -104,39 +104,70 @@ const RARITY_COLORS = {
   legendary: "#f59e0b"
 };
 
-function ProfileHeader({ basicInfo, performanceStats }: { basicInfo: BasicInfo; performanceStats: PerformanceStats }) {
+// 👤 Competitive User Information Header
+function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: BasicInfo; performanceStats: PerformanceStats }) {
   const displayName = basicInfo.first_name && basicInfo.last_name 
     ? `${basicInfo.first_name} ${basicInfo.last_name}`
     : basicInfo.username;
 
+  // Determine title based on performance
+  const getUserTitle = () => {
+    if (performanceStats.rank <= 10) return "SQL Legend 👑";
+    if (performanceStats.rank <= 100) return "Query Master 🏆";
+    if (performanceStats.accuracy_rate > 90) return "Joins Specialist 🔗";
+    if (performanceStats.correct_submissions > 50) return "Window Function Expert 📊";
+    return "Rising Star ⭐";
+  };
+
   return (
-    <Card data-testid="profile-header">
+    <Card data-testid="profile-header" className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-2">
       <CardHeader>
-        <div className="flex items-center space-x-4">
-          <Avatar className="h-20 w-20" data-testid="avatar-profile">
-            <AvatarImage src={basicInfo.profile_image_url || undefined} />
-            <AvatarFallback className="text-lg">
-              {displayName.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <CardTitle className="text-2xl" data-testid="text-username">{displayName}</CardTitle>
-            <CardDescription data-testid="text-email">{basicInfo.email}</CardDescription>
-            <div className="flex items-center space-x-4 mt-2">
-              <Badge variant={basicInfo.premium ? "default" : "secondary"} data-testid="badge-premium">
-                {basicInfo.premium ? "Premium" : "Free"}
-              </Badge>
-              <div className="flex items-center space-x-1" data-testid="text-rank">
-                <Trophy className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium">Rank #{performanceStats.rank}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6">
+            <Avatar className="h-24 w-24 border-4 border-yellow-400" data-testid="avatar-profile">
+              <AvatarImage src={basicInfo.profile_image_url || undefined} />
+              <AvatarFallback className="text-xl bg-gradient-to-br from-yellow-400 to-orange-500 text-white">
+                {displayName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1">
+              <div className="flex items-center space-x-3 mb-1">
+                <CardTitle className="text-3xl" data-testid="text-username">{displayName}</CardTitle>
+                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white" data-testid="badge-title">
+                  {getUserTitle()}
+                </Badge>
               </div>
-              <div className="flex items-center space-x-1" data-testid="text-joined">
-                <User className="h-4 w-4" />
-                <span className="text-sm text-muted-foreground">
-                  Joined {format(new Date(basicInfo.created_at), "MMM yyyy")}
+              
+              <div className="flex items-center space-x-2 mb-3">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                <span className="text-xl font-bold text-yellow-600" data-testid="text-global-rank">
+                  #{performanceStats.rank} / 10,000
                 </span>
+                <span className="text-sm text-muted-foreground">Global Rank</span>
+              </div>
+              
+              <div className="flex items-center space-x-6 text-sm">
+                <div className="flex items-center space-x-1" data-testid="text-joined">
+                  <User className="h-4 w-4" />
+                  <span className="text-muted-foreground">
+                    Joined {format(new Date(basicInfo.created_at), "MMM yyyy")}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1" data-testid="text-last-active">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-muted-foreground">Last active today</span>
+                </div>
               </div>
             </div>
+          </div>
+          
+          {/* Quick Stats Badge */}
+          <div className="text-right">
+            <Badge variant={basicInfo.premium ? "default" : "secondary"} data-testid="badge-premium" className="mb-2">
+              {basicInfo.premium ? "Premium Racer 🏎️" : "Free Rider 🚗"}
+            </Badge>
+            <div className="text-sm text-muted-foreground" data-testid="text-email">{basicInfo.email}</div>
           </div>
         </div>
       </CardHeader>
@@ -144,40 +175,83 @@ function ProfileHeader({ basicInfo, performanceStats }: { basicInfo: BasicInfo; 
   );
 }
 
-function PerformanceStatsCard({ stats }: { stats: PerformanceStats }) {
+// 🏆 Competitive Overview Section
+function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
+  // Mock data for comparison with top 10% users
+  const top10PercentAverage = 85;
+  const leaderSolved = 150;
+  const userSolved = stats.correct_submissions;
+  const progressToLeader = Math.min(100, (userSolved / leaderSolved) * 100);
+
   return (
-    <Card data-testid="card-performance">
+    <Card data-testid="card-competitive-overview" className="border-2 border-yellow-200 dark:border-yellow-800">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <TrendingUp className="h-5 w-5" />
-          <span>Performance Stats</span>
+          <Trophy className="h-6 w-6 text-yellow-500" />
+          <span>🏆 Competitive Overview</span>
         </CardTitle>
+        <CardDescription>How you stack up against other SQL racers</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="text-center" data-testid="stat-solved">
-            <div className="text-2xl font-bold text-primary">{stats.correct_submissions}</div>
-            <div className="text-sm text-muted-foreground">Problems Solved</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Total Questions Solved vs Top 10% */}
+          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg" data-testid="stat-solved-comparison">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Target className="h-5 w-5 text-blue-600" />
+              <span className="text-sm font-medium">Questions Solved</span>
+            </div>
+            <div className="text-3xl font-bold text-blue-600">{userSolved}</div>
+            <div className="text-sm text-muted-foreground mb-2">
+              Top 10% avg: {top10PercentAverage}
+            </div>
+            <Badge variant={userSolved > top10PercentAverage ? "default" : "secondary"}>
+              {userSolved > top10PercentAverage ? "Above Average 📈" : "Room to Grow 🚀"}
+            </Badge>
           </div>
-          <div className="text-center" data-testid="stat-accuracy">
-            <div className="text-2xl font-bold text-green-600">{stats.accuracy_rate}%</div>
-            <div className="text-sm text-muted-foreground">Accuracy Rate</div>
+
+          {/* Accuracy Rate vs Peers */}
+          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800 rounded-lg" data-testid="stat-accuracy-comparison">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Gauge className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-medium">Accuracy Rate</span>
+            </div>
+            <div className="text-3xl font-bold text-green-600">{stats.accuracy_rate}%</div>
+            <div className="text-sm text-muted-foreground mb-2">
+              vs Global avg: 73%
+            </div>
+            <Badge variant={stats.accuracy_rate > 73 ? "default" : "secondary"}>
+              {stats.accuracy_rate > 90 ? "Elite Precision 🎯" : stats.accuracy_rate > 73 ? "Above Average ⬆️" : "Keep Practicing 💪"}
+            </Badge>
           </div>
-          <div className="text-center" data-testid="stat-current-streak">
-            <div className="text-2xl font-bold text-orange-500">{stats.current_streak}</div>
-            <div className="text-sm text-muted-foreground">Current Streak</div>
+
+          {/* Fastest Solve Time Record */}
+          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 rounded-lg" data-testid="stat-fastest-time">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Zap className="h-5 w-5 text-purple-600" />
+              <span className="text-sm font-medium">Fastest Solve</span>
+            </div>
+            <div className="text-3xl font-bold text-purple-600">2:43</div>
+            <div className="text-sm text-muted-foreground mb-2">
+              Personal best 🏁
+            </div>
+            <Badge variant="outline" className="border-purple-600 text-purple-600">
+              Lightning Fast ⚡
+            </Badge>
           </div>
-          <div className="text-center" data-testid="stat-longest-streak">
-            <div className="text-2xl font-bold text-purple-600">{stats.longest_streak}</div>
-            <div className="text-sm text-muted-foreground">Longest Streak</div>
-          </div>
-          <div className="text-center" data-testid="stat-submissions">
-            <div className="text-2xl font-bold text-blue-600">{stats.total_submissions}</div>
-            <div className="text-sm text-muted-foreground">Total Submissions</div>
-          </div>
-          <div className="text-center" data-testid="stat-rank">
-            <div className="text-2xl font-bold text-yellow-600">#{stats.rank}</div>
-            <div className="text-sm text-muted-foreground">Global Rank</div>
+
+          {/* Head-to-Head Wins */}
+          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900 dark:to-orange-800 rounded-lg" data-testid="stat-head-to-head">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Users className="h-5 w-5 text-orange-600" />
+              <span className="text-sm font-medium">Head-to-Head</span>
+            </div>
+            <div className="text-3xl font-bold text-orange-600">12</div>
+            <div className="text-sm text-muted-foreground mb-2">
+              Wins this month
+            </div>
+            <Badge variant="outline" className="border-orange-600 text-orange-600">
+              Champion Fighter 🥊
+            </Badge>
           </div>
         </div>
       </CardContent>
@@ -185,129 +259,454 @@ function PerformanceStatsCard({ stats }: { stats: PerformanceStats }) {
   );
 }
 
-function DifficultyChart({ difficultyBreakdown }: { difficultyBreakdown: DifficultyBreakdown }) {
-  const data = Object.entries(difficultyBreakdown).map(([key, value]) => ({
-    name: key,
-    value,
-    color: DIFFICULTY_COLORS[key as keyof typeof DIFFICULTY_COLORS]
-  }));
+// 📊 Leaderboard Comparison Section
+function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
+  const friendsLeaderboard = [
+    { name: "@sql_ninja", rank: 1, solved: 95, avatar: "SN" },
+    { name: "@query_queen", rank: 2, solved: 87, avatar: "QQ" },
+    { name: "You", rank: 3, solved: stats.correct_submissions, avatar: "ME", isUser: true },
+    { name: "@join_master", rank: 4, solved: 72, avatar: "JM" },
+    { name: "@data_wizard", rank: 5, solved: 68, avatar: "DW" }
+  ];
 
-  const total = data.reduce((sum, entry) => sum + entry.value, 0);
+  const topicLeaderboards = [
+    { topic: "Joins", userRank: 5, totalUsers: 1000 },
+    { topic: "Window Functions", userRank: 12, totalUsers: 800 },
+    { topic: "Subqueries", userRank: 8, totalUsers: 1200 },
+    { topic: "Aggregations", userRank: 3, totalUsers: 900 }
+  ];
 
   return (
-    <Card data-testid="card-difficulty-chart">
+    <Card data-testid="card-leaderboard-comparison" className="border-2 border-green-200 dark:border-green-800">
       <CardHeader>
-        <CardTitle>By Difficulty</CardTitle>
-        <CardDescription>Distribution of solved problems</CardDescription>
+        <CardTitle className="flex items-center space-x-2">
+          <Users className="h-6 w-6 text-green-500" />
+          <span>📊 Leaderboard Comparison</span>
+        </CardTitle>
+        <CardDescription>How you rank against friends and by topic</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
+      <CardContent className="space-y-6">
+        {/* Friends Leaderboard */}
+        <div>
+          <h4 className="font-medium mb-3 flex items-center space-x-2">
+            <Medal className="h-5 w-5 text-yellow-500" />
+            <span>Friends Leaderboard - You're #3 among your friends! 🎉</span>
+          </h4>
+          <div className="space-y-2">
+            {friendsLeaderboard.map((friend, index) => (
+              <div 
+                key={index} 
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  friend.isUser ? 'bg-yellow-50 dark:bg-yellow-900 border-2 border-yellow-300' : 'bg-gray-50 dark:bg-gray-800'
+                }`}
+                data-testid={`friend-rank-${index}`}
               >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: number) => [value, "Problems"]} />
-            </PieChart>
-          </ResponsiveContainer>
+                <div className="flex items-center space-x-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    friend.rank === 1 ? 'bg-yellow-500 text-white' :
+                    friend.rank === 2 ? 'bg-gray-400 text-white' :
+                    friend.rank === 3 ? 'bg-orange-500 text-white' :
+                    'bg-blue-500 text-white'
+                  }`}>
+                    {friend.rank}
+                  </div>
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className={friend.isUser ? 'bg-yellow-500 text-white' : 'bg-blue-500 text-white'}>
+                      {friend.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className={`font-medium ${friend.isUser ? 'text-yellow-700 dark:text-yellow-300' : ''}`}>
+                    {friend.name}
+                  </span>
+                </div>
+                <Badge variant={friend.isUser ? "default" : "secondary"}>
+                  {friend.solved} solved
+                </Badge>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          {data.map((entry) => (
-            <div key={entry.name} className="text-center" data-testid={`difficulty-${entry.name.toLowerCase()}`}>
-              <div className="flex items-center justify-center space-x-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-sm font-medium">{entry.name}</span>
+
+        <Separator />
+
+        {/* Topic Leaderboards */}
+        <div>
+          <h4 className="font-medium mb-3">Topic Leaderboards</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {topicLeaderboards.map((topic, index) => (
+              <div key={index} className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-lg" data-testid={`topic-rank-${index}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">{topic.topic}</span>
+                  <Badge variant="outline" className={topic.userRank <= 5 ? 'border-green-500 text-green-600' : topic.userRank <= 20 ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-600'}>
+                    #{topic.userRank}
+                  </Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  You're #{topic.userRank} out of {topic.totalUsers.toLocaleString()} users
+                </div>
+                <Progress value={(1 - topic.userRank / topic.totalUsers) * 100} className="mt-2" />
               </div>
-              <div className="text-lg font-bold">{entry.value}</div>
-              <div className="text-xs text-muted-foreground">
-                {total > 0 ? Math.round((entry.value / total) * 100) : 0}%
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function TopicChart({ topicBreakdown }: { topicBreakdown: Record<string, number> }) {
-  const data = Object.entries(topicBreakdown)
+// 🚦 Race-Style Progress Section
+function RaceStyleProgress({ stats }: { stats: PerformanceStats }) {
+  const leaderSolved = 150;
+  const userSolved = stats.correct_submissions;
+  const progressToLeader = Math.min(100, (userSolved / leaderSolved) * 100);
+  const questionsToGo = Math.max(0, leaderSolved - userSolved);
+
+  const milestones = [
+    { solved: 50, flag: "🏁", name: "Green Flag", description: "Getting Started", achieved: userSolved >= 50 },
+    { solved: 100, flag: "🚩", name: "Yellow Flag", description: "Making Progress", achieved: userSolved >= 100 },
+    { solved: 150, flag: "🏆", name: "Checkered Flag", description: "Race Leader", achieved: userSolved >= 150 },
+    { solved: 200, flag: "👑", name: "Champion Flag", description: "Elite Status", achieved: userSolved >= 200 }
+  ];
+
+  return (
+    <Card data-testid="card-race-progress" className="border-2 border-orange-200 dark:border-orange-800">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Flag className="h-6 w-6 text-orange-500" />
+          <span>🚦 Race-Style Progress</span>
+        </CardTitle>
+        <CardDescription>Your journey to the finish line</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Progress vs Leader */}
+        <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900 dark:to-red-900 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium">Progress vs Race Leader</span>
+            <Badge variant="outline" className="bg-white dark:bg-gray-800">
+              {progressToLeader.toFixed(1)}%
+            </Badge>
+          </div>
+          <div className="mb-2">
+            <Progress value={progressToLeader} className="h-3" />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            You solved {userSolved} questions. The leader has {leaderSolved}. 
+            {questionsToGo > 0 ? `You're only ${questionsToGo} away! 🏁` : "You're the leader! 👑"}
+          </div>
+        </div>
+
+        {/* Milestone Badges */}
+        <div>
+          <h4 className="font-medium mb-3">Milestone Badges (Race Flags 🏁)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {milestones.map((milestone, index) => (
+              <div 
+                key={index} 
+                className={`text-center p-4 rounded-lg border-2 transition-all ${
+                  milestone.achieved 
+                    ? 'bg-green-50 dark:bg-green-900 border-green-300 dark:border-green-700' 
+                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-60'
+                }`}
+                data-testid={`milestone-${index}`}
+              >
+                <div className={`text-3xl mb-2 ${milestone.achieved ? 'grayscale-0' : 'grayscale'}`}>
+                  {milestone.flag}
+                </div>
+                <div className="font-medium text-sm">{milestone.name}</div>
+                <div className="text-xs text-muted-foreground mb-2">{milestone.description}</div>
+                <Badge variant={milestone.achieved ? "default" : "secondary"} className="text-xs">
+                  {milestone.solved} solved
+                </Badge>
+                {milestone.achieved && (
+                  <div className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                    ✅ Achieved!
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// 📈 Progress Charts with ECharts
+function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBreakdown }: { 
+  progressOverTime: ProgressOverTime[]; 
+  topicBreakdown: Record<string, number>;
+  difficultyBreakdown: DifficultyBreakdown;
+}) {
+  // Prepare data for solved questions over time (race speed)
+  const solvedOverTimeOption = {
+    title: {
+      text: 'Your Speed 🏁',
+      subtext: 'Solved Questions Over Time',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const data = params[0];
+        return `${data.name}<br/>Problems Solved: ${data.value}`;
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: progressOverTime.map(p => format(new Date(p.date), "MMM dd")),
+      axisLabel: {
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Problems Solved'
+    },
+    series: [{
+      name: 'Solved',
+      type: 'line',
+      data: progressOverTime.map(p => p.solved_count),
+      smooth: true,
+      lineStyle: {
+        color: '#10b981',
+        width: 3
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+            { offset: 1, color: 'rgba(16, 185, 129, 0.1)' }
+          ]
+        }
+      },
+      symbol: 'circle',
+      symbolSize: 8,
+      itemStyle: {
+        color: '#10b981'
+      }
+    }],
+    animation: true,
+    animationDuration: 2000
+  };
+
+  // Prepare topic data for animated bar chart
+  const topicData = Object.entries(topicBreakdown)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 8); // Show top 8 topics
+    .slice(0, 8);
+
+  const topicChartOption = {
+    title: {
+      text: 'Topic Mastery 🎯',
+      subtext: 'Problems Solved by Topic',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: topicData.map(t => t.name),
+      axisLabel: {
+        rotate: 45,
+        fontSize: 10
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Problems Solved'
+    },
+    series: [{
+      name: 'Solved',
+      type: 'bar',
+      data: topicData.map(t => t.value),
+      itemStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: '#3b82f6' },
+            { offset: 1, color: '#1e40af' }
+          ]
+        }
+      },
+      emphasis: {
+        itemStyle: {
+          color: '#fbbf24'
+        }
+      }
+    }],
+    animation: true,
+    animationDuration: 1500,
+    animationDelay: (idx: number) => idx * 100
+  };
+
+  // Prepare difficulty distribution pie chart
+  const difficultyData = Object.entries(difficultyBreakdown).map(([name, value]) => ({
+    name,
+    value,
+    itemStyle: {
+      color: DIFFICULTY_COLORS[name as keyof typeof DIFFICULTY_COLORS]
+    }
+  }));
+
+  const difficultyChartOption = {
+    title: {
+      text: 'Difficulty Split 💪',
+      subtext: 'Distribution by Difficulty',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    series: [{
+      name: 'Difficulty',
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['50%', '60%'],
+      data: difficultyData,
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
+        }
+      },
+      label: {
+        show: true,
+        formatter: '{b}: {c}'
+      }
+    }],
+    animation: true,
+    animationDuration: 2000
+  };
 
   return (
-    <Card data-testid="card-topic-chart">
-      <CardHeader>
-        <CardTitle>By Topic</CardTitle>
-        <CardDescription>Problems solved per topic</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="name" 
-                angle={-45}
-                textAnchor="end"
-                height={60}
-                fontSize={12}
-              />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <div>
+      <h2 className="text-2xl font-bold mb-4 flex items-center space-x-2">
+        <TrendingUp className="h-6 w-6 text-blue-500" />
+        <span>📈 Progress Charts</span>
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <Card data-testid="card-progress-over-time">
+          <CardContent className="p-4">
+            <ReactECharts 
+              option={solvedOverTimeOption} 
+              style={{ height: '300px' }}
+              opts={{ renderer: 'canvas' }}
+            />
+          </CardContent>
+        </Card>
+        
+        <Card data-testid="card-topic-breakdown">
+          <CardContent className="p-4">
+            <ReactECharts 
+              option={topicChartOption} 
+              style={{ height: '300px' }}
+              opts={{ renderer: 'canvas' }}
+            />
+          </CardContent>
+        </Card>
+        
+        <Card data-testid="card-difficulty-breakdown">
+          <CardContent className="p-4">
+            <ReactECharts 
+              option={difficultyChartOption} 
+              style={{ height: '300px' }}
+              opts={{ renderer: 'canvas' }}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
-function ProgressChart({ progressOverTime }: { progressOverTime: ProgressOverTime[] }) {
+// 📜 Competitive Recent Activity
+function CompetitiveRecentActivity({ recentActivity }: { recentActivity: RecentActivity[] }) {
   return (
-    <Card data-testid="card-progress-chart">
+    <Card data-testid="card-recent-activity" className="border-2 border-blue-200 dark:border-blue-800">
       <CardHeader>
-        <CardTitle>Over Time</CardTitle>
-        <CardDescription>Problems solved in the last 30 days</CardDescription>
+        <CardTitle className="flex items-center space-x-2">
+          <Clock className="h-5 w-5" />
+          <span>📜 Recent Activity</span>
+        </CardTitle>
+        <CardDescription>Latest victories and achievements</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={progressOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={(value) => format(new Date(value), "MMM dd")}
-              />
-              <YAxis />
-              <Tooltip 
-                labelFormatter={(value) => format(new Date(value), "MMM dd, yyyy")}
-                formatter={(value: number) => [value, "Problems Solved"]}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="solved_count" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="space-y-4">
+          {recentActivity.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground" data-testid="text-no-activity">
+              <RocketIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No recent races yet!</p>
+              <p className="text-sm">Start solving to see your progress here</p>
+            </div>
+          ) : (
+            recentActivity.map((activity, index) => (
+              <div key={index} className="flex items-center justify-between p-4 rounded-lg border-2 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900 dark:to-blue-900 border-green-200 dark:border-green-700" data-testid={`activity-${index}`}>
+                <div className="flex items-center space-x-4">
+                  <div className="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center">
+                    <Trophy className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center space-x-2">
+                      <span>{activity.problem_title}</span>
+                      <Badge variant="outline" className="text-xs">
+                        ✅ Solved
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center space-x-4">
+                      <span>{format(new Date(activity.submitted_at), "MMM dd, yyyy 'at' h:mm a")}</span>
+                      {activity.execution_time && (
+                        <span className="flex items-center space-x-1">
+                          <Zap className="h-3 w-3" />
+                          <span>{activity.execution_time}ms</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Badge 
+                    variant={activity.difficulty === "Easy" ? "secondary" : 
+                             activity.difficulty === "Medium" ? "default" : "destructive"}
+                    className="font-medium"
+                  >
+                    {activity.difficulty}
+                  </Badge>
+                  {/* Add competitive elements */}
+                  {index === 0 && (
+                    <Badge className="bg-yellow-500 text-white">
+                      🔥 Latest Win!
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+          
+          {/* Add mock competitive updates */}
+          {recentActivity.length > 0 && (
+            <div className="pt-4 border-t">
+              <h5 className="font-medium mb-2 text-sm text-muted-foreground">🏁 Race Updates</h5>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>You passed @sql_ninja yesterday! 🎉</span>
+                </div>
+                <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+                  <Star className="h-4 w-4" />
+                  <span>New personal best: 2:43 solve time!</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -553,29 +952,32 @@ export default function Profile() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6" data-testid="page-profile">
-      {/* Profile Header */}
-      <ProfileHeader 
+    <div className="container mx-auto p-6 space-y-8" data-testid="page-profile">
+      {/* 👤 Competitive User Information Header */}
+      <CompetitiveUserHeader 
         basicInfo={profile.basic_info} 
         performanceStats={profile.performance_stats} 
       />
 
-      {/* Performance Stats */}
-      <PerformanceStatsCard stats={profile.performance_stats} />
+      {/* 🏆 Competitive Overview */}
+      <CompetitiveOverview stats={profile.performance_stats} />
 
-      {/* Visual Insights */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">📊 Visual Insights</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <DifficultyChart difficultyBreakdown={profile.difficulty_breakdown} />
-          <TopicChart topicBreakdown={profile.topic_breakdown} />
-          <ProgressChart progressOverTime={profile.progress_over_time} />
-        </div>
-      </div>
+      {/* 📊 Leaderboard Comparison */}
+      <LeaderboardComparison stats={profile.performance_stats} />
 
-      {/* Recent Activity and Badges */}
+      {/* 🚦 Race-Style Progress */}
+      <RaceStyleProgress stats={profile.performance_stats} />
+
+      {/* 📈 Progress Charts with ECharts */}
+      <ProgressChartsSection 
+        progressOverTime={profile.progress_over_time}
+        topicBreakdown={profile.topic_breakdown}
+        difficultyBreakdown={profile.difficulty_breakdown}
+      />
+
+      {/* 📜 Recent Activity and Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivityCard recentActivity={profile.recent_activity} />
+        <CompetitiveRecentActivity recentActivity={profile.recent_activity} />
         <BadgesCard badges={profile.badges} />
       </div>
 
