@@ -47,7 +47,7 @@ export function UserProfilePopover({
         name: `${currentUser?.username} & ${user.username}`,
         description: `Direct message between ${currentUser?.username} and ${user.username}`,
         is_group: false,
-        participants: [user.id] // Current user is automatically added by backend
+        participant_ids: [user.id] // Current user is automatically added by backend
       });
       return response;
     },
