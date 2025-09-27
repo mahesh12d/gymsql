@@ -191,9 +191,26 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, token: str = Qu
     """WebSocket endpoint for real-time chat in a specific room"""
     # Verify JWT token to authenticate user
     try:
-        from .auth import decode_access_token
-        payload = decode_access_token(token)
-        user_id = payload.get("userId")
+        from .auth import verify_token
+        import os
+        
+        # TEMPORARY: Development token bypass - only in explicit dev mode
+        if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
+            # Find developer user for development
+            from .database import SessionLocal
+            temp_db = SessionLocal()
+            dev_user = temp_db.query(User).filter(User.id == 'dev-user-1').first()
+            temp_db.close()
+            if dev_user:
+                user_id = dev_user.id
+            else:
+                await websocket.close(code=1008, reason="Development user not found")
+                return
+        else:
+            # Normal JWT verification for production
+            payload = verify_token(token)
+            user_id = payload.user_id
+            
         if not user_id:
             await websocket.close(code=1008, reason="Invalid token")
             return
