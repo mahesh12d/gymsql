@@ -14,7 +14,7 @@ import random
 
 from .database import get_db, create_tables
 from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
-                     ProblemInteraction, ProblemSession, Base)
+                     ProblemInteraction, ProblemSession, UserBadge, Badge, Base)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -1431,21 +1431,21 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
         if stat.difficulty in difficulty_breakdown:
             difficulty_breakdown[stat.difficulty] = stat.solved_count
     
-    # Topic breakdown (if topics exist)
-    topic_stats = db.query(
-        Problem.tags,
-        func.count(distinct(Problem.id)).label('solved_count')
-    ).join(Submission, Submission.problem_id == Problem.id).filter(
+    # Topic breakdown - Get all solved problems and process tags manually
+    solved_problems_with_tags = db.query(Problem.tags).join(
+        Submission, Submission.problem_id == Problem.id
+    ).filter(
         Submission.user_id == user_id,
         Submission.is_correct == True
-    ).group_by(Problem.tags).all()
+    ).all()
     
     # Process tags to get topic breakdown
     topic_breakdown = {}
-    for stat in topic_stats:
-        if stat.tags:
-            for tag in stat.tags:
-                topic_breakdown[tag] = topic_breakdown.get(tag, 0) + stat.solved_count
+    for problem in solved_problems_with_tags:
+        if problem.tags and isinstance(problem.tags, list):
+            for tag in problem.tags:
+                if tag:  # Skip empty tags
+                    topic_breakdown[tag] = topic_breakdown.get(tag, 0) + 1
     
     # Recent activity (last 5 successful submissions)
     recent_activity = db.query(Submission, Problem.title, Problem.difficulty).join(
@@ -1490,7 +1490,7 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
     thirty_days_ago = datetime.now() - timedelta(days=30)
     daily_progress = db.query(
         func.date(Submission.submitted_at).label('date'),
-        func.count(case([(Submission.is_correct == True, 1)])).label('solved_count')
+        func.count(case((Submission.is_correct == True, 1))).label('solved_count')
     ).filter(
         Submission.user_id == user_id,
         Submission.submitted_at >= thirty_days_ago
@@ -1564,12 +1564,14 @@ async def get_user_recommendations(current_user: User = Depends(get_current_user
             for tag in problem.tags:
                 topic_solved_count[tag] = topic_solved_count.get(tag, 0) + 1
     
-    # Find topics with few solved problems (weak areas)
-    all_topics = db.query(Problem.tags).distinct().all()
+    # Find all available topics from all problems
+    all_problems_with_tags = db.query(Problem.tags).all()
     all_topic_set = set()
-    for problem in all_topics:
-        if problem.tags:
-            all_topic_set.update(problem.tags)
+    for problem in all_problems_with_tags:
+        if problem.tags and isinstance(problem.tags, list):
+            for tag in problem.tags:
+                if tag:  # Skip empty tags
+                    all_topic_set.add(tag)
     
     weak_topics = []
     for topic in all_topic_set:
