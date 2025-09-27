@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import ReactECharts from "echarts-for-react";
 import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, MessageCircle, Bookmark, Heart, MessageSquare, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { ChatRoom } from "@/components/ChatRoom";
 
 interface BasicInfo {
   user_id: string;
@@ -357,6 +359,9 @@ function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
 
 // 💬 Chat Section - Real-time chat implementation
 function ChatSection() {
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
   const { data: chatRooms, isLoading: roomsLoading, error: roomsError } = useQuery({
     queryKey: ['/api/chat/rooms'],
     enabled: !!localStorage.getItem("auth_token"),
@@ -452,8 +457,8 @@ function ChatSection() {
                 }`}
                 data-testid={`chat-${room.id}`}
                 onClick={() => {
-                  // TODO: Open chat room modal or navigate to chat page
-                  console.log('Opening chat room:', room.id);
+                  setSelectedRoom(room);
+                  setIsChatOpen(true);
                 }}
               >
                 <div className="flex items-center space-x-3">
@@ -492,6 +497,11 @@ function ChatSection() {
           </div>
         )}
       </CardContent>
+      <ChatRoom 
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        room={selectedRoom}
+      />
     </Card>
   );
 }
