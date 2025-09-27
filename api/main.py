@@ -2,19 +2,21 @@
 FastAPI application - converted from Express.js backend
 """
 import os
-from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+import json
+from typing import List, Optional, Dict
+from fastapi import FastAPI, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case, and_, desc, Boolean, Integer
-from datetime import timedelta
+from datetime import timedelta, datetime
 import random
 
 from .database import get_db, create_tables
 from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
-                     ProblemInteraction, ProblemSession, UserBadge, Badge, Base)
+                     ProblemInteraction, ProblemSession, UserBadge, Badge, Base,
+                     ChatRoom, ChatParticipant, ChatMessage)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -140,6 +142,148 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
         content=sanitize_json_data(error_data),
         headers={"Content-Type": "application/json; charset=utf-8"}
     )
+
+# WebSocket Connection Manager for Real-time Chat
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # Structure: {room_id: {user_id: websocket}}
+    
+    async def connect(self, websocket: WebSocket, room_id: str, user_id: str):
+        """Accept connection and add to room"""
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = {}
+        self.active_connections[room_id][user_id] = websocket
+        print(f"User {user_id} connected to room {room_id}")
+    
+    def disconnect(self, room_id: str, user_id: str):
+        """Remove connection from room"""
+        if room_id in self.active_connections:
+            if user_id in self.active_connections[room_id]:
+                del self.active_connections[room_id][user_id]
+                print(f"User {user_id} disconnected from room {room_id}")
+            if not self.active_connections[room_id]:
+                del self.active_connections[room_id]
+    
+    async def send_personal_message(self, message: str, room_id: str, user_id: str):
+        """Send message to specific user in room"""
+        if room_id in self.active_connections and user_id in self.active_connections[room_id]:
+            websocket = self.active_connections[room_id][user_id]
+            await websocket.send_text(message)
+    
+    async def broadcast_to_room(self, message: str, room_id: str, exclude_user: str = None):
+        """Broadcast message to all users in room except excluded user"""
+        if room_id in self.active_connections:
+            for user_id, websocket in self.active_connections[room_id].items():
+                if user_id != exclude_user:
+                    try:
+                        await websocket.send_text(message)
+                    except Exception as e:
+                        print(f"Error sending message to {user_id}: {e}")
+                        # Connection might be stale, will be cleaned up on next disconnect
+
+manager = ConnectionManager()
+
+# WebSocket endpoint for chat
+@app.websocket("/ws/chat/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, token: str = Query(...)):
+    """WebSocket endpoint for real-time chat in a specific room"""
+    # Verify JWT token to authenticate user
+    try:
+        from .auth import decode_access_token
+        payload = decode_access_token(token)
+        user_id = payload.get("userId")
+        if not user_id:
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+    except Exception as e:
+        await websocket.close(code=1008, reason="Authentication failed")
+        return
+    
+    # Connect to the room
+    await manager.connect(websocket, room_id, user_id)
+    
+    # Create database session
+    from .database import SessionLocal
+    db = SessionLocal()
+    
+    try:
+        # Verify user has access to this room
+        participant = db.query(ChatParticipant).filter(
+            ChatParticipant.room_id == room_id,
+            ChatParticipant.user_id == user_id
+        ).first()
+        
+        if not participant:
+            await websocket.close(code=1008, reason="Access denied to room")
+            return
+        
+        # Update last seen timestamp
+        participant.last_seen_at = datetime.utcnow()
+        db.commit()
+        
+        # Listen for messages
+        while True:
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            # Validate message data
+            if "content" not in message_data or not message_data["content"].strip():
+                continue
+            
+            # Create new message in database
+            new_message = ChatMessage(
+                room_id=room_id,
+                sender_id=user_id,
+                content=message_data["content"].strip(),
+                message_type=message_data.get("message_type", "text")
+            )
+            db.add(new_message)
+            
+            # Update room's last message timestamp
+            room = db.query(ChatRoom).filter(ChatRoom.id == room_id).first()
+            if room:
+                room.last_message_at = datetime.utcnow()
+            
+            db.commit()
+            db.refresh(new_message)
+            
+            # Get sender info for broadcast
+            sender = db.query(User).filter(User.id == user_id).first()
+            
+            # Format message for broadcast
+            broadcast_message = {
+                "id": new_message.id,
+                "room_id": room_id,
+                "sender_id": user_id,
+                "sender_username": sender.username if sender else "Unknown",
+                "sender_avatar": sender.username[0].upper() if sender and sender.username else "?",
+                "content": new_message.content,
+                "message_type": new_message.message_type,
+                "sent_at": new_message.sent_at.isoformat(),
+                "type": "new_message"
+            }
+            
+            # Broadcast to all users in the room
+            await manager.broadcast_to_room(json.dumps(broadcast_message), room_id)
+            
+    except WebSocketDisconnect:
+        manager.disconnect(room_id, user_id)
+        
+        # Send disconnect notification to other users
+        disconnect_message = {
+            "type": "user_disconnected",
+            "user_id": user_id,
+            "room_id": room_id
+        }
+        await manager.broadcast_to_room(json.dumps(disconnect_message), room_id, exclude_user=user_id)
+        
+    except Exception as e:
+        print(f"WebSocket error for user {user_id} in room {room_id}: {e}")
+        manager.disconnect(room_id, user_id)
+    finally:
+        db.close()
 
 # Include routers
 app.include_router(sandbox_router)

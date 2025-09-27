@@ -74,6 +74,11 @@ class User(Base):
     post_comments = relationship("PostComment", back_populates="user")
     progress = relationship("UserProgress", back_populates="user")
     user_badges = relationship("UserBadge", back_populates="user")
+    
+    # Chat relationships
+    created_chat_rooms = relationship("ChatRoom", foreign_keys="ChatRoom.created_by")
+    chat_participants = relationship("ChatParticipant", back_populates="user")
+    sent_messages = relationship("ChatMessage", foreign_keys="ChatMessage.sender_id")
 
 class Problem(Base):
     __tablename__ = "problems"
@@ -446,4 +451,76 @@ class Solution(Base):
         Index('idx_solutions_problem_id', 'problem_id'),
         Index('idx_solutions_created_by', 'created_by'),
         Index('idx_solutions_created_at', 'created_at'),
+    )
+
+# Chat System Models
+
+class ChatRoom(Base):
+    """Chat rooms for user conversations"""
+    __tablename__ = "chat_rooms"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(200), nullable=False)  # Display name for the room
+    description = Column(Text, nullable=True)
+    is_group = Column(Boolean, default=False, nullable=False)  # False = direct message, True = group chat
+    created_by = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    last_message_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by], overlaps="created_chat_rooms")
+    participants = relationship("ChatParticipant", back_populates="room")
+    messages = relationship("ChatMessage", back_populates="room")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_chat_rooms_created_by', 'created_by'),
+        Index('idx_chat_rooms_last_message_at', 'last_message_at'),
+        Index('idx_chat_rooms_is_group', 'is_group'),
+    )
+
+class ChatParticipant(Base):
+    """Users participating in chat rooms"""
+    __tablename__ = "chat_participants"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    room_id = Column(String, ForeignKey("chat_rooms.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    joined_at = Column(DateTime, default=func.now(), nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)  # For group chat moderators
+    last_seen_at = Column(DateTime, default=func.now(), nullable=False)  # For unread message tracking
+    
+    # Relationships
+    room = relationship("ChatRoom", back_populates="participants")
+    user = relationship("User")
+    
+    # Unique constraint: one participant record per user per room
+    __table_args__ = (
+        UniqueConstraint('room_id', 'user_id', name='uq_chat_participants_room_user'),
+        Index('idx_chat_participants_room_id', 'room_id'),
+        Index('idx_chat_participants_user_id', 'user_id'),
+    )
+
+class ChatMessage(Base):
+    """Individual chat messages"""
+    __tablename__ = "chat_messages"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    room_id = Column(String, ForeignKey("chat_rooms.id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    message_type = Column(String(20), default="text", nullable=False)  # text, image, file, system
+    sent_at = Column(DateTime, default=func.now(), nullable=False)
+    edited_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    room = relationship("ChatRoom", back_populates="messages")
+    sender = relationship("User", overlaps="sent_messages")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_chat_messages_room_id', 'room_id'),
+        Index('idx_chat_messages_sender_id', 'sender_id'),
+        Index('idx_chat_messages_sent_at', 'sent_at'),
     )
