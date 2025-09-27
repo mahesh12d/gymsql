@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { UserProfilePopover } from '@/components/UserProfilePopover';
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
@@ -308,20 +309,45 @@ WHERE condition;"
                   <Card key={post.id} data-testid={`post-${post.id}`}>
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage src={post.user.profileImageUrl} alt={post.user.username} />
-                          <AvatarFallback>
-                            {post.user.username?.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
+                        {/* Clickable Avatar for Chat */}
+                        <UserProfilePopover 
+                          user={{
+                            id: post.user.id,
+                            username: post.user.username,
+                            first_name: post.user.firstName,
+                            last_name: post.user.lastName,
+                            profileImageUrl: post.user.profileImageUrl,
+                            premium: post.user.premium
+                          }}
+                        >
+                          <Avatar className="w-12 h-12 ring-2 ring-transparent hover:ring-primary/50 transition-all cursor-pointer">
+                            <AvatarImage src={post.user.profileImageUrl} alt={post.user.username} />
+                            <AvatarFallback>
+                              {post.user.username?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </UserProfilePopover>
                         
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <h4 className="font-semibold text-foreground" data-testid={`text-post-author-${post.id}`}>
-                              {post.user.firstName && post.user.lastName 
-                                ? `${post.user.firstName} ${post.user.lastName}`
-                                : post.user.username}
-                            </h4>
+                            {/* Clickable Username for Chat */}
+                            <UserProfilePopover 
+                              user={{
+                                id: post.user.id,
+                                username: post.user.username,
+                                first_name: post.user.firstName,
+                                last_name: post.user.lastName,
+                                profileImageUrl: post.user.profileImageUrl,
+                                premium: post.user.premium
+                              }}
+                            >
+                              <h4 className="font-semibold text-foreground hover:text-primary cursor-pointer transition-colors" 
+                                  data-testid={`text-post-author-${post.id}`}>
+                                {post.user.firstName && post.user.lastName 
+                                  ? `${post.user.firstName} ${post.user.lastName}`
+                                  : post.user.username}
+                              </h4>
+                            </UserProfilePopover>
                             <span className="text-sm text-muted-foreground">•</span>
                             <span className="text-sm text-muted-foreground" data-testid={`text-post-time-${post.id}`}>
                               {formatTimeAgo(post.createdAt)}
