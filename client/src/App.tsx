@@ -12,6 +12,7 @@ import Leaderboard from "@/pages/leaderboard";
 import Community from "@/pages/community";
 import Submissions from "@/pages/submissions";
 import AdminPanel from "@/pages/admin-panel";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import Navbar from "@/components/navbar";
 
@@ -47,6 +48,7 @@ function AppRouter() {
             <Route path="/leaderboard" component={Leaderboard} />
             <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
+            <Route path="/profile" component={Profile} />
             <Route path="/admin-panel" component={AdminPanel} />
           </>
         )}

@@ -79,6 +79,12 @@ export default function Navbar() {
                     <p className="text-xs text-muted-foreground">{user?.problemsSolved || 0} problems solved</p>
                   </div>
                 </div>
+                <Link href="/profile">
+                  <DropdownMenuItem data-testid="link-profile">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>View Profile</span>
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
