@@ -6,8 +6,9 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, MessageCircle, Bookmark, Heart, MessageSquare, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 interface BasicInfo {
@@ -354,77 +355,165 @@ function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
   );
 }
 
-// 🚦 Race-Style Progress Section
-function RaceStyleProgress({ stats }: { stats: PerformanceStats }) {
-  const leaderSolved = 150;
-  const userSolved = stats.correct_submissions;
-  const progressToLeader = Math.min(100, (userSolved / leaderSolved) * 100);
-  const questionsToGo = Math.max(0, leaderSolved - userSolved);
-
-  const milestones = [
-    { solved: 50, flag: "🏁", name: "Green Flag", description: "Getting Started", achieved: userSolved >= 50 },
-    { solved: 100, flag: "🚩", name: "Yellow Flag", description: "Making Progress", achieved: userSolved >= 100 },
-    { solved: 150, flag: "🏆", name: "Checkered Flag", description: "Race Leader", achieved: userSolved >= 150 },
-    { solved: 200, flag: "👑", name: "Champion Flag", description: "Elite Status", achieved: userSolved >= 200 }
+// 💬 Chat Section
+function ChatSection() {
+  const recentChats = [
+    {
+      id: 1,
+      user: { username: "sql_ninja", avatar: "SN", name: "Sarah N." },
+      lastMessage: "Thanks for helping with that JOIN query!",
+      timestamp: "2 hours ago",
+      unread: false
+    },
+    {
+      id: 2,
+      user: { username: "query_queen", avatar: "QQ", name: "Quinn Q." },
+      lastMessage: "Can you check my window function solution?",
+      timestamp: "1 day ago",
+      unread: true
+    },
+    {
+      id: 3,
+      user: { username: "data_wizard", avatar: "DW", name: "David W." },
+      lastMessage: "Great explanation on subqueries!",
+      timestamp: "3 days ago",
+      unread: false
+    }
   ];
 
   return (
-    <Card data-testid="card-race-progress" className="border-2 border-orange-200 dark:border-orange-800">
+    <Card data-testid="card-chat-section" className="border-2 border-purple-200 dark:border-purple-800">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Flag className="h-6 w-6 text-orange-500" />
-          <span>🚦 Race-Style Progress</span>
+          <MessageCircle className="h-6 w-6 text-purple-500" />
+          <span>💬 Chats</span>
         </CardTitle>
-        <CardDescription>Your journey to the finish line</CardDescription>
+        <CardDescription>Recent conversations with other users</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Progress vs Leader */}
-        <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900 dark:to-red-900 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium">Progress vs Race Leader</span>
-            <Badge variant="outline" className="bg-white dark:bg-gray-800">
-              {progressToLeader.toFixed(1)}%
-            </Badge>
-          </div>
-          <div className="mb-2">
-            <Progress value={progressToLeader} className="h-3" />
-          </div>
-          <div className="text-sm text-muted-foreground">
-            You solved {userSolved} questions. The leader has {leaderSolved}. 
-            {questionsToGo > 0 ? `You're only ${questionsToGo} away! 🏁` : "You're the leader! 👑"}
-          </div>
-        </div>
-
-        {/* Milestone Badges */}
-        <div>
-          <h4 className="font-medium mb-3">Milestone Badges (Race Flags 🏁)</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {milestones.map((milestone, index) => (
-              <div 
-                key={index} 
-                className={`text-center p-4 rounded-lg border-2 transition-all ${
-                  milestone.achieved 
-                    ? 'bg-green-50 dark:bg-green-900 border-green-300 dark:border-green-700' 
-                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-60'
-                }`}
-                data-testid={`milestone-${index}`}
-              >
-                <div className={`text-3xl mb-2 ${milestone.achieved ? 'grayscale-0' : 'grayscale'}`}>
-                  {milestone.flag}
+      <CardContent>
+        <div className="space-y-3">
+          {recentChats.map((chat) => (
+            <div 
+              key={chat.id}
+              className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                chat.unread ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
+              }`}
+              data-testid={`chat-${chat.id}`}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <Avatar className="h-10 w-10" title={`${chat.user.name} (@${chat.user.username})`}>
+                    <AvatarFallback className="bg-gradient-to-br from-purple-400 to-blue-500 text-white">
+                      {chat.user.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  {chat.unread && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full" />
+                  )}
                 </div>
-                <div className="font-medium text-sm">{milestone.name}</div>
-                <div className="text-xs text-muted-foreground mb-2">{milestone.description}</div>
-                <Badge variant={milestone.achieved ? "default" : "secondary"} className="text-xs">
-                  {milestone.solved} solved
-                </Badge>
-                {milestone.achieved && (
-                  <div className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
-                    ✅ Achieved!
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{chat.timestamp}</span>
                   </div>
-                )}
+                  <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+                </div>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// 📚 Bookmark Pages Section
+function BookmarkPages() {
+  const bookmarkedPages = [
+    {
+      id: 1,
+      title: "Advanced SQL Window Functions: A Complete Guide",
+      description: "Deep dive into RANK(), ROW_NUMBER(), and LEAD/LAG functions with practical examples.",
+      author: { username: "sql_master", avatar: "SM", name: "Sam M." },
+      readTime: "8 min read",
+      likes: 142,
+      views: 1250,
+      bookmarkedAt: "2 days ago"
+    },
+    {
+      id: 2,
+      title: "Optimizing Complex JOINs for Better Performance",
+      description: "Learn how to write efficient JOIN queries and avoid common performance pitfalls.",
+      author: { username: "perf_guru", avatar: "PG", name: "Pat G." },
+      readTime: "12 min read",
+      likes: 89,
+      views: 890,
+      bookmarkedAt: "1 week ago"
+    },
+    {
+      id: 3,
+      title: "From Beginner to Expert: SQL Subqueries Mastery",
+      description: "Master correlated subqueries, EXISTS, and NOT EXISTS with step-by-step examples.",
+      author: { username: "query_ninja", avatar: "QN", name: "Quinn N." },
+      readTime: "15 min read",
+      likes: 203,
+      views: 1800,
+      bookmarkedAt: "2 weeks ago"
+    }
+  ];
+
+  return (
+    <Card data-testid="card-bookmark-pages" className="border-2 border-indigo-200 dark:border-indigo-800">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Bookmark className="h-6 w-6 text-indigo-500" />
+          <span>📚 Bookmarked Pages</span>
+        </CardTitle>
+        <CardDescription>Your saved articles and guides</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {bookmarkedPages.map((page) => (
+            <div 
+              key={page.id}
+              className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              data-testid={`bookmark-${page.id}`}
+            >
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-semibold text-lg mb-2 line-clamp-2">{page.title}</h4>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{page.description}</p>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8" title={`${page.author.name} (@${page.author.username})`}>
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-sm">
+                        {page.author.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-sm text-muted-foreground">
+                      {page.readTime}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Heart className="h-4 w-4" />
+                      <span>{page.likes}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Eye className="h-4 w-4" />
+                      <span>{page.views}</span>
+                    </div>
+                    <div className="text-xs">
+                      Saved {page.bookmarkedAt}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -965,8 +1054,11 @@ export default function Profile() {
       {/* 📊 Leaderboard Comparison */}
       <LeaderboardComparison stats={profile.performance_stats} />
 
-      {/* 🚦 Race-Style Progress */}
-      <RaceStyleProgress stats={profile.performance_stats} />
+      {/* 💬 Chat Section */}
+      <ChatSection />
+
+      {/* 📚 Bookmark Pages */}
+      <BookmarkPages />
 
       {/* 📈 Progress Charts with ECharts */}
       <ProgressChartsSection 
