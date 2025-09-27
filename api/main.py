@@ -569,15 +569,15 @@ def format_console_output(execution_result):
 
 
 # Create tables on startup
-# @app.on_event("startup")  
-# def startup_event():
-#     try:
-#         print("🚀 Starting database initialization...")
-#         create_tables()  # Just create basic tables first
-#         print("✅ Database initialization completed")
-#     except Exception as e:
-#         print(f"⚠️ Database initialization failed, continuing anyway: {e}")
-#         # Continue startup even if database fails
+@app.on_event("startup")  
+def startup_event():
+    try:
+        print("🚀 Starting database initialization...")
+        create_tables()  # Create all tables including chat tables
+        print("✅ Database initialization completed")
+    except Exception as e:
+        print(f"⚠️ Database initialization failed, continuing anyway: {e}")
+        # Continue startup even if database fails
 
 
 # Development/fallback root endpoint

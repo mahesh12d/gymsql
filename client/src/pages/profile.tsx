@@ -355,31 +355,76 @@ function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
   );
 }
 
-// 💬 Chat Section
+// 💬 Chat Section - Real-time chat implementation
 function ChatSection() {
-  const recentChats = [
-    {
-      id: 1,
-      user: { username: "sql_ninja", avatar: "SN", name: "Sarah N." },
-      lastMessage: "Thanks for helping with that JOIN query!",
-      timestamp: "2 hours ago",
-      unread: false
-    },
-    {
-      id: 2,
-      user: { username: "query_queen", avatar: "QQ", name: "Quinn Q." },
-      lastMessage: "Can you check my window function solution?",
-      timestamp: "1 day ago",
-      unread: true
-    },
-    {
-      id: 3,
-      user: { username: "data_wizard", avatar: "DW", name: "David W." },
-      lastMessage: "Great explanation on subqueries!",
-      timestamp: "3 days ago",
-      unread: false
+  const { data: chatRooms, isLoading: roomsLoading, error: roomsError } = useQuery({
+    queryKey: ['/api/chat/rooms'],
+    enabled: !!localStorage.getItem("auth_token"),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffHours < 1) {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        return diffMins < 1 ? 'Just now' : `${diffMins}m ago`;
+      } else if (diffHours < 24) {
+        return `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        return `${diffDays}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    } catch {
+      return 'Unknown';
     }
-  ];
+  };
+
+  if (roomsLoading) {
+    return (
+      <Card data-testid="card-chat-section" className="border-2 border-purple-200 dark:border-purple-800">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageCircle className="h-6 w-6 text-purple-500" />
+            <span>💬 Chats</span>
+          </CardTitle>
+          <CardDescription>Recent conversations with other users</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground">Loading chats...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (roomsError) {
+    return (
+      <Card data-testid="card-chat-section" className="border-2 border-purple-200 dark:border-purple-800">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageCircle className="h-6 w-6 text-purple-500" />
+            <span>💬 Chats</span>
+          </CardTitle>
+          <CardDescription>Recent conversations with other users</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground">Unable to load chats. Please try again later.</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const rooms = chatRooms?.rooms || [];
 
   return (
     <Card data-testid="card-chat-section" className="border-2 border-purple-200 dark:border-purple-800">
@@ -391,37 +436,61 @@ function ChatSection() {
         <CardDescription>Recent conversations with other users</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {recentChats.map((chat) => (
-            <div 
-              key={chat.id}
-              className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                chat.unread ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
-              }`}
-              data-testid={`chat-${chat.id}`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <Avatar className="h-10 w-10" title={`${chat.user.name} (@${chat.user.username})`}>
-                    <AvatarFallback className="bg-gradient-to-br from-purple-400 to-blue-500 text-white">
-                      {chat.user.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  {chat.unread && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{chat.timestamp}</span>
+        {rooms.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
+            <div className="text-sm text-muted-foreground">No chat rooms yet</div>
+            <div className="text-xs text-muted-foreground mt-1">Start a conversation with other users!</div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {rooms.map((room: any) => (
+              <div 
+                key={room.id}
+                className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                  room.unread_count > 0 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
+                }`}
+                data-testid={`chat-${room.id}`}
+                onClick={() => {
+                  // TODO: Open chat room modal or navigate to chat page
+                  console.log('Opening chat room:', room.id);
+                }}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <Avatar className="h-10 w-10" title={room.name}>
+                      <AvatarFallback className="bg-gradient-to-br from-purple-400 to-blue-500 text-white">
+                        {room.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    {room.unread_count > 0 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white font-medium">
+                          {room.unread_count > 9 ? '9+' : room.unread_count}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm truncate">{room.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTimestamp(room.last_message_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {room.last_message ? 
+                        `${room.last_message.sender}: ${room.last_message.content}` : 
+                        'No messages yet'
+                      }
+                    </p>
+                  </div>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
