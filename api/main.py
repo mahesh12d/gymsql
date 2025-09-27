@@ -290,6 +290,267 @@ app.include_router(sandbox_router)
 app.include_router(admin_router)
 
 
+# Chat API Routes
+
+@app.get("/api/chat/rooms")
+def get_user_chat_rooms(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get all chat rooms for the current user"""
+    try:
+        # Get rooms where user is a participant
+        rooms = db.query(ChatRoom).join(ChatParticipant).filter(
+            ChatParticipant.user_id == current_user.id
+        ).order_by(ChatRoom.last_message_at.desc()).all()
+        
+        room_data = []
+        for room in rooms:
+            # Get participant info
+            participant = db.query(ChatParticipant).filter(
+                ChatParticipant.room_id == room.id,
+                ChatParticipant.user_id == current_user.id
+            ).first()
+            
+            # Get last message
+            last_message = db.query(ChatMessage).filter(
+                ChatMessage.room_id == room.id
+            ).order_by(ChatMessage.sent_at.desc()).first()
+            
+            # Count unread messages (messages after user's last_seen_at)
+            unread_count = 0
+            if participant and participant.last_seen_at:
+                unread_count = db.query(ChatMessage).filter(
+                    ChatMessage.room_id == room.id,
+                    ChatMessage.sent_at > participant.last_seen_at,
+                    ChatMessage.sender_id != current_user.id  # Don't count own messages
+                ).count()
+            
+            # For direct messages (not group chats), get the other participant
+            display_name = room.name
+            avatar = "G"  # Default for group
+            if not room.is_group:
+                other_participant = db.query(User).join(ChatParticipant).filter(
+                    ChatParticipant.room_id == room.id,
+                    ChatParticipant.user_id != current_user.id
+                ).first()
+                if other_participant:
+                    display_name = other_participant.username
+                    avatar = other_participant.username[0].upper() if other_participant.username else "?"
+            
+            room_info = {
+                "id": room.id,
+                "name": display_name,
+                "avatar": avatar,
+                "is_group": room.is_group,
+                "last_message": {
+                    "content": last_message.content if last_message else "",
+                    "sender": last_message.sender.username if last_message and last_message.sender else "",
+                    "sent_at": last_message.sent_at.isoformat() if last_message else room.created_at.isoformat()
+                } if last_message else None,
+                "unread_count": unread_count,
+                "last_message_at": room.last_message_at.isoformat()
+            }
+            room_data.append(room_info)
+        
+        return {"rooms": room_data}
+        
+    except Exception as e:
+        print(f"Error getting chat rooms: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get chat rooms")
+
+@app.get("/api/chat/rooms/{room_id}/messages")
+def get_room_messages(
+    room_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get message history for a chat room"""
+    try:
+        # Verify user has access to this room
+        participant = db.query(ChatParticipant).filter(
+            ChatParticipant.room_id == room_id,
+            ChatParticipant.user_id == current_user.id
+        ).first()
+        
+        if not participant:
+            raise HTTPException(status_code=403, detail="Access denied to this room")
+        
+        # Get messages with sender info
+        messages = db.query(ChatMessage).options(
+            joinedload(ChatMessage.sender)
+        ).filter(
+            ChatMessage.room_id == room_id
+        ).order_by(
+            ChatMessage.sent_at.desc()
+        ).offset(offset).limit(limit).all()
+        
+        # Format messages
+        message_data = []
+        for message in messages:
+            message_info = {
+                "id": message.id,
+                "content": message.content,
+                "message_type": message.message_type,
+                "sent_at": message.sent_at.isoformat(),
+                "sender": {
+                    "id": message.sender.id,
+                    "username": message.sender.username,
+                    "avatar": message.sender.username[0].upper() if message.sender.username else "?"
+                } if message.sender else None,
+                "is_own_message": message.sender_id == current_user.id
+            }
+            message_data.append(message_info)
+        
+        # Reverse to get chronological order (oldest first)
+        message_data.reverse()
+        
+        return {"messages": message_data}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting room messages: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get messages")
+
+@app.post("/api/chat/rooms")
+def create_chat_room(
+    room_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new chat room"""
+    try:
+        # Validate input
+        if "name" not in room_data or not room_data["name"].strip():
+            raise HTTPException(status_code=400, detail="Room name is required")
+        
+        participant_ids = room_data.get("participant_ids", [])
+        if not participant_ids:
+            raise HTTPException(status_code=400, detail="At least one participant is required")
+        
+        # Create the room
+        new_room = ChatRoom(
+            name=room_data["name"].strip(),
+            description=room_data.get("description", ""),
+            is_group=len(participant_ids) > 1,  # Group if more than 1 other participant
+            created_by=current_user.id
+        )
+        db.add(new_room)
+        db.flush()  # Get the room ID
+        
+        # Add creator as participant
+        creator_participant = ChatParticipant(
+            room_id=new_room.id,
+            user_id=current_user.id,
+            is_admin=True
+        )
+        db.add(creator_participant)
+        
+        # Add other participants
+        for user_id in participant_ids:
+            if user_id != current_user.id:  # Don't add creator twice
+                # Verify user exists
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    participant = ChatParticipant(
+                        room_id=new_room.id,
+                        user_id=user_id,
+                        is_admin=False
+                    )
+                    db.add(participant)
+        
+        db.commit()
+        db.refresh(new_room)
+        
+        return {
+            "id": new_room.id,
+            "name": new_room.name,
+            "is_group": new_room.is_group,
+            "created_at": new_room.created_at.isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating chat room: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create chat room")
+
+@app.get("/api/chat/rooms/{room_id}/participants")
+def get_room_participants(
+    room_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get participants in a chat room"""
+    try:
+        # Verify user has access to this room
+        user_participant = db.query(ChatParticipant).filter(
+            ChatParticipant.room_id == room_id,
+            ChatParticipant.user_id == current_user.id
+        ).first()
+        
+        if not user_participant:
+            raise HTTPException(status_code=403, detail="Access denied to this room")
+        
+        # Get all participants
+        participants = db.query(ChatParticipant).options(
+            joinedload(ChatParticipant.user)
+        ).filter(ChatParticipant.room_id == room_id).all()
+        
+        participant_data = []
+        for participant in participants:
+            if participant.user:
+                participant_info = {
+                    "id": participant.user.id,
+                    "username": participant.user.username,
+                    "avatar": participant.user.username[0].upper() if participant.user.username else "?",
+                    "is_admin": participant.is_admin,
+                    "joined_at": participant.joined_at.isoformat(),
+                    "last_seen_at": participant.last_seen_at.isoformat() if participant.last_seen_at else None
+                }
+                participant_data.append(participant_info)
+        
+        return {"participants": participant_data}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting room participants: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get participants")
+
+@app.get("/api/users/search")
+def search_users(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Search for users to add to chat rooms"""
+    try:
+        # Search users by username (excluding current user)
+        users = db.query(User).filter(
+            User.id != current_user.id,
+            User.username.ilike(f"%{q}%")
+        ).limit(limit).all()
+        
+        user_data = []
+        for user in users:
+            user_info = {
+                "id": user.id,
+                "username": user.username,
+                "avatar": user.username[0].upper() if user.username else "?",
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            }
+            user_data.append(user_info)
+        
+        return {"users": user_data}
+        
+    except Exception as e:
+        print(f"Error searching users: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search users")
+
 def format_console_output(execution_result):
     """Create lightweight console output for errors and metadata"""
     if not execution_result.get('success'):
