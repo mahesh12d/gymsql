@@ -71,15 +71,18 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+    console.log('🔗 Attempting WebSocket connection to:', wsUrl);
+    console.log('🔑 Using token:', token);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('Connected to chat room:', room.id);
+      console.log('✅ Connected to chat room:', room.id);
       setSocket(ws);
     };
 
     ws.onmessage = (event) => {
       try {
+        console.log('📨 Received message:', event.data);
         const messageData = JSON.parse(event.data);
         if (messageData.type === 'message') {
           setMessages(prev => [...prev, messageData.message]);
@@ -92,11 +95,14 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('❌ WebSocket error:', error);
+      console.error('❌ WebSocket URL was:', wsUrl);
+      console.error('❌ WebSocket state:', ws.readyState);
     };
 
-    ws.onclose = () => {
-      console.log('Disconnected from chat room:', room.id);
+    ws.onclose = (event) => {
+      console.log('🔌 Disconnected from chat room:', room.id);
+      console.log('🔌 Close code:', event.code, 'Reason:', event.reason);
       setSocket(null);
     };
 

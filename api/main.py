@@ -196,16 +196,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, token: str = Qu
         
         # TEMPORARY: Development token bypass - only in explicit dev mode
         if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
-            # Find developer user for development
-            from .database import SessionLocal
-            temp_db = SessionLocal()
-            dev_user = temp_db.query(User).filter(User.id == 'dev-user-1').first()
-            temp_db.close()
-            if dev_user:
-                user_id = dev_user.id
-            else:
-                await websocket.close(code=1008, reason="Development user not found")
-                return
+            user_id = 'dev-user-1'  # Use hardcoded dev user ID for development
         else:
             # Normal JWT verification for production
             payload = verify_token(token)
