@@ -121,6 +121,18 @@ def get_current_user_optional(
     
     try:
         token = credentials.credentials
+        
+        # TEMPORARY: Development token bypass - only in explicit dev mode
+        if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
+            dev_user = db.query(User).filter(User.id == 'dev-user-1').first()
+            if dev_user:
+                return dev_user
+            else:
+                # Fallback to any admin user for development
+                dev_user = db.query(User).filter(User.username == 'admin').first()
+                if dev_user:
+                    return dev_user
+        
         token_data = verify_token(token)
         user = db.query(User).filter(User.id == token_data.user_id).first()
         return user

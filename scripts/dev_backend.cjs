@@ -43,6 +43,10 @@ async function startBackend() {
   const useUv = forceUv && !disableUv && hasUv();
   const pythonCmd = detectPythonCommand();
   
+  // Set development environment variables
+  process.env.DEV_TOKEN_BYPASS = 'true';
+  process.env.DEV_ADMIN_BYPASS = 'true';
+  
   // Set environment variables to prevent Unicode encoding issues
   process.env.PYTHONIOENCODING = 'utf-8';
   process.env.LC_ALL = 'C.UTF-8';
