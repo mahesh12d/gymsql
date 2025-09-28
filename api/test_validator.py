@@ -115,7 +115,7 @@ class OptimizedTestCaseValidator:
             final_score = self._calculate_final_score(structure_score,
                                                       content_score, context)
             result['score'] = round(final_score, 2)
-            result['is_correct'] = final_score >= 90.0
+            result['is_correct'] = final_score >= 95.0
 
             # Lazy smart feedback generation (only if needed)
             if student_query and final_score < 95:
