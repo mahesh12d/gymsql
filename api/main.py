@@ -2158,6 +2158,10 @@ def spa_fallback(full_path: str):
     if full_path.startswith("api/"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
 
+    # Don't handle WebSocket routes
+    if full_path.startswith("ws/"):
+        raise HTTPException(status_code=404, detail="WebSocket endpoint not found")
+
     # Don't handle asset files
     if full_path.startswith("assets/") or "." in full_path.split("/")[-1]:
         raise HTTPException(status_code=404, detail="File not found")

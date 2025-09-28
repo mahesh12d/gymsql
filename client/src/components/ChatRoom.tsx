@@ -95,36 +95,44 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     }
     console.log('🔗 Attempting WebSocket connection to:', wsUrl);
     console.log('🔑 Using token:', token);
+    console.log('🏠 Current hostname:', window.location.hostname);
+    console.log('📍 Room ID:', room.id);
+    console.log('👤 User ID:', user?.id);
+    
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('✅ Connected to chat room:', room.id);
+      console.log('✅ WebSocket OPENED successfully for room:', room.id);
+      console.log('✅ WebSocket readyState:', ws.readyState);
       setSocket(ws);
     };
 
     ws.onmessage = (event) => {
       try {
-        console.log('📨 Received message:', event.data);
+        console.log('📨 Received WebSocket message:', event.data);
         const messageData = JSON.parse(event.data);
-        if (messageData.type === 'message') {
-          setMessages(prev => [...prev, messageData.message]);
+        if (messageData.type === 'new_message') {
+          setMessages(prev => [...prev, messageData]);
           // Scroll to bottom when new message arrives
           setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('❌ Error parsing WebSocket message:', error);
       }
     };
 
     ws.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
+      console.error('❌ WebSocket ERROR occurred:', error);
       console.error('❌ WebSocket URL was:', wsUrl);
       console.error('❌ WebSocket state:', ws.readyState);
+      console.error('❌ Token used:', token);
     };
 
     ws.onclose = (event) => {
-      console.log('🔌 Disconnected from chat room:', room.id);
-      console.log('🔌 Close code:', event.code, 'Reason:', event.reason);
+      console.log('🔌 WebSocket CLOSED for room:', room.id);
+      console.log('🔌 Close code:', event.code);
+      console.log('🔌 Close reason:', event.reason);
+      console.log('🔌 Was clean?:', event.wasClean);
       setSocket(null);
     };
 
