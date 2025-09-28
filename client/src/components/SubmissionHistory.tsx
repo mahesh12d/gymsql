@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 interface Submission {
   id: string;
@@ -55,11 +56,17 @@ export default function SubmissionHistory({ problemId }: SubmissionHistoryProps)
   const getStatusBadge = (isCorrect: boolean, score?: number) => {
     if (isCorrect) {
       return (
-        <span className="text-green-600 font-medium text-sm">Success</span>
+        <div className="flex items-center space-x-1">
+          <CheckCircle className="w-4 h-4 text-green-600" />
+          <span className="text-green-600 font-medium text-sm">Success</span>
+        </div>
       );
     } else {
       return (
-        <span className="text-red-600 font-medium text-sm">Error</span>
+        <div className="flex items-center space-x-1">
+          <XCircle className="w-4 h-4 text-red-600" />
+          <span className="text-red-600 font-medium text-sm">Error</span>
+        </div>
       );
     }
   };
