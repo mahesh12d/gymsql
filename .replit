@@ -8,7 +8,7 @@ packages = ["arrow-cpp", "cacert", "cargo", "glibcLocales", "libiconv", "libxcry
 
 [deployment]
 build = ["npm", "run", "build"]
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 run = ["npm", "run", "start"]
 
 [[ports]]
