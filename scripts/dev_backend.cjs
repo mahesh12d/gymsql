@@ -80,7 +80,7 @@ async function startBackend() {
     console.log('🚀 Starting backend with uv...');
     const backend = spawn('uv', [
       'run', 'uvicorn', 'api.main:app',
-      '--host', '0.0.0.0',
+      '--host', 'localhost',
       '--port', '8000',
       '--reload',
       '--reload-dir', 'api'
@@ -119,7 +119,7 @@ async function startBackend() {
     console.log(`🚀 Starting backend with ${pythonCmd} -m uvicorn...`);
     const backend = spawn(pythonCmd, [
       '-m', 'uvicorn', 'api.main:app',
-      '--host', '0.0.0.0',
+      '--host', 'localhost',
       '--port', '8000',
       '--reload',
       '--reload-dir', 'api'
