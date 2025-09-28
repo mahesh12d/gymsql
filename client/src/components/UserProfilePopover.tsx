@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MessageCircle, User, Trophy, Clock, X } from "lucide-react";
+import { User, Trophy, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiRequest } from "@/lib/queryClient";
-import { ChatRoom } from "@/components/ChatRoom";
 
 interface UserData {
   id: string;
@@ -36,42 +33,7 @@ export function UserProfilePopover({
   className 
 }: UserProfilePopoverProps) {
   const { user: currentUser } = useAuth();
-  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [chatRoom, setChatRoom] = useState<any>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-
-  const createChatMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/chat/rooms', {
-        name: `${currentUser?.username} & ${user.username}`,
-        description: `Direct message between ${currentUser?.username} and ${user.username}`,
-        is_group: false,
-        participant_ids: [user.id] // Current user is automatically added by backend
-      });
-      return response;
-    },
-    onSuccess: (newRoom) => {
-      // Invalidate chat rooms cache
-      queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
-      
-      // Open the chat room immediately
-      const roomData = {
-        id: newRoom.room_id,
-        name: user.first_name && user.last_name 
-          ? `${user.first_name} ${user.last_name}` 
-          : user.username,
-        avatar: user.username?.[0]?.toUpperCase() || '?',
-        is_group: false
-      };
-      setChatRoom(roomData);
-      setIsChatOpen(true);
-      setIsOpen(false); // Close popover
-    },
-    onError: (error) => {
-      console.error('Failed to create chat room:', error);
-    },
-  });
 
   // Don't show popover for current user
   if (user.id === currentUser?.id) {
@@ -189,25 +151,17 @@ export function UserProfilePopover({
 
               {/* Action Buttons */}
               <div className="flex space-x-2">
-                <Button
-                  onClick={() => createChatMutation.mutate()}
-                  disabled={createChatMutation.isPending}
-                  className="flex-1"
-                  data-testid={`button-start-chat-${user.id}`}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  {createChatMutation.isPending ? 'Starting Chat...' : 'Send Message'}
-                </Button>
                 <Button 
                   variant="outline" 
-                  size="icon"
+                  className="flex-1"
                   onClick={() => {
                     // TODO: Add view profile functionality
                     console.log('View profile for:', user.id);
                   }}
                   title="View Profile"
                 >
-                  <User className="h-4 w-4" />
+                  <User className="h-4 w-4 mr-2" />
+                  View Profile
                 </Button>
               </div>
 
@@ -223,15 +177,6 @@ export function UserProfilePopover({
         </PopoverContent>
       </Popover>
 
-      {/* Chat Room Modal */}
-      <ChatRoom 
-        isOpen={isChatOpen}
-        onClose={() => {
-          setIsChatOpen(false);
-          setChatRoom(null);
-        }}
-        room={chatRoom}
-      />
     </>
   );
 }
