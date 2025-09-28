@@ -115,10 +115,10 @@ class OptimizedTestCaseValidator:
             final_score = self._calculate_final_score(structure_score,
                                                       content_score, context)
             result['score'] = round(final_score, 2)
-            result['is_correct'] = final_score >= 95.0
+            result['is_correct'] = final_score >= 100.0
 
             # Lazy smart feedback generation (only if needed)
-            if student_query and final_score < 95:
+            if student_query and final_score < 100:
                 self._add_quick_query_feedback(student_query, result, context)
 
             self._add_contextual_feedback(result, context)
@@ -415,7 +415,7 @@ class OptimizedTestCaseValidator:
         score = result['score']
 
         # Fast feedback generation based on score bands
-        if score >= 95:
+        if score >= 100:
             messages = ["🎉 Perfect!", "Excellent work!", "Spot on!"]
         elif score >= 80:
             messages = ["Good job!", "Almost perfect!", "Great work!"]
@@ -437,7 +437,7 @@ class OptimizedTestCaseValidator:
         elif context.previous_attempts > 2 and score > 60:
             base_message += " - you're improving with each attempt!"
 
-        if not result['feedback'] or score >= 95:
+        if not result['feedback'] or score >= 100:
             result['feedback'].insert(0, base_message)
 
     # Keep essential methods from original for compatibility

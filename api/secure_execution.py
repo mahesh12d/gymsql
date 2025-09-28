@@ -273,7 +273,7 @@ class SecureQueryExecutor:
 
             # STEP 5: Fast scoring
             final_score = self._calculate_score_fast(test_results)
-            is_correct = final_score['overall_score'] >= 95.0
+            is_correct = final_score['overall_score'] >= 100.0
 
             # STEP 6: Create submission (minimal data)
             submission = Submission(
