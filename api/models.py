@@ -75,10 +75,6 @@ class User(Base):
     progress = relationship("UserProgress", back_populates="user")
     user_badges = relationship("UserBadge", back_populates="user")
     
-    # Chat relationships
-    created_chat_rooms = relationship("ChatRoom", foreign_keys="ChatRoom.created_by")
-    chat_participants = relationship("ChatParticipant", back_populates="user")
-    sent_messages = relationship("ChatMessage", foreign_keys="ChatMessage.sender_id")
 
 class Problem(Base):
     __tablename__ = "problems"

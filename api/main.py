@@ -4,7 +4,7 @@ FastAPI application - converted from Express.js backend
 import os
 import json
 from typing import List, Optional, Dict
-from fastapi import FastAPI, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -15,8 +15,7 @@ import random
 
 from .database import get_db, create_tables
 from .models import (User, Problem, Submission, CommunityPost, PostLike, PostComment, Solution,
-                     ProblemInteraction, ProblemSession, UserBadge, Badge, Base,
-                     ChatRoom, ChatParticipant, ChatMessage)
+                     ProblemInteraction, ProblemSession, UserBadge, Badge, Base)
 from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, CommunityPostCreate,
@@ -172,7 +171,7 @@ def format_console_output(execution_result):
 def startup_event():
     try:
         print("🚀 Starting database initialization...")
-        create_tables()  # Create all tables including chat tables
+        create_tables()  # Create all tables
         print("✅ Database initialization completed")
     except Exception as e:
         print(f"⚠️ Database initialization failed, continuing anyway: {e}")
