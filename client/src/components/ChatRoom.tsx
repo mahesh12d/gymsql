@@ -83,9 +83,10 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     
     let wsUrl;
     if (isDev && isReplit) {
-      // Replit development: Connect to local backend WebSocket over WS
-      wsUrl = `ws://localhost:8000/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
-      console.log('🎯 Using Replit development WebSocket URL');
+      // Replit development: Use the same host as frontend (goes through proxy to backend)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws/chat/${room.id}?token=${encodeURIComponent(token)}`;
+      console.log('🎯 Using Replit development WebSocket URL (through proxy)');
     } else {
       // Production or local development: Use standard protocol detection
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
