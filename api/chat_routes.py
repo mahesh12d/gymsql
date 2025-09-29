@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from .database import get_db, SessionLocal
-from .models import User, Message
+from .models import User, Message, Conversation
 from .auth import get_current_user
 from .redis_config import chat_manager, message_publisher, redis_config
 
@@ -40,13 +40,43 @@ class ConversationResponse(BaseModel):
 # Create router
 chat_router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+def get_or_create_conversation(user1_id: str, user2_id: str, db: Session) -> str:
+    """Get or create a conversation between two users"""
+    # Sort user IDs to ensure consistent conversation ID format
+    sorted_users = sorted([user1_id, user2_id])
+    conversation_id = f"{sorted_users[0]}_{sorted_users[1]}"
+    
+    # Check if conversation already exists
+    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    
+    if not conversation:
+        # Create new conversation
+        conversation = Conversation(
+            id=conversation_id,
+            user1_id=sorted_users[0],
+            user2_id=sorted_users[1]
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+    
+    return conversation.id
+
 def persist_message_to_db(message_data: Dict[str, Any]):
     """Background task to persist message to PostgreSQL"""
     db = SessionLocal()
     try:
+        # Ensure conversation exists before creating message
+        conversation_id = get_or_create_conversation(
+            message_data["sender_id"], 
+            message_data["receiver_id"], 
+            db
+        )
+        
+        # Create message with the proper conversation_id
         message = Message(
             id=message_data["id"],
-            conversation_id=message_data["conversation_id"],
+            conversation_id=conversation_id,
             sender_id=message_data["sender_id"],
             receiver_id=message_data["receiver_id"],
             content=message_data["content"],
@@ -276,11 +306,18 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing authentication token")
             return
         
-        # Validate JWT token
+        # Validate JWT token with development bypass
         try:
-            from .auth import verify_token
-            token_data = verify_token(token)
-            user_id = token_data.user_id
+            import os
+            
+            # TEMPORARY: Development token bypass - only in explicit dev mode  
+            if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
+                user_id = 'dev-user-1'
+            else:
+                # Normal JWT verification for production
+                from .auth import verify_token
+                token_data = verify_token(token)
+                user_id = token_data.user_id
         except Exception:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication token")
             return
