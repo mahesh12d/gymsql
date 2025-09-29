@@ -72,7 +72,7 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
 
     try {
       await sendMessageApi({
-        receiverId: room.userId,
+        receiver_id: room.userId,
         content: message.trim()
       });
       

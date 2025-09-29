@@ -21,7 +21,7 @@ interface Message {
 }
 
 interface SendMessageRequest {
-  receiverId: string;
+  receiver_id: string;
   content: string;
 }
 
