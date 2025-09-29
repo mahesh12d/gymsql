@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import ReactECharts from "echarts-for-react";
 import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon } from "lucide-react";
 import { format } from "date-fns";
+import { RecentChats } from "@/components/RecentChats";
 
 interface BasicInfo {
   user_id: string;
@@ -906,6 +907,9 @@ export default function Profile() {
         <CompetitiveRecentActivity recentActivity={profile.recent_activity} />
         <BadgesCard badges={profile.badges} />
       </div>
+
+      {/* 💬 Recent Chats Section */}
+      <RecentChats />
 
       {/* Recommendations */}
       <RecommendationsCard recommendations={recommendations} />
