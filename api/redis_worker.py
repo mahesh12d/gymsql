@@ -15,10 +15,10 @@ from typing import Dict, Any, Optional
 # Add the api directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from redis_config import queue_manager, redis_config
-from database import SessionLocal
-from models import Problem, ProblemSubmissionQueue
-from secure_execution import secure_executor
+from .redis_config import queue_manager, redis_config
+from .database import SessionLocal
+from .models import Problem, ProblemSubmissionQueue
+from .secure_execution import secure_executor
 
 class RedisWorker:
     """Worker process for handling problem queue jobs"""

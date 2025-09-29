@@ -2,7 +2,7 @@
 Problem Queue API routes for SQL job processing with Redis backend
 """
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -27,12 +27,12 @@ class ProblemSubmissionResponse(BaseModel):
 class JobResultResponse(BaseModel):
     job_id: str
     status: str
-    success: bool = None
-    result: Dict[str, Any] = None
-    error_message: str = None
-    execution_time_ms: int = None
-    rows_returned: int = None
-    completed_at: str = None
+    success: Optional[bool] = None
+    result: Optional[List[Dict[str, Any]]] = None  # Query results are typically lists
+    error_message: Optional[str] = None
+    execution_time_ms: Optional[int] = None
+    rows_returned: Optional[int] = None
+    completed_at: Optional[str] = None
 
 class JobStatusResponse(BaseModel):
     job_id: str

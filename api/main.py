@@ -3,6 +3,7 @@ FastAPI application - converted from Express.js backend
 """
 import os
 import json
+import asyncio
 from typing import List, Optional, Dict
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,6 +27,9 @@ from .auth import (get_password_hash, verify_password, create_access_token,
 from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
+from .redis_config import queue_manager, redis_config
+from .models import ProblemSubmissionQueue
+from .problem_queue_routes import problem_queue_router
 
 # Helper function for time tracking
 def track_first_query(user_id: str, problem_id: str, db: Session):
@@ -146,6 +150,7 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
 # Include routers
 app.include_router(sandbox_router)
 app.include_router(admin_router)
+app.include_router(problem_queue_router)
 
 # Include Redis-powered routers
 from .chat_routes import chat_router
@@ -178,15 +183,176 @@ def format_console_output(execution_result):
 
 
 # Create tables on startup
+# Background task for Redis worker
+async def redis_worker_task():
+    """Background task that processes Redis queue jobs"""
+    print("🚀 Starting Redis worker background task...")
+    
+    # Test Redis connection
+    if not redis_config.test_connection():
+        print("❌ Redis worker: Failed to connect to Redis")
+        return
+    
+    print("✅ Redis worker: Connection established")
+    
+    # Main processing loop
+    while True:
+        try:
+            # Get next job from Redis queue (non-blocking with short timeout)
+            job = queue_manager.get_next_job(timeout=2)
+            
+            if not job:
+                await asyncio.sleep(1)  # Short sleep if no job
+                continue
+            
+            job_id = job["job_id"]
+            print(f"📝 Redis worker: Processing job {job_id}...")
+            
+            # Update job status in database
+            await asyncio.to_thread(update_job_in_db, job_id, {"status": "processing"})
+            
+            # Execute the SQL query
+            result = await execute_sql_job(job)
+            
+            # Complete the job in Redis (include user_id for authorization)
+            queue_manager.complete_job(job_id, result, job["user_id"], success=result.get("success", False))
+            
+            # Update final status in database
+            final_status = "completed" if result.get("success", False) else "failed"
+            update_data = {
+                "status": final_status,
+                "rows_returned": result.get("rows_returned"),
+                "execution_time_ms": result.get("execution_time_ms"),
+                "error_message": result.get("error_message"),
+                "result_data": result,
+                "completed_at": datetime.now().isoformat()
+            }
+            await asyncio.to_thread(update_job_in_db, job_id, update_data)
+            
+            status_icon = "✅" if result.get("success", False) else "❌"
+            print(f"{status_icon} Redis worker: Job {job_id} completed: {final_status}")
+            
+        except Exception as e:
+            print(f"❌ Redis worker: Error processing job: {e}")
+            
+            # Try to mark job as failed if we have job_id
+            if 'job' in locals() and 'job_id' in locals():
+                try:
+                    error_result = {
+                        "success": False,
+                        "error_message": f"Worker error: {str(e)}",
+                        "execution_time_ms": 0
+                    }
+                    queue_manager.complete_job(job_id, error_result, job.get("user_id", "unknown"), success=False)
+                    await asyncio.to_thread(update_job_in_db, job_id, {
+                        "status": "failed",
+                        "error_message": str(e),
+                        "completed_at": datetime.now().isoformat()
+                    })
+                except Exception as cleanup_error:
+                    print(f"❌ Redis worker: Failed to mark job as failed: {cleanup_error}")
+
+async def execute_sql_job(job: Dict) -> Dict:
+    """Execute SQL query for a job (sync function)"""
+    from .database import SessionLocal
+    import time
+    
+    db = SessionLocal()
+    try:
+        # Get problem information
+        from .models import Problem
+        problem = db.query(Problem).filter(Problem.id == job["problem_id"]).first()
+        if not problem:
+            return {
+                "success": False,
+                "error_message": "Problem not found",
+                "execution_time_ms": 0
+            }
+        
+        # Extract SQL query
+        sql_query = job["sql_query"]
+        
+        print(f"🔍 Executing SQL for problem {job['problem_id']}: {sql_query[:100]}...")
+        
+        # Use the secure executor to run the query
+        start_time = time.time()
+        execution_result = await secure_executor.submit_solution(
+            user_id=job["user_id"],
+            problem_id=job["problem_id"],
+            query=sql_query,
+            db=db
+        )
+        execution_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Process the result
+        if execution_result.get("success", False):
+            query_result = execution_result.get("query_result", {})
+            result_rows = query_result.get("result", [])
+            
+            return {
+                "success": True,
+                "result": result_rows,
+                "rows_returned": len(result_rows) if result_rows else 0,
+                "execution_time_ms": execution_time_ms,
+                "query_execution_time_ms": query_result.get("execution_time_ms", 0)
+            }
+        else:
+            return {
+                "success": False,
+                "error_message": execution_result.get("error", "Unknown execution error"),
+                "execution_time_ms": execution_time_ms
+            }
+            
+    except Exception as e:
+        print(f"❌ SQL execution error: {e}")
+        return {
+            "success": False,
+            "error_message": f"Execution error: {str(e)}",
+            "execution_time_ms": 0
+        }
+    finally:
+        db.close()
+
+def update_job_in_db(job_id: str, update_data: Dict):
+    """Update job status in PostgreSQL database (sync function)"""
+    from .database import SessionLocal
+    
+    db = SessionLocal()
+    try:
+        submission = db.query(ProblemSubmissionQueue).filter(
+            ProblemSubmissionQueue.id == job_id
+        ).first()
+        
+        if submission:
+            for key, value in update_data.items():
+                if hasattr(submission, key):
+                    if key == "completed_at" and isinstance(value, str):
+                        value = datetime.fromisoformat(value)
+                    setattr(submission, key, value)
+            db.commit()
+        else:
+            print(f"⚠️ Job {job_id} not found in database")
+            
+    except Exception as e:
+        print(f"❌ Error updating job in database: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 @app.on_event("startup")  
-def startup_event():
+async def startup_event():
     try:
         print("🚀 Starting database initialization...")
         create_tables()  # Create all tables
         print("✅ Database initialization completed")
+        
+        # Start Redis worker background task
+        asyncio.create_task(redis_worker_task())
+        print("✅ Redis worker background task started")
+        
     except Exception as e:
-        print(f"⚠️ Database initialization failed, continuing anyway: {e}")
-        # Continue startup even if database fails
+        print(f"⚠️ Startup initialization failed, continuing anyway: {e}")
+        # Continue startup even if initialization fails
 
 
 # Development/fallback root endpoint
