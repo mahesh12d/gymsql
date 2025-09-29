@@ -269,8 +269,8 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full p-4">
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ScrollArea className="h-full p-4 min-h-0">
               <div className="space-y-4">
                 {isLoadingHistory ? (
                   <div className="text-center text-sm text-muted-foreground p-4">
@@ -319,7 +319,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border flex-shrink-0">
             <div className="flex space-x-2">
               <Input
                 placeholder="Type a message..."

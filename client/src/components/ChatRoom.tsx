@@ -118,8 +118,8 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col space-y-4">
-          <div className="flex-1 p-4 border rounded-lg overflow-y-auto" data-testid="scroll-messages">
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 p-4 border rounded-lg overflow-y-auto min-h-0 mb-4" data-testid="scroll-messages">
             {!isConnected && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 mb-3">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -176,7 +176,7 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
             )}
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <Input
               placeholder="Type a message..."
               value={message}
