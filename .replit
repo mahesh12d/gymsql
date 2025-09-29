@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["arrow-cpp", "cacert", "cargo", "glibcLocales", "libiconv", "libxcrypt", "openssl", "pgadmin4", "pkg-config", "postgresql", "rustc"]
+packages = ["arrow-cpp", "cacert", "cargo", "glibcLocales", "libiconv", "libxcrypt", "openssl", "pgadmin4", "pkg-config", "postgresql", "rustc", "redis"]
 
 [deployment]
 build = ["npm", "run", "build"]
