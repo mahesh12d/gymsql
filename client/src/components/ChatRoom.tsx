@@ -139,27 +139,36 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
                   const senderInitial = isOwnMessage ? "Y" : (msg.sender_username?.charAt(0) || "U");
                   
                   return (
-                    <div key={msg.id} className={`flex items-start space-x-3 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''}`} data-testid={`message-${msg.id}`}>
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className={`text-white text-xs ${isOwnMessage ? 'bg-blue-500' : 'bg-gray-500'}`}>
-                          {senderInitial}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
+                    <div key={msg.id} className={`flex items-start space-x-3 ${isOwnMessage ? 'justify-end' : ''}`} data-testid={`message-${msg.id}`}>
+                      {!isOwnMessage && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-gray-500 text-white text-xs">
+                            {senderInitial}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-xs`}>
                         <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''}`}>
                           <span className="font-medium text-sm">{senderName}</span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
-                        <div className={`inline-block px-3 py-2 rounded-lg max-w-xs ${
+                        <div className={`px-3 py-2 rounded-lg ${
                           isOwnMessage 
-                            ? 'bg-blue-500 text-white ml-auto' 
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            ? 'bg-blue-500 text-white rounded-br-sm' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
                         }`}>
                           <p className="text-sm">{msg.content}</p>
                         </div>
                       </div>
+                      {isOwnMessage && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-blue-500 text-white text-xs">
+                            {senderInitial}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                     </div>
                   );
                 })}
