@@ -203,29 +203,6 @@ export default function Leaderboard() {
             )}
 
 
-            {/* Weekly Challenge */}
-            <Card className="bg-gradient-to-br from-primary to-orange-400 text-white">
-              <CardHeader>
-                <CardTitle className="text-white">Weekly Challenge</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm opacity-90 mb-4">
-                  Solve 5 problems this week to climb the leaderboard faster!
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{Math.min(user?.problemsSolved || 0, 5)}/5</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-2">
-                    <div 
-                      className="bg-white h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${Math.min(((user?.problemsSolved || 0) / 5) * 100, 100)}%` }} 
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Leaderboard Stats */}
             <Card>

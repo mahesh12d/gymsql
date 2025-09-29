@@ -178,18 +178,6 @@ export default function Community() {
     }
   };
 
-  // Mock data for active members and study groups
-  const activeMembers = [
-    { id: '1', username: 'alex_chen', status: 'online', lastActive: 'Online now' },
-    { id: '2', username: 'sarah_j', status: 'away', lastActive: '5 min ago' },
-    { id: '3', username: 'mike_db', status: 'online', lastActive: 'Online now' },
-  ];
-
-  const studyGroups = [
-    { name: 'Advanced Window Functions', members: 12 },
-    { name: 'SQL Performance Tuning', members: 8 },
-    { name: 'Database Design Patterns', members: 15 },
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -530,82 +518,8 @@ WHERE condition;"
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Active Members */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="w-5 h-5 text-primary" />
-                  <span>Active Members</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {activeMembers.map((member) => (
-                  <div key={member.id} className="flex items-center space-x-3" data-testid={`active-member-${member.username}`}>
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback>
-                        {member.username.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground text-sm">{member.username}</p>
-                      <p className="text-xs text-muted-foreground">{member.lastActive}</p>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${
-                      member.status === 'online' ? 'bg-green-400' : 'bg-yellow-400'
-                    }`} />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
 
-            {/* Weekly Challenge */}
-            <Card className="bg-gradient-to-br from-primary to-orange-400 text-white">
-              <CardHeader>
-                <CardTitle className="text-white">Weekly Challenge</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm opacity-90 mb-4">
-                  Share 3 helpful SQL tips this week to earn the "Community Helper" badge!
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>1/3</span>
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-white h-2 rounded-full" style={{ width: '33%' }} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Study Groups */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  <span>Study Groups</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {studyGroups.map((group, index) => (
-                  <div key={index} className="flex items-center justify-between" data-testid={`study-group-${index}`}>
-                    <div>
-                      <p className="font-medium text-foreground text-sm">{group.name}</p>
-                      <p className="text-xs text-muted-foreground">{group.members} members</p>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:bg-primary/10"
-                      data-testid={`button-join-group-${index}`}
-                    >
-                      Join
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
 
             {/* Community Stats */}
             <Card>
@@ -619,11 +533,11 @@ WHERE condition;"
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Active Today</span>
-                  <span className="font-bold text-foreground">{activeMembers.length}</span>
+                  <span className="font-bold text-foreground">0</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Study Groups</span>
-                  <span className="font-bold text-foreground">{studyGroups.length}</span>
+                  <span className="font-bold text-foreground">0</span>
                 </div>
               </CardContent>
             </Card>
