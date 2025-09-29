@@ -81,7 +81,7 @@ export function useChatApi(): UseChatApiReturn {
     try {
       const response = await apiRequest('GET', `/api/chat/history/${userId}`);
       const historyData = await response.json();
-      return historyData.messages || [];
+      return historyData || [];
     } catch (error) {
       console.error('Error fetching chat history:', error);
       return [];

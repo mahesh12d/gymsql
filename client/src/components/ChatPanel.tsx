@@ -42,7 +42,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { searchUsers, users, isSearching, getChatHistory } = useChatApi();
+  const { searchUsers, users, isSearching, getChatHistory, sendMessageApi } = useChatApi();
   const { 
     messages, 
     isConnected, 
@@ -100,15 +100,31 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     }
   }, [selectedUser, currentUser, getChatHistory]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedUser || !currentUser) return;
 
-    sendMessage({
-      receiverId: selectedUser.id,
-      content: messageInput.trim(),
-    });
-
-    setMessageInput('');
+    try {
+      await sendMessageApi({
+        receiverId: selectedUser.id,
+        content: messageInput.trim(),
+      });
+      setMessageInput('');
+      
+      // Refresh chat history to show the sent message
+      if (selectedUser) {
+        setIsLoadingHistory(true);
+        try {
+          const updatedHistory = await getChatHistory(selectedUser.id);
+          setChatHistory(updatedHistory);
+        } catch (error) {
+          console.error('Failed to refresh chat history:', error);
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -313,15 +329,15 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!messageInput.trim() || !isConnected}
+                disabled={!messageInput.trim()}
                 data-testid="button-send-message"
               >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
             {!isConnected && (
-              <p className="text-xs text-destructive mt-1">
-                Connection lost. Reconnecting...
+              <p className="text-xs text-muted-foreground mt-1">
+                Real-time updates unavailable
               </p>
             )}
           </div>
