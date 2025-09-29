@@ -1,0 +1,111 @@
+🔹 Features to Implement
+1. User Messaging (Chat System)
+
+Direct chat between two users.
+
+Messages stored in Redis for fast access.
+
+Only the last 50 messages per conversation kept in Redis.
+
+All messages persisted to Postgres for permanent history.
+
+Use Redis Pub/Sub for real-time delivery.
+
+Presence tracking: user online/offline with expiring Redis keys.
+
+2. Problem Queue (Job Processing)
+
+Users submit SQL queries → added to a Redis queue.
+
+Worker service consumes jobs using BRPOP.
+
+Jobs temporarily stored in problems:processing.
+
+Results cached in Redis with TTL (5 minutes).
+
+Results also persisted in Postgres for analytics & history.
+
+🔹 Redis Schema (Key Structures)
+
+Chats
+
+chat:{conversation_id}:messages = List
+
+user:{user_id}:conversations = Set
+
+user:{user_id}:online = Boolean (expiring key)
+
+Problem Queue
+
+problems:queue = List
+
+problems:processing:{job_id} = Hash
+
+problems:result:{job_id} = String (TTL 5min)
+
+🔹 Postgres Schema
+
+Please generate SQLAlchemy models (Python) for:
+
+Users
+
+id, username, email, created_at, last_active
+
+Messages
+
+id, conversation_id, sender_id, receiver_id, content, timestamp
+
+Problems (Submissions)
+
+id, user_id, problem_id, sql_query, status, rows_returned, created_at
+
+🔹 Tech Stack
+
+Backend: FastAPI (Python)
+
+Database: Postgres (Neon)
+
+Cache/Queue: Redis (Upstash)
+
+ORM: SQLAlchemy + Alembic
+
+Messaging: Redis Pub/Sub
+
+🔹 Expected Output
+
+FastAPI backend code with endpoints:
+
+/chat/send → send a message.
+
+/chat/history → fetch recent chat history.
+
+/chat/subscribe → websocket for real-time chat.
+
+/problems/submit → submit a SQL solution.
+
+/problems/result/{id} → get results.
+
+Integration code for Redis + Postgres.
+
+Worker script for processing problem queue.
+
+Clear comments explaining Redis key usage and Postgres persistence.
+
+🔹 Workflow Diagrams
+📨 Chat Flow
+User A ----> FastAPI ----> Redis (RPUSH chat:{id}:messages)
+                              |
+                              +--> Redis Pub/Sub --> User B (Websocket)
+                              |
+                              +--> Postgres (background sync)
+
+📝 Problem Queue Flow
+User ----> FastAPI ----> Redis (LPUSH problems:queue)
+                              |
+                          Worker (BRPOP)
+                              |
+                 +------------+-------------+
+                 |                          |
+           Executes SQL                 Updates Result
+                 |                          |
+          Postgres (history) <--- Redis (SETEX problems:result:{id})

@@ -449,3 +449,59 @@ class Solution(Base):
         Index('idx_solutions_created_at', 'created_at'),
     )
 
+# Redis-backed Models for Chat and Problem Queue
+
+class Message(Base):
+    """Messages for user chat system (persisted from Redis to Postgres)"""
+    __tablename__ = "messages"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)  # Format: user1_id_user2_id (sorted)
+    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    receiver_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    receiver = relationship("User", foreign_keys=[receiver_id], backref="received_messages")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_messages_conversation_id', 'conversation_id'),
+        Index('idx_messages_sender_id', 'sender_id'),
+        Index('idx_messages_receiver_id', 'receiver_id'),
+        Index('idx_messages_timestamp', 'timestamp'),
+        Index('idx_messages_conversation_timestamp', 'conversation_id', 'timestamp'),
+    )
+
+class ProblemSubmissionQueue(Base):
+    """Problem submissions for job queue processing (persisted from Redis)"""
+    __tablename__ = "problem_submissions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
+    sql_query = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, default="queued")  # queued, processing, completed, failed
+    rows_returned = Column(Integer, nullable=True)
+    execution_time_ms = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_data = Column(JSONB, nullable=True)  # Query results for analytics
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    user = relationship("User", backref="problem_queue_submissions")
+    problem = relationship("Problem", backref="queue_submissions")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_problem_submissions_user_id', 'user_id'),
+        Index('idx_problem_submissions_problem_id', 'problem_id'),
+        Index('idx_problem_submissions_status', 'status'),
+        Index('idx_problem_submissions_created_at', 'created_at'),
+        Index('idx_problem_submissions_completed_at', 'completed_at'),
+    )
+
