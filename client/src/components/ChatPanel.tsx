@@ -269,52 +269,54 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
-              {isLoadingHistory ? (
-                <div className="text-center text-sm text-muted-foreground p-4">
-                  Loading chat history...
-                </div>
-              ) : allMessages.length === 0 ? (
-                <div className="text-center text-sm text-muted-foreground">
-                  No messages yet. Start the conversation!
-                </div>
-              ) : (
-                allMessages.map((message) => {
-                  const isOwnMessage = message.sender_id === currentUser?.id;
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                      data-testid={`message-${message.id}`}
-                    >
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full p-4">
+              <div className="space-y-4">
+                {isLoadingHistory ? (
+                  <div className="text-center text-sm text-muted-foreground p-4">
+                    Loading chat history...
+                  </div>
+                ) : allMessages.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground">
+                    No messages yet. Start the conversation!
+                  </div>
+                ) : (
+                  allMessages.map((message) => {
+                    const isOwnMessage = message.sender_id === currentUser?.id;
+                    return (
                       <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          isOwnMessage
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}
+                        key={message.id}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        data-testid={`message-${message.id}`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p
-                          className={`text-xs mt-1 ${
+                        <div
+                          className={`max-w-[70%] rounded-lg p-3 ${
                             isOwnMessage
-                              ? 'text-primary-foreground/70'
-                              : 'text-muted-foreground'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
                           }`}
                         >
-                          {formatDistanceToNow(new Date(message.timestamp), {
-                            addSuffix: true,
-                          })}
-                        </p>
+                          <p className="text-sm">{message.content}</p>
+                          <p
+                            className={`text-xs mt-1 ${
+                              isOwnMessage
+                                ? 'text-primary-foreground/70'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {formatDistanceToNow(new Date(message.timestamp), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+          </div>
 
           {/* Message Input */}
           <div className="p-4 border-t border-border">
