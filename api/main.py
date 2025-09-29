@@ -147,6 +147,13 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
 app.include_router(sandbox_router)
 app.include_router(admin_router)
 
+# Include Redis-powered routers
+from .chat_routes import chat_router
+from .problem_queue_routes import problem_queue_router
+
+app.include_router(chat_router)
+app.include_router(problem_queue_router)
+
 
 
 def format_console_output(execution_result):
