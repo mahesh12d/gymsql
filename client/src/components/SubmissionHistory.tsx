@@ -5,9 +5,9 @@ import { CheckCircle, XCircle } from 'lucide-react';
 interface Submission {
   id: string;
   query: string;
-  is_correct: boolean;
-  execution_time: number;
-  submitted_at: string;
+  isCorrect: boolean;
+  executionTime: number;
+  submittedAt: string;
   score?: number;
 }
 
@@ -113,10 +113,10 @@ export default function SubmissionHistory({ problemId }: SubmissionHistoryProps)
             {submissions.map((submission) => (
               <tr key={submission.id} className="hover:bg-gray-50" data-testid={`submission-row-${submission.id}`}>
                 <td className="px-4 py-2 text-sm text-gray-900">
-                  {formatTime(submission.submitted_at)}
+                  {formatTime(submission.submittedAt)}
                 </td>
                 <td className="px-4 py-2 text-sm">
-                  {getStatusBadge(submission.is_correct, submission.score)}
+                  {getStatusBadge(submission.isCorrect, submission.score)}
                 </td>
                 <td className="px-4 py-2 text-sm">
                   <div className="flex items-center space-x-2">
@@ -139,7 +139,7 @@ export default function SubmissionHistory({ problemId }: SubmissionHistoryProps)
                   </div>
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-900">
-                  {submission.execution_time ? `${submission.execution_time}ms` : 'PostgreSQL 14'}
+                  {submission.executionTime ? `${submission.executionTime}ms` : 'PostgreSQL 14'}
                 </td>
               </tr>
             ))}
