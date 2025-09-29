@@ -11,7 +11,7 @@ from datetime import datetime
 
 from .database import get_db
 from .models import User, Message
-from .auth import get_current_user, get_current_user_from_websocket
+from .auth import get_current_user
 from .redis_config import chat_manager, message_publisher, redis_config
 
 # Pydantic models for requests/responses

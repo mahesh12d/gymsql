@@ -150,9 +150,11 @@ app.include_router(admin_router)
 # Include Redis-powered routers
 from .chat_routes import chat_router
 from .problem_queue_routes import problem_queue_router
+from .redis_test_routes import test_router
 
 app.include_router(chat_router)
 app.include_router(problem_queue_router)
+app.include_router(test_router)
 
 
 
