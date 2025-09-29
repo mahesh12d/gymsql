@@ -281,7 +281,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 </div>
               ) : (
                 allMessages.map((message) => {
-                  const isOwnMessage = message.senderId === currentUser?.id;
+                  const isOwnMessage = message.sender_id === currentUser?.id;
                   return (
                     <div
                       key={message.id}
