@@ -13,6 +13,7 @@ from .database import get_db, SessionLocal
 from .models import User, Message, Conversation
 from .auth import get_current_user
 from .redis_config import chat_manager, message_publisher, redis_config
+from .message_persistence import enhanced_add_message, enhanced_get_messages
 
 # Pydantic models for requests/responses
 class SendMessageRequest(BaseModel):
@@ -91,13 +92,12 @@ def persist_message_to_db(message_data: Dict[str, Any]):
         db.close()
 
 @chat_router.post("/send", response_model=MessageResponse)
-def send_message(
+async def send_message(
     request: SendMessageRequest,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Send a message to another user"""
+    """Send a message to another user with dual Redis/PostgreSQL persistence"""
     # Verify receiver exists
     receiver = db.query(User).filter(User.id == request.receiver_id).first()
     if not receiver:
@@ -106,36 +106,40 @@ def send_message(
             detail="Receiver not found"
         )
     
-    # Add message to Redis
-    message_data = chat_manager.add_message(
-        sender_id=current_user.id,
-        receiver_id=request.receiver_id,
-        content=request.content
-    )
-    
-    # Publish message for real-time delivery
-    message_publisher.publish_message(request.receiver_id, message_data)
-    
-    # Schedule background persistence to PostgreSQL
-    background_tasks.add_task(persist_message_to_db, message_data)
-    
-    # Update sender's online status
-    chat_manager.set_user_online(current_user.id)
-    
-    return MessageResponse(
-        **message_data,
-        sender_username=current_user.username,
-        receiver_username=receiver.username
-    )
+    try:
+        # Use enhanced message adding with automatic persistence
+        message_data = await enhanced_add_message(
+            sender_id=current_user.id,
+            receiver_id=request.receiver_id,
+            content=request.content
+        )
+        
+        # Publish message for real-time delivery
+        message_publisher.publish_message(request.receiver_id, message_data)
+        
+        # Update sender's online status
+        chat_manager.set_user_online(current_user.id)
+        
+        return MessageResponse(
+            **message_data,
+            sender_username=current_user.username,
+            receiver_username=receiver.username
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send message: {str(e)}"
+        )
 
 @chat_router.get("/history/{other_user_id}", response_model=List[MessageResponse])
-def get_chat_history(
+async def get_chat_history(
     other_user_id: str,
     limit: int = 50,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get chat history with another user"""
+    """Get chat history with another user using enhanced message retrieval"""
     # Verify other user exists
     other_user = db.query(User).filter(User.id == other_user_id).first()
     if not other_user:
@@ -144,63 +148,36 @@ def get_chat_history(
             detail="User not found"
         )
     
-    # Get recent messages from Redis first
-    redis_messages = chat_manager.get_recent_messages(
-        current_user.id, 
-        other_user_id, 
-        limit
-    )
-    
-    # If we need more messages or Redis is empty, get from PostgreSQL
-    if len(redis_messages) < limit:
-        conversation_id = chat_manager.get_conversation_id(current_user.id, other_user_id)
+    try:
+        # Use enhanced message retrieval with automatic fallback
+        all_messages = await enhanced_get_messages(
+            current_user.id, 
+            other_user_id, 
+            limit
+        )
         
-        # Calculate how many more messages we need
-        needed_count = limit - len(redis_messages)
+        # Add usernames to response
+        messages_with_usernames = []
+        for msg in all_messages:
+            sender = db.query(User).filter(User.id == msg["sender_id"]).first()
+            receiver = db.query(User).filter(User.id == msg["receiver_id"]).first()
+            
+            messages_with_usernames.append(MessageResponse(
+                **msg,
+                sender_username=sender.username if sender else "Unknown",
+                receiver_username=receiver.username if receiver else "Unknown"
+            ))
         
-        # Get older messages from PostgreSQL
-        db_messages = db.query(Message).filter(
-            Message.conversation_id == conversation_id
-        ).order_by(desc(Message.timestamp)).limit(needed_count).all()
+        # Update user's online status
+        chat_manager.set_user_online(current_user.id)
         
-        # Convert DB messages to dict format
-        db_message_dicts = []
-        for msg in db_messages:
-            db_message_dicts.append({
-                "id": msg.id,
-                "conversation_id": msg.conversation_id,
-                "sender_id": msg.sender_id,
-                "receiver_id": msg.receiver_id,
-                "content": msg.content,
-                "timestamp": msg.timestamp.isoformat()
-            })
+        return messages_with_usernames
         
-        # Combine and deduplicate by message ID, then sort by timestamp
-        all_messages_dict = {}
-        for msg in redis_messages + db_message_dicts:
-            all_messages_dict[msg["id"]] = msg
-        
-        all_messages = list(all_messages_dict.values())
-        all_messages.sort(key=lambda x: x["timestamp"])
-    else:
-        all_messages = redis_messages
-    
-    # Add usernames to response
-    messages_with_usernames = []
-    for msg in all_messages:
-        sender = db.query(User).filter(User.id == msg["sender_id"]).first()
-        receiver = db.query(User).filter(User.id == msg["receiver_id"]).first()
-        
-        messages_with_usernames.append(MessageResponse(
-            **msg,
-            sender_username=sender.username if sender else "Unknown",
-            receiver_username=receiver.username if receiver else "Unknown"
-        ))
-    
-    # Update user's online status
-    chat_manager.set_user_online(current_user.id)
-    
-    return messages_with_usernames
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve chat history: {str(e)}"
+        )
 
 @chat_router.get("/conversations", response_model=List[ConversationResponse])
 def get_user_conversations(

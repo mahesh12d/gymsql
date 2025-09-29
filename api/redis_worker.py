@@ -19,6 +19,7 @@ from .redis_config import queue_manager, redis_config
 from .database import SessionLocal
 from .models import Problem, ProblemSubmissionQueue
 from .secure_execution import secure_executor
+from .message_persistence import message_persistence
 
 class RedisWorker:
     """Worker process for handling problem queue jobs"""
@@ -26,6 +27,8 @@ class RedisWorker:
     def __init__(self):
         self.running = False
         self.db = None
+        self.last_message_sync = time.time()
+        self.message_sync_interval = 60  # Sync messages every 60 seconds
         
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -63,6 +66,7 @@ class RedisWorker:
         try:
             while self.running:
                 self._process_job()
+                self._check_message_sync()
         except KeyboardInterrupt:
             print("\n🛑 Worker interrupted by user")
         except Exception as e:
@@ -129,6 +133,34 @@ class RedisWorker:
                     })
                 except Exception as cleanup_error:
                     print(f"❌ Failed to mark job as failed: {cleanup_error}")
+    
+    def _check_message_sync(self):
+        """Check if it's time to sync messages and perform sync if needed"""
+        current_time = time.time()
+        if current_time - self.last_message_sync >= self.message_sync_interval:
+            try:
+                print("💬 Starting message persistence sync...")
+                # Use asyncio to run the async sync method
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                stats = loop.run_until_complete(message_persistence.sync_all_redis_messages())
+                loop.close()
+                
+                print(f"💬 Message sync completed: {stats['messages_synced']} messages synced from {stats['conversations_processed']} conversations")
+                self.last_message_sync = current_time
+                
+                # Also cleanup old Redis messages periodically
+                if stats['conversations_processed'] > 0:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    cleaned = loop.run_until_complete(message_persistence.cleanup_old_redis_messages(max_age_hours=24))
+                    loop.close()
+                    print(f"🧹 Cleaned up {cleaned} old messages from Redis")
+                    
+            except Exception as e:
+                print(f"❌ Message sync error: {e}")
+                # Don't fail the main worker process if message sync fails
     
     def _execute_sql_job(self, job: Dict[str, Any]) -> Dict[str, Any]:
         """Execute SQL query for a job"""
