@@ -91,8 +91,8 @@ class RedisWorker:
             # Execute the SQL query
             result = self._execute_sql_job(job)
             
-            # Complete the job in Redis
-            queue_manager.complete_job(job_id, result, success=result.get("success", False))
+            # Complete the job in Redis (include user_id for authorization)
+            queue_manager.complete_job(job_id, result, job["user_id"], success=result.get("success", False))
             
             # Update final status in database
             final_status = "completed" if result.get("success", False) else "failed"

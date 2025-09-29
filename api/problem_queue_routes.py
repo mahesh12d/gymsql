@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 
-from .database import get_db
+from .database import get_db, SessionLocal
 from .models import User, Problem, ProblemSubmissionQueue
 from .auth import get_current_user
 from .redis_config import queue_manager
@@ -44,8 +44,9 @@ class JobStatusResponse(BaseModel):
 # Create router
 problem_queue_router = APIRouter(prefix="/api/problems", tags=["problem-queue"])
 
-def persist_submission_to_db(job_data: Dict[str, Any], db: Session):
+def persist_submission_to_db(job_data: Dict[str, Any]):
     """Background task to persist submission to PostgreSQL"""
+    db = SessionLocal()
     try:
         submission = ProblemSubmissionQueue(
             id=job_data["job_id"],
@@ -64,9 +65,12 @@ def persist_submission_to_db(job_data: Dict[str, Any], db: Session):
     except Exception as e:
         print(f"Error persisting submission to database: {e}")
         db.rollback()
+    finally:
+        db.close()
 
-def update_submission_in_db(job_id: str, update_data: Dict[str, Any], db: Session):
+def update_submission_in_db(job_id: str, update_data: Dict[str, Any]):
     """Background task to update submission in PostgreSQL"""
+    db = SessionLocal()
     try:
         submission = db.query(ProblemSubmissionQueue).filter(
             ProblemSubmissionQueue.id == job_id
@@ -82,6 +86,8 @@ def update_submission_in_db(job_id: str, update_data: Dict[str, Any], db: Sessio
     except Exception as e:
         print(f"Error updating submission in database: {e}")
         db.rollback()
+    finally:
+        db.close()
 
 @problem_queue_router.post("/submit", response_model=ProblemSubmissionResponse)
 def submit_problem(
@@ -114,7 +120,7 @@ def submit_problem(
         "sql_query": request.sql_query,
         "status": "queued"
     }
-    background_tasks.add_task(persist_submission_to_db, job_data, db)
+    background_tasks.add_task(persist_submission_to_db, job_data)
     
     return ProblemSubmissionResponse(
         job_id=job_id,
@@ -133,19 +139,34 @@ def get_job_result(
     result = queue_manager.get_job_result(job_id)
     
     if result:
+        # Check authorization - ensure user owns this job
+        if result.get("user_id") != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found"  # Don't reveal existence to unauthorized users
+            )
+        
         return JobResultResponse(
             job_id=job_id,
             status="completed",
             success=result["success"],
             result=result.get("result"),
-            execution_time_ms=result.get("result", {}).get("execution_time_ms"),
-            rows_returned=result.get("result", {}).get("rows_returned"),
+            execution_time_ms=result.get("execution_time_ms"),
+            rows_returned=result.get("rows_returned"),
+            error_message=result.get("error_message"),  # Include error details from cache
             completed_at=result["completed_at"]
         )
     
     # Check if job is still processing
     status_info = queue_manager.get_job_status(job_id)
     if status_info and status_info.get("status") == "processing":
+        # Check authorization for processing jobs too
+        if status_info.get("user_id") != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found"
+            )
+        
         return JobResultResponse(
             job_id=job_id,
             status="processing"
@@ -185,6 +206,13 @@ def get_job_status(
     status_info = queue_manager.get_job_status(job_id)
     
     if status_info:
+        # Check authorization
+        if status_info.get("user_id") != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found"
+            )
+        
         return JobStatusResponse(
             job_id=job_id,
             status=status_info["status"],

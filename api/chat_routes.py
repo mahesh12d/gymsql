@@ -9,7 +9,7 @@ from sqlalchemy import desc
 from pydantic import BaseModel
 from datetime import datetime
 
-from .database import get_db
+from .database import get_db, SessionLocal
 from .models import User, Message
 from .auth import get_current_user
 from .redis_config import chat_manager, message_publisher, redis_config
@@ -40,8 +40,9 @@ class ConversationResponse(BaseModel):
 # Create router
 chat_router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-def persist_message_to_db(message_data: Dict[str, Any], db: Session):
+def persist_message_to_db(message_data: Dict[str, Any]):
     """Background task to persist message to PostgreSQL"""
+    db = SessionLocal()
     try:
         message = Message(
             id=message_data["id"],
@@ -56,6 +57,8 @@ def persist_message_to_db(message_data: Dict[str, Any], db: Session):
     except Exception as e:
         print(f"Error persisting message to database: {e}")
         db.rollback()
+    finally:
+        db.close()
 
 @chat_router.post("/send", response_model=MessageResponse)
 def send_message(
@@ -84,7 +87,7 @@ def send_message(
     message_publisher.publish_message(request.receiver_id, message_data)
     
     # Schedule background persistence to PostgreSQL
-    background_tasks.add_task(persist_message_to_db, message_data, db)
+    background_tasks.add_task(persist_message_to_db, message_data)
     
     # Update sender's online status
     chat_manager.set_user_online(current_user.id)
@@ -142,8 +145,12 @@ def get_chat_history(
                 "timestamp": msg.timestamp.isoformat()
             })
         
-        # Combine and sort all messages
-        all_messages = redis_messages + db_message_dicts
+        # Combine and deduplicate by message ID, then sort by timestamp
+        all_messages_dict = {}
+        for msg in redis_messages + db_message_dicts:
+            all_messages_dict[msg["id"]] = msg
+        
+        all_messages = list(all_messages_dict.values())
         all_messages.sort(key=lambda x: x["timestamp"])
     else:
         all_messages = redis_messages
@@ -260,15 +267,22 @@ manager = ConnectionManager()
 
 @chat_router.websocket("/subscribe")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time chat"""
+    """WebSocket endpoint for real-time chat with authentication"""
+    user_id = None
     try:
-        # Get user from WebSocket (you'll need to implement token validation)
-        await websocket.accept()
+        # Get and validate token from query parameters
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing authentication token")
+            return
         
-        # For now, expect user_id in query params (in production, validate JWT token)
-        user_id = websocket.query_params.get("user_id")
-        if not user_id:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        # Validate JWT token
+        try:
+            from .auth import verify_token
+            token_data = verify_token(token)
+            user_id = token_data.user_id
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication token")
             return
         
         await manager.connect(websocket, user_id)
@@ -278,6 +292,7 @@ async def websocket_endpoint(websocket: WebSocket):
         pubsub.subscribe(f"user:{user_id}:messages")
         
         try:
+            heartbeat_counter = 0
             while True:
                 # Check for new messages from Redis
                 message = pubsub.get_message(timeout=1.0)
@@ -285,8 +300,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Forward Redis message to WebSocket
                     await websocket.send_text(message['data'].decode('utf-8'))
                 
-                # Keep connection alive and extend online status
-                chat_manager.extend_user_online(user_id)
+                # Send heartbeat every 30 seconds and extend online status
+                heartbeat_counter += 1
+                if heartbeat_counter >= 30:  # 30 seconds (1 sec timeout * 30)
+                    chat_manager.extend_user_online(user_id)
+                    heartbeat_counter = 0
+                    
+                    # Send heartbeat ping to keep connection alive
+                    try:
+                        await websocket.send_json({"type": "heartbeat", "timestamp": datetime.now().isoformat()})
+                    except Exception:
+                        # Connection is dead, break out
+                        break
                 
         except WebSocketDisconnect:
             pass

@@ -167,14 +167,18 @@ class ProblemQueueManager:
             pass
         return None
     
-    def complete_job(self, job_id: str, result: Dict[str, Any], success: bool = True) -> None:
+    def complete_job(self, job_id: str, result: Dict[str, Any], user_id: str, success: bool = True) -> None:
         """Mark job as complete and store result"""
-        # Store result with TTL
+        # Store result with TTL - flatten the structure for consistent access
         result_data = {
             "job_id": job_id,
+            "user_id": user_id,  # Include user_id for authorization checks
             "completed_at": datetime.now().isoformat(),
             "success": success,
-            "result": result
+            "result": result.get("result"),  # The actual query results
+            "execution_time_ms": result.get("execution_time_ms"),
+            "rows_returned": result.get("rows_returned"),
+            "error_message": result.get("error_message")
         }
         
         # Cache result for 5 minutes
@@ -202,7 +206,11 @@ class ProblemQueueManager:
         # Check if completed (in results)
         result = self.get_job_result(job_id)
         if result:
-            return {"status": "completed", "completed_at": result["completed_at"]}
+            return {
+                "status": "completed", 
+                "completed_at": result["completed_at"],
+                "user_id": result.get("user_id")  # Include user_id for authorization
+            }
         
         return None
 
