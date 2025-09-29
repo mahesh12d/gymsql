@@ -68,6 +68,7 @@ class MessagePersistenceService:
         Persist a single message from Redis to PostgreSQL
         Returns True if successful, False otherwise
         """
+        session = None
         try:
             session = SessionLocal()
             
@@ -81,7 +82,6 @@ class MessagePersistenceService:
             # Check if message already exists (prevent duplicates)
             existing = session.get(Message, message_data["id"])
             if existing:
-                session.close()
                 return True
                 
             # Create message in PostgreSQL
@@ -98,17 +98,18 @@ class MessagePersistenceService:
             
             session.add(message)
             session.commit()
-            session.close()
             
             logger.debug(f"Persisted message {message_data['id']} to PostgreSQL")
             return True
             
         except Exception as e:
             logger.error(f"Failed to persist message to PostgreSQL: {e}")
-            if 'session' in locals():
+            if session:
                 session.rollback()
-                session.close()
             return False
+        finally:
+            if session:
+                session.close()
     
     async def sync_conversation_messages(self, conversation_id: str) -> int:
         """
@@ -175,6 +176,7 @@ class MessagePersistenceService:
         """
         Get messages from PostgreSQL for fallback when Redis is unavailable
         """
+        session = None
         try:
             session = SessionLocal()
             
@@ -192,7 +194,6 @@ class MessagePersistenceService:
             
             result = session.execute(query)
             messages = result.scalars().all()
-            session.close()
             
             # Convert to format compatible with Redis messages
             message_list = []
@@ -211,6 +212,9 @@ class MessagePersistenceService:
         except Exception as e:
             logger.error(f"Failed to get persistent messages: {e}")
             return []
+        finally:
+            if session:
+                session.close()
     
     async def cleanup_old_redis_messages(self, max_age_hours: int = 24) -> int:
         """
@@ -260,32 +264,34 @@ async def enhanced_add_message(sender_id: str, receiver_id: str, content: str) -
     """
     Enhanced message adding that persists to both Redis and PostgreSQL
     """
+    # Create message data
+    message_data = {
+        "id": str(uuid.uuid4()),
+        "conversation_id": f"{min(sender_id, receiver_id)}_{max(sender_id, receiver_id)}",
+        "sender_id": sender_id,
+        "receiver_id": receiver_id,
+        "content": content,
+        "timestamp": datetime.now().isoformat()
+    }
+    
     try:
-        # Add to Redis (for speed and real-time features)
-        message_data = chat_manager.add_message(sender_id, receiver_id, content)
+        # Try Redis first (for speed and real-time features)
+        redis_message = chat_manager.add_message(sender_id, receiver_id, content)
+        message_data = redis_message  # Use Redis message if successful
         
-        # Persist to PostgreSQL (for durability)
+        # Also persist to PostgreSQL (for durability)
         asyncio.create_task(message_persistence.persist_message_to_postgres(message_data))
         
         return message_data
         
     except Exception as e:
-        logger.error(f"Failed to add message: {e}")
-        # Fallback: try to save directly to PostgreSQL if Redis fails
-        message_data = {
-            "id": str(uuid.uuid4()),
-            "conversation_id": f"{min(sender_id, receiver_id)}_{max(sender_id, receiver_id)}",
-            "sender_id": sender_id,
-            "receiver_id": receiver_id,
-            "content": content,
-            "timestamp": datetime.now().isoformat()
-        }
-        
+        logger.error(f"Redis failed, using PostgreSQL only: {e}")
+        # Fallback: save directly to PostgreSQL if Redis fails
         success = await message_persistence.persist_message_to_postgres(message_data)
         if success:
             return message_data
         else:
-            raise e
+            raise Exception(f"Both Redis and PostgreSQL failed: {e}")
 
 async def enhanced_get_messages(user1_id: str, user2_id: str, limit: int = 50) -> List[Dict[str, Any]]:
     """
@@ -312,6 +318,6 @@ async def enhanced_get_messages(user1_id: str, user2_id: str, limit: int = 50) -
         return messages
         
     except Exception as e:
-        logger.error(f"Failed to get messages from Redis, falling back to PostgreSQL: {e}")
+        logger.error(f"Redis failed, using PostgreSQL only: {e}")
         # Fallback to PostgreSQL only
         return await message_persistence.get_persistent_messages(user1_id, user2_id, limit)
