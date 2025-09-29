@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Dumbbell, User, LogOut } from 'lucide-react';
+import { Dumbbell, User, LogOut, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,7 +10,11 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-export default function Navbar() {
+interface NavbarProps {
+  onToggleChat?: () => void;
+}
+
+export default function Navbar({ onToggleChat }: NavbarProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
@@ -55,6 +59,19 @@ export default function Navbar() {
           </div>
           
           <div className="flex items-center space-x-3">
+            {/* Chat Toggle Button */}
+            {onToggleChat && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleChat}
+                className="relative"
+                data-testid="button-toggle-chat"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </Button>
+            )}
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full" data-testid="button-profile">
