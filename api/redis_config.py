@@ -1,5 +1,6 @@
 """
 Redis configuration and connection setup for messaging and problem queue
+Falls back to in-memory storage when Redis is unavailable (Replit compatibility)
 """
 import os
 import json
@@ -14,32 +15,58 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # Create Redis connection pools for different use cases
 class RedisConfig:
     def __init__(self):
-        # Main Redis connection for general operations
-        self.redis_client = redis.from_url(
-            REDIS_URL,
-            decode_responses=True,
-            retry_on_timeout=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            health_check_interval=30
-        )
+        self._use_fallback = False
         
-        # Separate connection for pub/sub (doesn't decode responses for better performance)
-        self.pubsub_client = redis.from_url(
-            REDIS_URL,
-            decode_responses=False,
-            retry_on_timeout=True,
-            socket_connect_timeout=5,
-            socket_timeout=5
-        )
+        try:
+            # Attempt to create Redis connections
+            self.redis_client = redis.from_url(
+                REDIS_URL,
+                decode_responses=True,
+                retry_on_timeout=True,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+                health_check_interval=30
+            )
+            
+            # Separate connection for pub/sub (doesn't decode responses for better performance)
+            self.pubsub_client = redis.from_url(
+                REDIS_URL,
+                decode_responses=False,
+                retry_on_timeout=True,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+            
+            # Test the connection immediately
+            self.redis_client.ping()
+            print("✅ Redis connection successful")
+            
+        except (redis.ConnectionError, redis.RedisError, OSError) as e:
+            # Redis is not available, use fallback
+            print(f"⚠️  Redis unavailable ({e}), switching to fallback mode")
+            self._use_fallback = True
+            
+            # Import and use fallback implementations
+            from .redis_fallback import FallbackRedisConfig
+            fallback_config = FallbackRedisConfig()
+            self.redis_client = fallback_config.redis_client
+            self.pubsub_client = fallback_config.pubsub_client
     
     def test_connection(self) -> bool:
         """Test Redis connection"""
         try:
-            self.redis_client.ping()
-            return True
-        except redis.ConnectionError:
+            if self._use_fallback:
+                print("🔄 Using Redis fallback mode")
+                return True
+            else:
+                self.redis_client.ping()
+                return True
+        except (redis.ConnectionError, redis.RedisError):
             return False
+    
+    def is_fallback_mode(self) -> bool:
+        """Check if running in fallback mode"""
+        return self._use_fallback
 
 # Global Redis instance
 redis_config = RedisConfig()
@@ -214,21 +241,31 @@ class ProblemQueueManager:
         
         return None
 
-# Global managers
-chat_manager = ChatRedisManager(redis_config.redis_client)
-queue_manager = ProblemQueueManager(redis_config.redis_client)
+# Global managers - use fallback implementations when Redis is unavailable
+if redis_config.is_fallback_mode():
+    from .redis_fallback import (
+        FallbackChatRedisManager, 
+        FallbackProblemQueueManager, 
+        FallbackMessagePublisher
+    )
+    chat_manager = FallbackChatRedisManager(redis_config.redis_client)
+    queue_manager = FallbackProblemQueueManager(redis_config.redis_client)
+    message_publisher = FallbackMessagePublisher(redis_config.redis_client)
+    print("🔄 Using Redis fallback managers")
+else:
+    chat_manager = ChatRedisManager(redis_config.redis_client)
+    queue_manager = ProblemQueueManager(redis_config.redis_client)
+    # Pub/Sub for real-time messaging
+    class MessagePublisher:
+        """Handle real-time message publishing"""
+        
+        def __init__(self, redis_client: redis.Redis):
+            self.redis = redis_client
+        
+        def publish_message(self, receiver_id: str, message_data: Dict[str, Any]) -> None:
+            """Publish message to user's channel"""
+            channel = f"user:{receiver_id}:messages"
+            self.redis.publish(channel, json.dumps(message_data))
 
-# Pub/Sub for real-time messaging
-class MessagePublisher:
-    """Handle real-time message publishing"""
-    
-    def __init__(self, redis_client: redis.Redis):
-        self.redis = redis_client
-    
-    def publish_message(self, receiver_id: str, message_data: Dict[str, Any]) -> None:
-        """Publish message to user's channel"""
-        channel = f"user:{receiver_id}:messages"
-        self.redis.publish(channel, json.dumps(message_data))
-
-# Global publisher
-message_publisher = MessagePublisher(redis_config.redis_client)
+    message_publisher = MessagePublisher(redis_config.redis_client)
+    print("✅ Using Redis managers")
