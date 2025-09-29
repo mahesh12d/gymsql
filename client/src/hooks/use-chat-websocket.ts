@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface Message {
   id: string;
-  senderId: string;
-  receiverId: string;
+  sender_id: string;
+  receiver_id: string;
   content: string;
   timestamp: string;
-  senderUsername?: string;
+  sender_username?: string;
 }
 
 interface SendMessageData {
@@ -61,11 +61,11 @@ export function useChatWebSocket(
           if (data.type === 'message' || data.id) {
             const newMessage: Message = {
               id: data.id || `${Date.now()}-${Math.random()}`,
-              senderId: data.sender_id || data.senderId,
-              receiverId: data.receiver_id || data.receiverId,
+              sender_id: data.sender_id || data.senderId,
+              receiver_id: data.receiver_id || data.receiverId,
               content: data.content,
               timestamp: data.timestamp || new Date().toISOString(),
-              senderUsername: data.sender_username || data.senderUsername,
+              sender_username: data.sender_username || data.senderUsername,
             };
 
             setMessages((prev) => {

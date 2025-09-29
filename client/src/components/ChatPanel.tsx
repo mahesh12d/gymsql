@@ -21,11 +21,11 @@ interface User {
 
 interface Message {
   id: string;
-  senderId: string;
-  receiverId: string;
+  sender_id: string;
+  receiver_id: string;
   content: string;
   timestamp: string;
-  senderUsername?: string;
+  sender_username?: string;
 }
 
 interface ChatPanelProps {
@@ -105,7 +105,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
     try {
       await sendMessageApi({
-        receiverId: selectedUser.id,
+        receiver_id: selectedUser.id,
         content: messageInput.trim(),
       });
       setMessageInput('');
@@ -138,8 +138,8 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const allMessages = selectedUser 
     ? (() => {
         const realtimeMessages = messages.filter(msg => 
-          (msg.senderId === currentUser?.id && msg.receiverId === selectedUser.id) ||
-          (msg.senderId === selectedUser.id && msg.receiverId === currentUser?.id)
+          (msg.sender_id === currentUser?.id && msg.receiver_id === selectedUser.id) ||
+          (msg.sender_id === selectedUser.id && msg.receiver_id === currentUser?.id)
         );
         
         // Create a map to deduplicate by message ID

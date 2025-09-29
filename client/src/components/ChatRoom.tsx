@@ -134,9 +134,9 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
             ) : (
               <div className="space-y-3">
                 {messages.map((msg) => {
-                  const isOwnMessage = msg.senderId === currentUser?.id;
-                  const senderName = isOwnMessage ? "You" : (msg.senderUsername || "Unknown");
-                  const senderInitial = isOwnMessage ? "Y" : (msg.senderUsername?.charAt(0) || "U");
+                  const isOwnMessage = msg.sender_id === currentUser?.id;
+                  const senderName = isOwnMessage ? "You" : (msg.sender_username || "Unknown");
+                  const senderInitial = isOwnMessage ? "Y" : (msg.sender_username?.charAt(0) || "U");
                   
                   return (
                     <div key={msg.id} className={`flex items-start space-x-3 ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''}`} data-testid={`message-${msg.id}`}>
