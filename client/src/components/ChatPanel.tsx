@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Send, X, MessageCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,9 +38,11 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { searchUsers, users, isSearching } = useChatApi();
+  const { searchUsers, users, isSearching, getChatHistory } = useChatApi();
   const { 
     messages, 
     isConnected, 
@@ -65,12 +67,38 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     return () => disconnect();
   }, [isOpen, currentUser?.id, token, connect, disconnect]);
 
-  // Search users when query changes
+  // Debounced search users when query changes
   useEffect(() => {
-    if (searchQuery.trim()) {
-      searchUsers(searchQuery.trim());
+    if (!searchQuery.trim()) {
+      return;
     }
+
+    const timeoutId = setTimeout(() => {
+      searchUsers(searchQuery.trim());
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [searchQuery, searchUsers]);
+
+  // Load chat history when user is selected
+  useEffect(() => {
+    if (selectedUser && currentUser) {
+      setIsLoadingHistory(true);
+      getChatHistory(selectedUser.id)
+        .then((history) => {
+          setChatHistory(history);
+        })
+        .catch((error) => {
+          console.error('Error loading chat history:', error);
+          setChatHistory([]);
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      setChatHistory([]);
+    }
+  }, [selectedUser, currentUser, getChatHistory]);
 
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedUser || !currentUser) return;
@@ -90,11 +118,28 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     }
   };
 
-  const filteredMessages = selectedUser 
-    ? messages.filter(msg => 
-        (msg.senderId === currentUser?.id && msg.receiverId === selectedUser.id) ||
-        (msg.senderId === selectedUser.id && msg.receiverId === currentUser?.id)
-      )
+  // Combine chat history and real-time messages, deduplicating by ID
+  const allMessages = selectedUser 
+    ? (() => {
+        const realtimeMessages = messages.filter(msg => 
+          (msg.senderId === currentUser?.id && msg.receiverId === selectedUser.id) ||
+          (msg.senderId === selectedUser.id && msg.receiverId === currentUser?.id)
+        );
+        
+        // Create a map to deduplicate by message ID
+        const messageMap = new Map<string, Message>();
+        
+        // Add history messages first
+        chatHistory.forEach(msg => messageMap.set(msg.id, msg));
+        
+        // Add real-time messages (will overwrite duplicates)
+        realtimeMessages.forEach(msg => messageMap.set(msg.id, msg));
+        
+        // Convert back to array and sort by timestamp
+        return Array.from(messageMap.values()).sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+      })()
     : [];
 
   if (!isOpen) return null;
@@ -142,7 +187,10 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                   <div
                     key={user.id}
                     className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                    onClick={() => setSelectedUser(user)}
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setChatHistory([]); // Clear previous chat history
+                    }}
                     data-testid={`user-item-${user.id}`}
                   >
                     <Avatar className="w-8 h-8">
@@ -207,12 +255,16 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
-              {filteredMessages.length === 0 ? (
+              {isLoadingHistory ? (
+                <div className="text-center text-sm text-muted-foreground p-4">
+                  Loading chat history...
+                </div>
+              ) : allMessages.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground">
                   No messages yet. Start the conversation!
                 </div>
               ) : (
-                filteredMessages.map((message) => {
+                allMessages.map((message) => {
                   const isOwnMessage = message.senderId === currentUser?.id;
                   return (
                     <div

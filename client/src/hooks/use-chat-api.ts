@@ -50,7 +50,7 @@ export function useChatApi(): UseChatApiReturn {
     setSearchQuery(query);
 
     try {
-      const response = await apiRequest('GET', `/users/search?q=${encodeURIComponent(query)}`);
+      const response = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(query)}`);
       const userData = await response.json();
       setUsers(userData || []);
     } catch (error) {
@@ -64,7 +64,7 @@ export function useChatApi(): UseChatApiReturn {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: SendMessageRequest) => {
-      const response = await apiRequest('POST', '/chat/send', data);
+      const response = await apiRequest('POST', '/api/chat/send', data);
       return response.json();
     },
     onSuccess: () => {
@@ -79,7 +79,7 @@ export function useChatApi(): UseChatApiReturn {
   // Get chat history function
   const getChatHistory = useCallback(async (userId: string): Promise<Message[]> => {
     try {
-      const response = await apiRequest('GET', `/chat/history/${userId}`);
+      const response = await apiRequest('GET', `/api/chat/history/${userId}`);
       const historyData = await response.json();
       return historyData.messages || [];
     } catch (error) {

@@ -37,8 +37,8 @@ def search_users(
         User.id != current_user.id,  # Exclude current user
         or_(
             User.username.ilike(f"%{search_query}%"),
-            User.firstName.ilike(f"%{search_query}%") if search_query else False,
-            User.lastName.ilike(f"%{search_query}%") if search_query else False
+            User.first_name.ilike(f"%{search_query}%") if search_query else False,
+            User.last_name.ilike(f"%{search_query}%") if search_query else False
         )
     ).limit(limit).all()
     
@@ -48,9 +48,9 @@ def search_users(
         user_responses.append(UserSearchResponse(
             id=user.id,
             username=user.username,
-            firstName=user.firstName,
-            lastName=user.lastName,
-            profileImageUrl=user.profileImageUrl,
+            firstName=user.first_name,
+            lastName=user.last_name,
+            profileImageUrl=user.profile_image_url,
             isOnline=False  # TODO: Integrate with Redis presence system
         ))
     
@@ -74,8 +74,8 @@ def get_user_profile(
     return UserSearchResponse(
         id=user.id,
         username=user.username,
-        firstName=user.firstName,
-        lastName=user.lastName,
-        profileImageUrl=user.profileImageUrl,
+        firstName=user.first_name,
+        lastName=user.last_name,
+        profileImageUrl=user.profile_image_url,
         isOnline=False  # TODO: Integrate with Redis presence system
     )
