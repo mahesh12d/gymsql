@@ -10,17 +10,6 @@ import { useChatApi } from '@/hooks/use-chat-api';
 import { ChatRoom } from '@/components/ChatRoom';
 import { formatDistanceToNow } from 'date-fns';
 
-// Company logo imports
-import airbnbLogo from '@assets/logos/airbnb.svg';
-import amazonLogo from '@assets/logos/amazon.svg';
-import appleLogo from '@assets/logos/apple.svg';
-import googleLogo from '@assets/logos/google.svg';
-import mcdonaldLogo from '@assets/logos/mcdonald.svg';
-import metaLogo from '@assets/logos/meta.svg';
-import microsoftLogo from '@assets/logos/microsoft.svg';
-import netflixLogo from '@assets/logos/netflix.svg';
-import snapchatLogo from '@assets/logos/snapchat.svg';
-import stripeLogo from '@assets/logos/stripe.svg';
 
 interface Conversation {
   conversation_id: string;
@@ -28,24 +17,8 @@ interface Conversation {
   other_user_username: string;
   last_message: string;
   last_message_timestamp: string;
-  is_other_user_online: boolean;
   unread_count?: number;
 }
-
-// Company logo mapping for users
-const companyLogos = [
-  airbnbLogo, amazonLogo, appleLogo, googleLogo, mcdonaldLogo,
-  metaLogo, microsoftLogo, netflixLogo, snapchatLogo, stripeLogo
-];
-
-// Function to get consistent logo for a user based on their ID
-const getUserLogo = (userId: string): string => {
-  const hash = userId.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0);
-    return a & a;
-  }, 0);
-  return companyLogos[Math.abs(hash) % companyLogos.length];
-};
 
 // Function to check if message is recent (within last hour)
 const isRecentMessage = (timestamp: string): boolean => {
@@ -163,21 +136,11 @@ export function RecentChats({ className }: RecentChatsProps) {
                     data-testid={`conversation-${conversation.other_user_id}`}
                   >
                     <div className="relative">
-                      <Avatar className="w-12 h-12 ring-2 ring-background hover:ring-primary/20 transition-all">
-                        <AvatarImage 
-                          src={getUserLogo(conversation.other_user_id)} 
-                          alt={conversation.other_user_username}
-                          className="object-contain p-1"
-                        />
+                      <Avatar className="w-10 h-10">
                         <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary font-semibold">
                           {conversation.other_user_username.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      
-                      {/* Online status indicator */}
-                      {conversation.is_other_user_online && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full ring-2 ring-background animate-pulse" />
-                      )}
                       
                       {/* New message notification dot */}
                       {(isRecentMessage(conversation.last_message_timestamp) || hasNewMessages.has(conversation.other_user_id)) && (
@@ -211,13 +174,6 @@ export function RecentChats({ className }: RecentChatsProps) {
 
                     {/* Status indicators */}
                     <div className="flex flex-col items-end space-y-1">
-                      {conversation.is_other_user_online && (
-                        <Badge variant="outline" className="text-xs px-2 py-0.5 bg-green-50 border-green-200 text-green-700">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse" />
-                          Online
-                        </Badge>
-                      )}
-                      
                       {(isRecentMessage(conversation.last_message_timestamp) || hasNewMessages.has(conversation.other_user_id)) && (
                         <Badge className="text-xs px-2 py-0.5 bg-yellow-500 hover:bg-yellow-600 text-white font-bold">
                           <Bell className="w-2.5 h-2.5 mr-1" />
