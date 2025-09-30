@@ -67,12 +67,10 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 - **Workflow**: `npm run dev` runs both frontend and backend concurrently
 - **Host Configuration**: Vite configured with `allowedHosts: true` for Replit proxy compatibility
 
-### Redis Fallback Mode
-Redis is not available in the default Replit environment, so the application automatically uses a fallback mode:
-- Chat messages are stored in PostgreSQL instead of Redis
-- Real-time updates via WebSocket are disabled (chat still works with polling)
-- Problem queue uses database instead of Redis
-- All functionality remains available, just without real-time pub/sub features
+### Architecture Notes
+- Chat functionality has been removed to reduce overhead
+- The application uses PostgreSQL for all data persistence
+- All SQL query processing is handled synchronously through the secure executor
 
 ### Production Deployment (Autoscale)
 - **Build**: `npm run build` compiles frontend to `dist/public`
@@ -91,5 +89,19 @@ Redis is not available in the default Replit environment, so the application aut
 - `vite.config.ts`: Frontend build and dev server configuration
 - `api/main.py`: FastAPI application entry point
 - `api/database.py`: Database connection and pool configuration
-- `api/redis_config.py`: Redis configuration with fallback implementation
+- `api/secure_execution.py`: Secure SQL query execution system
 - `scripts/dev_backend.cjs`: Development backend startup script
+
+## Recent Changes (September 30, 2025)
+### Removed Components
+- **Chat System**: Removed user-to-user messaging, chat components, and related database tables (Conversation, Message)
+- **Redis**: Removed Redis dependency and all Redis-backed functionality
+- **WebSocket**: Removed WebSocket connections previously used for real-time chat
+- **Background Sync**: Removed Redis-to-PostgreSQL sync service
+- **Problem Queue**: Removed Redis-based job queue; all processing is now synchronous
+
+### Impact
+- Reduced system complexity and overhead
+- Simplified deployment requirements
+- All data now persists directly to PostgreSQL
+- Frontend chat components removed: ChatPanel, ChatRoom, CommunityChatBox, RecentChats
