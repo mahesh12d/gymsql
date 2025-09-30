@@ -449,56 +449,7 @@ class Solution(Base):
         Index('idx_solutions_created_at', 'created_at'),
     )
 
-# Redis-backed Models for Chat and Problem Queue
-
-class Conversation(Base):
-    """Conversations between users for chat system"""
-    __tablename__ = "conversations"
-    
-    id = Column(String, primary_key=True)  # Format: user1_id_user2_id (sorted)
-    user1_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    user2_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    
-    # Relationships
-    user1 = relationship("User", foreign_keys=[user1_id])
-    user2 = relationship("User", foreign_keys=[user2_id])
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", foreign_keys="Message.conversation_id")
-    
-    # Indexes for performance
-    __table_args__ = (
-        Index('idx_conversations_user1', 'user1_id'),
-        Index('idx_conversations_user2', 'user2_id'),
-        Index('idx_conversations_users', 'user1_id', 'user2_id'),
-    )
-
-class Message(Base):
-    """Messages for user chat system (persisted from Redis to Postgres)"""
-    __tablename__ = "messages"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    conversation_id = Column(String, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    receiver_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    content = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=func.now(), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    
-    # Relationships
-    conversation = relationship("Conversation", back_populates="messages")
-    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
-    receiver = relationship("User", foreign_keys=[receiver_id], backref="received_messages")
-    
-    # Indexes for performance
-    __table_args__ = (
-        Index('idx_messages_conversation_id', 'conversation_id'),
-        Index('idx_messages_sender_id', 'sender_id'),
-        Index('idx_messages_receiver_id', 'receiver_id'),
-        Index('idx_messages_timestamp', 'timestamp'),
-        Index('idx_messages_conversation_timestamp', 'conversation_id', 'timestamp'),
-    )
+# Redis-backed Models for Problem Queue
 
 class ProblemSubmissionQueue(Base):
     """Problem submissions for job queue processing (persisted from Redis)"""
