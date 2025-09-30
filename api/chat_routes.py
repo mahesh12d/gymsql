@@ -94,6 +94,7 @@ def persist_message_to_db(message_data: Dict[str, Any]):
 @chat_router.post("/send", response_model=MessageResponse)
 async def send_message(
     request: SendMessageRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -113,10 +114,7 @@ async def send_message(
         chat_manager.set_user_online(current_user.id)
         
         # Background task: persist to PostgreSQL (fire-and-forget, no waiting)
-        async def persist_background():
-            await message_persistence.persist_message_to_postgres(redis_message)
-        
-        asyncio.create_task(persist_background())
+        background_tasks.add_task(persist_message_to_db, redis_message)
         
         # Return immediately with Redis data (don't wait for database)
         return MessageResponse(
