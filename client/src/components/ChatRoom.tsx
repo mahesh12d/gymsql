@@ -46,9 +46,20 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
     }
   }, [isOpen, room?.userId, currentUser?.id]);
 
-  // Update messages from WebSocket
+  // Merge WebSocket messages with existing chat history (don't replace)
   useEffect(() => {
-    setMessages(wsMessages);
+    if (wsMessages.length > 0) {
+      setMessages((prev) => {
+        // Create a map of existing message IDs
+        const existingIds = new Set(prev.map(msg => msg.id));
+        // Add only new messages from WebSocket
+        const newMessages = wsMessages.filter(msg => !existingIds.has(msg.id));
+        if (newMessages.length > 0) {
+          return [...prev, ...newMessages];
+        }
+        return prev;
+      });
+    }
   }, [wsMessages]);
 
   const loadChatHistory = async () => {
@@ -70,17 +81,38 @@ export function ChatRoom({ isOpen, onClose, room }: ChatRoomProps) {
   const handleSendMessage = async () => {
     if (!message.trim() || !room?.userId || !currentUser) return;
 
+    const messageContent = message.trim();
+    const tempId = `temp-${Date.now()}`;
+    
+    // Optimistically add message to UI immediately
+    const optimisticMessage = {
+      id: tempId,
+      sender_id: currentUser.id,
+      receiver_id: room.userId,
+      content: messageContent,
+      timestamp: new Date().toISOString(),
+      sender_username: currentUser.username,
+    };
+    
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessage("");
+
     try {
+      // Send via API - Redis pub/sub will deliver it back through WebSocket
       await sendMessageApi({
         receiver_id: room.userId,
-        content: message.trim()
+        content: messageContent
       });
       
-      setMessage("");
+      // Message will be received via WebSocket with real ID
+      // Remove temp message after a delay to allow WebSocket to deliver the real one
+      setTimeout(() => {
+        setMessages((prev) => prev.filter(msg => msg.id !== tempId));
+      }, 2000);
       
-      // Refresh chat history to show the sent message
-      await loadChatHistory();
     } catch (error) {
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter(msg => msg.id !== tempId));
       console.error("Error sending message:", error);
       toast({
         title: "Error", 
