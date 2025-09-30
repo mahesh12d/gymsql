@@ -12,10 +12,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfilePopover } from '@/components/UserProfilePopover';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostCodeSnippet, setNewPostCodeSnippet] = useState('');
+  const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [selectedPostComments, setSelectedPostComments] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
@@ -34,6 +37,7 @@ export default function Community() {
     onSuccess: () => {
       setNewPostContent('');
       setNewPostCodeSnippet('');
+      setShowCodeSnippet(false);
       queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
       toast({
         title: 'Success!',
@@ -195,62 +199,57 @@ export default function Community() {
             {user && (
               <Card className="border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background via-background to-primary/5">
                 <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <Avatar className="w-12 h-12 ring-2 ring-primary/30 shadow-md">
-                      <AvatarImage src={user.profileImageUrl} alt={user.username} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-bold">
-                        {user.username?.charAt(0).toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
+                  <div className="w-full">
+                    <Textarea
+                      placeholder="Share your SQL journey, tips, or celebrate your achievements..."
+                      value={newPostContent}
+                      onChange={(e) => setNewPostContent(e.target.value)}
+                      rows={3}
+                      className="resize-none mb-3 border-2 focus:border-primary/50 transition-colors"
+                      data-testid="textarea-new-post"
+                    />
+                    
+                    {/* Code Snippet Input */}
+                    {showCodeSnippet && (
                       <Textarea
-                        placeholder="Share your SQL journey, tips, or celebrate your achievements..."
-                        value={newPostContent}
-                        onChange={(e) => setNewPostContent(e.target.value)}
-                        rows={3}
-                        className="resize-none mb-3 border-2 focus:border-primary/50 transition-colors"
-                        data-testid="textarea-new-post"
-                      />
-                      
-                      {/* Code Snippet Input */}
-                      <details className="mb-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-                          Add code snippet (optional)
-                        </summary>
-                        <Textarea
-                          placeholder="-- Add your SQL code here
+                        placeholder="-- Add your SQL code here
 SELECT column1, column2
 FROM table_name
 WHERE condition;"
-                          value={newPostCodeSnippet}
-                          onChange={(e) => setNewPostCodeSnippet(e.target.value)}
-                          rows={4}
-                          className="mt-2 font-mono text-sm resize-none"
-                          data-testid="textarea-code-snippet"
-                        />
-                      </details>
-                      
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-3">
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-                            <Image className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-                            <Code className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-                            <Trophy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <Button
-                          onClick={handleCreatePost}
-                          disabled={!newPostContent.trim() || createPostMutation.isPending}
-                          className="dumbbell-btn bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                          data-testid="button-share-post"
+                        value={newPostCodeSnippet}
+                        onChange={(e) => setNewPostCodeSnippet(e.target.value)}
+                        rows={4}
+                        className="mb-3 font-mono text-sm resize-none border-2 focus:border-primary/50 transition-colors"
+                        data-testid="textarea-code-snippet"
+                      />
+                    )}
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-3">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" data-testid="button-image">
+                          <Image className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className={`${showCodeSnippet ? 'text-primary bg-primary/10' : 'text-muted-foreground'} hover:text-primary`}
+                          onClick={() => setShowCodeSnippet(!showCodeSnippet)}
+                          data-testid="button-code"
                         >
-                          {createPostMutation.isPending ? 'Sharing...' : 'Share'}
+                          <Code className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" data-testid="button-trophy">
+                          <Trophy className="w-4 h-4" />
                         </Button>
                       </div>
+                      <Button
+                        onClick={handleCreatePost}
+                        disabled={!newPostContent.trim() || createPostMutation.isPending}
+                        className="dumbbell-btn bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                        data-testid="button-share-post"
+                      >
+                        {createPostMutation.isPending ? 'Sharing...' : 'Share'}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -384,10 +383,18 @@ WHERE condition;"
                           
                           {/* Code Snippet */}
                           {post.codeSnippet && (
-                            <div className="bg-gradient-to-br from-muted/80 to-muted rounded-xl p-4 mb-4 overflow-x-auto border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200">
-                              <pre className="text-sm text-muted-foreground font-mono">
-                                <code data-testid={`code-snippet-${post.id}`}>{post.codeSnippet}</code>
-                              </pre>
+                            <div className="rounded-xl mb-4 overflow-hidden border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200" data-testid={`code-snippet-${post.id}`}>
+                              <SyntaxHighlighter 
+                                language="sql" 
+                                style={vscDarkPlus}
+                                customStyle={{
+                                  margin: 0,
+                                  borderRadius: '0.75rem',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                {post.codeSnippet}
+                              </SyntaxHighlighter>
                             </div>
                           )}
                           
