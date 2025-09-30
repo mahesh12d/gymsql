@@ -55,7 +55,7 @@ export function RecentChats({ className }: RecentChatsProps) {
       return response.json();
     },
     enabled: !!currentUser && !!token,
-    refetchInterval: 5000, // Refresh every 5 seconds for new messages
+    // Removed polling - WebSocket handles real-time updates via Redis pub/sub
   });
 
   const handleStartChat = (conversation: Conversation) => {

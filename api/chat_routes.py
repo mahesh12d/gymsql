@@ -97,33 +97,32 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Send a message to another user with dual Redis/PostgreSQL persistence"""
-    # Verify receiver exists
-    receiver = db.query(User).filter(User.id == request.receiver_id).first()
-    if not receiver:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Receiver not found"
-        )
-    
+    """Send a message instantly via Redis with background PostgreSQL persistence"""
     try:
-        # Use enhanced message adding with automatic persistence
-        message_data = await enhanced_add_message(
+        # Add to Redis immediately (fast, no database blocking)
+        redis_message = chat_manager.add_message(
             sender_id=current_user.id,
             receiver_id=request.receiver_id,
             content=request.content
         )
         
-        # Publish message for real-time delivery
-        message_publisher.publish_message(request.receiver_id, message_data)
+        # Publish message for real-time delivery via WebSocket
+        message_publisher.publish_message(request.receiver_id, redis_message)
         
-        # Update sender's online status
+        # Update sender's online status in Redis
         chat_manager.set_user_online(current_user.id)
         
+        # Background task: persist to PostgreSQL (fire-and-forget, no waiting)
+        async def persist_background():
+            await message_persistence.persist_message_to_postgres(redis_message)
+        
+        asyncio.create_task(persist_background())
+        
+        # Return immediately with Redis data (don't wait for database)
         return MessageResponse(
-            **message_data,
+            **redis_message,
             sender_username=current_user.username,
-            receiver_username=receiver.username
+            receiver_username=None  # Will be fetched by frontend if needed
         )
         
     except Exception as e:
