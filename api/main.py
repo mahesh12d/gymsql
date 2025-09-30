@@ -28,6 +28,8 @@ from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
 from .models import ProblemSubmissionQueue
+from .redis_service import redis_service
+import hashlib
 
 # Helper function for time tracking
 def track_first_query(user_id: str, problem_id: str, db: Session):
@@ -62,6 +64,8 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
     from datetime import datetime
     now = datetime.now()
     
+    is_first_solve = False
+    
     if not session:
         # Create new session for direct submissions (no prior testing)
         session = ProblemSession(
@@ -73,6 +77,7 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
         )
         db.add(session)
         db.commit()
+        is_first_solve = True
     elif session.completed_at is None:
         # Update existing session with completion
         session.completed_at = now
@@ -88,6 +93,15 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
         
         session.updated_at = func.now()
         db.commit()
+        is_first_solve = True
+    
+    # Increment Redis leaderboard on first solve
+    if is_first_solve:
+        # Get problem details for topic-based leaderboard
+        problem = db.query(Problem).filter(Problem.id == problem_id).first()
+        topic = problem.tags[0] if problem and problem.tags else None
+        
+        redis_service.increment_leaderboard(user_id, problem_id, score=1, topic=topic)
 
 # Create FastAPI app
 app = FastAPI(title="SQLGym API",
@@ -227,6 +241,56 @@ def initialize_database(current_user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database initialization failed: {str(e)}"
+        )
+
+
+# Redis leaderboard sync endpoint (admin-only)
+@app.post("/api/admin/sync-leaderboard")
+def sync_leaderboard(current_user: User = Depends(get_current_user), 
+                     db: Session = Depends(get_db)):
+    """Sync Redis leaderboard from PostgreSQL database (global + topics)"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    if not redis_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis service unavailable"
+        )
+    
+    try:
+        # Sync global leaderboard
+        users = db.query(User).filter(User.problems_solved > 0).all()
+        user_scores = [
+            {"user_id": str(user.id), "score": user.problems_solved}
+            for user in users
+        ]
+        redis_service.sync_leaderboard_from_db(user_scores)
+        
+        # Sync solved problems sets for idempotency
+        successful_submissions = db.query(Submission).filter(
+            Submission.is_correct == True
+        ).all()
+        
+        solved_data = [
+            {"user_id": str(sub.user_id), "problem_id": str(sub.problem_id)}
+            for sub in successful_submissions
+        ]
+        redis_service.sync_solved_sets(solved_data)
+        
+        return {
+            "success": True,
+            "message": f"Leaderboard synced: {len(user_scores)} users, {len(successful_submissions)} solved problems",
+            "users_synced": len(user_scores),
+            "solved_problems_synced": len(successful_submissions)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Leaderboard sync failed: {str(e)}"
         )
 
 
@@ -863,7 +927,7 @@ async def test_query(problem_id: str,
                      query_data: dict,
                      current_user: User = Depends(get_current_user),
                      db: Session = Depends(get_db)):
-    """Test query without submitting (practice mode)"""
+    """Test query without submitting (practice mode) - with Redis caching"""
     # Check if problem exists and is accessible
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
@@ -882,9 +946,23 @@ async def test_query(problem_id: str,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Query is required")
 
+    # Create cache key using query hash for exact match caching
+    query_hash = hashlib.md5(query.encode()).hexdigest()[:12]
+    cache_key = f"{current_user.id}:{problem_id}:{query_hash}"
+    
+    # Check Redis cache first (10 min TTL for test queries)
+    cached_result = redis_service.get_cached_result(cache_key, "query")
+    
+    if cached_result:
+        # Return cached result immediately
+        print(f"✅ Cache HIT for query hash {query_hash}")
+        return cached_result
+
     # Track first query time for recommendation system
     track_first_query(current_user.id, problem_id, db)
 
+    # Cache MISS - execute query
+    print(f"⚠️  Cache MISS - executing query")
     result = await secure_executor.test_query(current_user.id, problem_id,
                                               query, db, include_hidden)
 
@@ -903,6 +981,15 @@ async def test_query(problem_id: str,
         "test_results": result.get('test_results', []),
         "error": result.get('error')
     }
+    
+    # Cache successful test results (10 minutes TTL)
+    if result['success']:
+        redis_service.cache_result(
+            cache_key,
+            "query",
+            response_data,
+            ttl_seconds=600
+        )
     
     # Sanitize result to prevent JSON serialization errors
     from .secure_execution import sanitize_json_data
@@ -1130,16 +1217,112 @@ def get_official_solution(problem_id: str, db: Session = Depends(get_db)):
     return SolutionResponse.from_orm(solution)
 
 
-# Leaderboard endpoint
+# Leaderboard endpoints (Redis-powered for high performance)
 @app.get("/api/leaderboard",
          response_model=List[UserResponse],
          response_model_by_alias=True)
 def get_leaderboard(limit: Optional[int] = Query(50),
                     db: Session = Depends(get_db)):
+    """Get global leaderboard - uses Redis sorted sets for O(log N) performance"""
+    
+    # Try Redis first (fast path)
+    if redis_service.is_available():
+        redis_leaderboard = redis_service.get_global_leaderboard(limit=limit)
+        
+        if redis_leaderboard:
+            # Fetch user details from database
+            user_ids = [entry["user_id"] for entry in redis_leaderboard]
+            users = db.query(User).filter(User.id.in_(user_ids)).all()
+            
+            # Create user lookup for ordering
+            user_map = {str(user.id): user for user in users}
+            
+            # Return ordered by Redis leaderboard
+            ordered_users = []
+            for entry in redis_leaderboard:
+                user_id = entry["user_id"]
+                if user_id in user_map:
+                    ordered_users.append(user_map[user_id])
+            
+            return [UserResponse.from_orm(user) for user in ordered_users]
+    
+    # Fallback to PostgreSQL (if Redis unavailable)
     users = db.query(User).order_by(desc(
         User.problems_solved)).limit(limit).all()
 
     return [UserResponse.from_orm(user) for user in users]
+
+
+@app.get("/api/leaderboard/topic/{topic}")
+def get_topic_leaderboard(topic: str,
+                          limit: Optional[int] = Query(50),
+                          db: Session = Depends(get_db)):
+    """Get topic-specific leaderboard (e.g., 'joins', 'aggregation')"""
+    
+    if not redis_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Leaderboard service temporarily unavailable"
+        )
+    
+    redis_leaderboard = redis_service.get_topic_leaderboard(topic, limit=limit)
+    
+    if not redis_leaderboard:
+        return []
+    
+    # Fetch user details
+    user_ids = [entry["user_id"] for entry in redis_leaderboard]
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    
+    # Create user lookup
+    user_map = {str(user.id): user for user in users}
+    
+    # Return ordered users with scores
+    result = []
+    for entry in redis_leaderboard:
+        user_id = entry["user_id"]
+        if user_id in user_map:
+            user_data = UserResponse.from_orm(user_map[user_id]).dict()
+            user_data["leaderboard_score"] = entry["score"]
+            result.append(user_data)
+    
+    return result
+
+
+@app.get("/api/leaderboard/user/{user_id}")
+def get_user_leaderboard_rank(user_id: str, db: Session = Depends(get_db)):
+    """Get user's rank and score on global and topic leaderboards"""
+    
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    if not redis_service.is_available():
+        # Fallback to database count
+        rank_data = db.query(func.count(User.id)).filter(
+            User.problems_solved > user.problems_solved
+        ).scalar()
+        return {
+            "global_rank": rank_data + 1 if rank_data else 1,
+            "global_score": user.problems_solved,
+            "topic_ranks": []
+        }
+    
+    # Get global rank from Redis
+    global_rank_data = redis_service.get_user_rank(user_id)
+    
+    # Get topic ranks (if user has solved problems in topics)
+    topic_ranks = []
+    # You could extend this to track which topics the user has solved
+    
+    return {
+        "user_id": user_id,
+        "username": user.username,
+        "global_rank": global_rank_data["rank"] if global_rank_data else None,
+        "global_score": global_rank_data["score"] if global_rank_data else 0,
+        "topic_ranks": topic_ranks
+    }
 
 
 # Community endpoints
