@@ -284,6 +284,24 @@ class SecureQueryExecutor:
                 execution_time=final_score['avg_execution_time'])
 
             db.add(submission)
+            db.flush()  # Get submission.id without committing
+            
+            # STEP 6.5: Create ExecutionResult records for each test case
+            for test_result in test_results:
+                execution_result = ExecutionResult(
+                    submission_id=submission.id,
+                    test_case_id=test_result.get('test_case_id'),
+                    is_correct=test_result.get('is_correct', False),
+                    execution_time_ms=test_result.get('execution_time_ms', 0),
+                    execution_status=test_result.get('execution_status', 'SUCCESS'),
+                    validation_details=test_result.get('validation_details', {}),
+                    user_output=test_result.get('user_output', []),
+                    expected_output=test_result.get('expected_output', []),
+                    output_matches=test_result.get('output_matches', False),
+                    feedback=test_result.get('feedback', [])
+                )
+                db.add(execution_result)
+            
             db.commit()
             db.refresh(submission)
 
@@ -497,10 +515,13 @@ class SecureQueryExecutor:
                 TestCase.problem_id == problem_id).order_by(
                     TestCase.order_index).all()
 
+            logger.info(f"Found {len(test_cases)} test cases for problem {problem_id}")
             if test_cases:
                 # Execute against test cases (optimized)
-                return await self._execute_test_cases_fast(
+                test_results = await self._execute_test_cases_fast(
                     sandbox, query, test_cases)
+                logger.info(f"Test execution complete. Results count: {len(test_results)}")
+                return test_results
 
             # Check if problem has solution validation requirements (use Neon database instead of S3)
             if hasattr(problem,
