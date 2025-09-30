@@ -9,12 +9,16 @@ import os
 import logging
 import re
 from typing import Dict, Any, List, Optional, Union
-from fastapi import HTTPException
 from urllib.parse import urlparse
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from .s3_service import s3_service
+
+try:
+    from fastapi import HTTPException
+except ImportError:
+    HTTPException = None
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +288,10 @@ class DuckDBSandbox:
             
         except Exception as e:
             logger.error(f"Failed to initialize DuckDB connection: {e}")
-            raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
+            if HTTPException:
+                raise HTTPException(status_code=500, detail="Failed to initialize sandbox environment")
+            else:
+                raise RuntimeError("Failed to initialize sandbox environment")
     
     async def setup_problem_data(self, problem_id: str, s3_datasets: Union[Dict[str, str], List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
