@@ -12,7 +12,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfilePopover } from '@/components/UserProfilePopover';
-import { CommunityChatBox } from '@/components/CommunityChatBox';
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
@@ -519,9 +518,6 @@ WHERE condition;"
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Community Chat */}
-            <CommunityChatBox />
-
             {/* Community Stats */}
             <Card>
               <CardHeader>

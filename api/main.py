@@ -28,7 +28,6 @@ from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
 from .models import ProblemSubmissionQueue
-from .problem_queue_routes import problem_queue_router
 
 # Helper function for time tracking
 def track_first_query(user_id: str, problem_id: str, db: Session):
@@ -149,7 +148,6 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
 # Include routers
 app.include_router(sandbox_router)
 app.include_router(admin_router)
-app.include_router(problem_queue_router)
 
 # Include additional routers
 from .user_routes import user_router
