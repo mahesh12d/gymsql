@@ -156,16 +156,23 @@ async def get_chat_history(
             limit
         )
         
-        # Add usernames to response
+        # Collect all unique user IDs from messages
+        user_ids = set()
+        for msg in all_messages:
+            user_ids.add(msg["sender_id"])
+            user_ids.add(msg["receiver_id"])
+        
+        # Fetch all users in one query
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        user_map = {user.id: user.username for user in users}
+        
+        # Add usernames to response using the map
         messages_with_usernames = []
         for msg in all_messages:
-            sender = db.query(User).filter(User.id == msg["sender_id"]).first()
-            receiver = db.query(User).filter(User.id == msg["receiver_id"]).first()
-            
             messages_with_usernames.append(MessageResponse(
                 **msg,
-                sender_username=sender.username if sender else "Unknown",
-                receiver_username=receiver.username if receiver else "Unknown"
+                sender_username=user_map.get(msg["sender_id"], "Unknown"),
+                receiver_username=user_map.get(msg["receiver_id"], "Unknown")
             ))
         
         # Update user's online status
