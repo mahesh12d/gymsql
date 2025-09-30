@@ -490,29 +490,6 @@ WHERE condition;"
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Community Stats */}
-            <Card className="border border-primary/20 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-primary/10">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary" />
-                  Community Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-primary/5 hover:from-primary/10 hover:to-primary/20 transition-all duration-200">
-                  <span className="text-muted-foreground font-medium">Total Posts</span>
-                  <span className="font-bold text-xl text-primary">{posts?.length || 0}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-green-500/5 hover:from-green-500/10 hover:to-green-500/20 transition-all duration-200">
-                  <span className="text-muted-foreground font-medium">Active Today</span>
-                  <span className="font-bold text-xl text-green-600">0</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-blue-500/5 hover:from-blue-500/10 hover:to-blue-500/20 transition-all duration-200">
-                  <span className="text-muted-foreground font-medium">Study Groups</span>
-                  <span className="font-bold text-xl text-blue-600">0</span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
