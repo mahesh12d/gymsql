@@ -30,12 +30,13 @@ def signal_handler(signum, frame):
     shutdown_requested = True
 
 
-async def process_job(job_data: dict) -> None:
+async def process_job(job_data: dict, job_json: str) -> None:
     """
     Process a single job from the queue
     
     Args:
         job_data: Job containing job_id, user_id, problem_id, sql
+        job_json: Original JSON string (needed for removing from processing list)
     """
     job_id = job_data.get('job_id')
     user_id = job_data.get('user_id')
@@ -62,6 +63,9 @@ async def process_job(job_data: dict) -> None:
         # Store result in Redis with 5-minute TTL
         redis_service.store_job_result(job_id, result, ttl_seconds=300)
         
+        # Remove job from processing list (job completed successfully)
+        redis_service.complete_job(job_json)
+        
         logger.info(f"Job {job_id} completed successfully. Correct: {result.get('is_correct', False)}")
         
     except Exception as e:
@@ -74,6 +78,9 @@ async def process_job(job_data: dict) -> None:
             'feedback': [f'Execution failed: {str(e)}']
         }
         redis_service.store_job_result(job_id, error_result, ttl_seconds=300)
+        
+        # Remove job from processing list (job failed but we handled it)
+        redis_service.complete_job(job_json)
         
     finally:
         db.close()
@@ -90,6 +97,15 @@ async def worker_loop():
         sys.exit(1)
     
     logger.info("🚀 Redis worker started. Waiting for jobs...")
+    
+    # Recover any orphaned jobs from previous crashes
+    logger.info("🔍 Checking for orphaned jobs from previous crashes...")
+    recovered = redis_service.recover_orphaned_jobs()
+    if recovered > 0:
+        logger.info(f"♻️  Recovered {recovered} orphaned job(s)")
+    else:
+        logger.info("✅ No orphaned jobs found")
+    
     logger.info("Press Ctrl+C to stop gracefully")
     
     # Register signal handlers for graceful shutdown
@@ -99,11 +115,13 @@ async def worker_loop():
     while not shutdown_requested:
         try:
             # Block for up to 5 seconds waiting for a job
-            job_data = redis_service.get_job_from_queue(timeout=5)
+            # This now uses BRPOPLPUSH internally and returns (job_data, job_json) tuple
+            result = redis_service.get_job_from_queue(timeout=5)
             
-            if job_data:
-                # Process the job
-                await process_job(job_data)
+            if result:
+                job_data, job_json = result
+                # Process the job with original JSON for exact matching
+                await process_job(job_data, job_json)
             else:
                 # No job available, continue waiting
                 await asyncio.sleep(0.1)

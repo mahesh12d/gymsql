@@ -881,6 +881,21 @@ async def submit_solution(problem_id: str,
                           current_user: User = Depends(get_current_user),
                           db: Session = Depends(get_db)):
     """Submit SQL query to job queue for asynchronous evaluation (protects DB from bursts)"""
+    # Rate limiting: Check per-user submission rate (10 submissions per minute)
+    rate_limit = redis_service.check_rate_limit(
+        user_id=current_user.id,
+        action="submit",
+        limit=10,
+        window_seconds=60
+    )
+    
+    if not rate_limit["allowed"]:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. Please wait {rate_limit['retry_after']} seconds before submitting again.",
+            headers={"Retry-After": str(rate_limit["retry_after"])}
+        )
+    
     # Check if problem exists and is accessible
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
