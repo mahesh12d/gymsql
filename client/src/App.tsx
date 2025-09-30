@@ -16,12 +16,9 @@ import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import Navbar from "@/components/navbar";
-import ChatPanel from "@/components/ChatPanel";
-
 function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -37,14 +34,10 @@ function AppRouter() {
   // Hide navbar on problem detail pages (routes like /problems/:id)
   const isOnProblemDetailPage = location.startsWith('/problems/');
 
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
-  };
-
   return (
     <>
       {isAuthenticated && !isOnProblemDetailPage && (
-        <Navbar onToggleChat={toggleChat} />
+        <Navbar />
       )}
       <Switch>
         {!isAuthenticated ? (
@@ -63,14 +56,6 @@ function AppRouter() {
         )}
         <Route component={NotFound} />
       </Switch>
-      
-      {/* Chat Panel - Only show for authenticated users */}
-      {isAuthenticated && (
-        <ChatPanel 
-          isOpen={isChatOpen} 
-          onClose={() => setIsChatOpen(false)} 
-        />
-      )}
     </>
   );
 }
