@@ -193,12 +193,12 @@ export default function Community() {
           <div className="lg:col-span-2 space-y-6">
             {/* Create Post */}
             {user && (
-              <Card>
+              <Card className="border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background via-background to-primary/5">
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
-                    <Avatar className="w-12 h-12">
+                    <Avatar className="w-12 h-12 ring-2 ring-primary/30 shadow-md">
                       <AvatarImage src={user.profileImageUrl} alt={user.username} />
-                      <AvatarFallback>
+                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-bold">
                         {user.username?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
@@ -208,7 +208,7 @@ export default function Community() {
                         value={newPostContent}
                         onChange={(e) => setNewPostContent(e.target.value)}
                         rows={3}
-                        className="resize-none mb-3"
+                        className="resize-none mb-3 border-2 focus:border-primary/50 transition-colors"
                         data-testid="textarea-new-post"
                       />
                       
@@ -245,7 +245,7 @@ WHERE condition;"
                         <Button
                           onClick={handleCreatePost}
                           disabled={!newPostContent.trim() || createPostMutation.isPending}
-                          className="dumbbell-btn bg-primary text-primary-foreground hover:bg-primary/90"
+                          className="dumbbell-btn bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                           data-testid="button-share-post"
                         >
                           {createPostMutation.isPending ? 'Sharing...' : 'Share'}
@@ -294,7 +294,11 @@ WHERE condition;"
             ) : (
               <div className="space-y-6">
                 {posts?.map((post) => (
-                  <Card key={post.id} data-testid={`post-${post.id}`}>
+                  <Card 
+                    key={post.id} 
+                    data-testid={`post-${post.id}`}
+                    className="border border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-card via-card to-primary/5 backdrop-blur-sm"
+                  >
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
                         {/* Clickable Avatar for Chat */}
@@ -308,9 +312,9 @@ WHERE condition;"
                             premium: post.user.premium
                           }}
                         >
-                          <Avatar className="w-12 h-12 ring-2 ring-transparent hover:ring-primary/50 transition-all cursor-pointer">
+                          <Avatar className="w-12 h-12 ring-2 ring-primary/20 hover:ring-primary/60 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-110">
                             <AvatarImage src={post.user.profileImageUrl} alt={post.user.username} />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-gradient-to-br from-primary/60 to-primary/80 text-primary-foreground font-bold">
                               {post.user.username?.charAt(0).toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
@@ -329,7 +333,7 @@ WHERE condition;"
                                 premium: post.user.premium
                               }}
                             >
-                              <h4 className="font-semibold text-foreground hover:text-primary cursor-pointer transition-colors" 
+                              <h4 className="font-bold text-foreground hover:text-primary cursor-pointer transition-all duration-200 hover:scale-105 inline-block" 
                                   data-testid={`text-post-author-${post.id}`}>
                                 {post.user.firstName && post.user.lastName 
                                   ? `${post.user.firstName} ${post.user.lastName}`
@@ -340,7 +344,7 @@ WHERE condition;"
                             <span className="text-sm text-muted-foreground" data-testid={`text-post-time-${post.id}`}>
                               {formatTimeAgo(post.createdAt)}
                             </span>
-                            <Badge className={`text-xs ${getLevelBadgeColor(post.user.level)}`}>
+                            <Badge className={`text-xs ${getLevelBadgeColor(post.user.level)} shadow-sm hover:shadow-md transition-shadow duration-200`}>
                               {post.user.level}
                             </Badge>
                           </div>
@@ -380,7 +384,7 @@ WHERE condition;"
                           
                           {/* Code Snippet */}
                           {post.codeSnippet && (
-                            <div className="bg-muted rounded-lg p-3 mb-4 overflow-x-auto">
+                            <div className="bg-gradient-to-br from-muted/80 to-muted rounded-xl p-4 mb-4 overflow-x-auto border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200">
                               <pre className="text-sm text-muted-foreground font-mono">
                                 <code data-testid={`code-snippet-${post.id}`}>{post.codeSnippet}</code>
                               </pre>
@@ -394,16 +398,16 @@ WHERE condition;"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleLikePost(post.id, post.likedByCurrentUser)}
-                                className={`flex items-center space-x-2 transition-colors ${
+                                className={`flex items-center space-x-2 transition-all duration-200 hover:scale-110 ${
                                   post.likedByCurrentUser 
-                                    ? 'text-red-500 hover:text-red-600' 
-                                    : 'text-muted-foreground hover:text-red-500'
+                                    ? 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950' 
+                                    : 'text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950'
                                 }`}
                                 data-testid={`button-like-${post.id}`}
                                 disabled={pendingLikes.has(post.id)}
                               >
-                                <Heart className={`w-4 h-4 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
-                                <span className="text-sm">{post.likes}</span>
+                                <Heart className={`w-4 h-4 transition-all duration-200 ${post.likedByCurrentUser ? 'fill-current animate-pulse' : ''}`} />
+                                <span className="text-sm font-semibold">{post.likes}</span>
                               </Button>
                               
                               <Dialog 
@@ -421,11 +425,11 @@ WHERE condition;"
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="flex items-center space-x-2 text-muted-foreground hover:text-blue-500 transition-colors"
+                                    className="flex items-center space-x-2 text-muted-foreground hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-all duration-200 hover:scale-110"
                                     data-testid={`button-comment-${post.id}`}
                                   >
                                     <MessageCircle className="w-4 h-4" />
-                                    <span className="text-sm">{post.comments}</span>
+                                    <span className="text-sm font-semibold">{post.comments}</span>
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -499,11 +503,11 @@ WHERE condition;"
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="flex items-center space-x-2 text-muted-foreground hover:text-green-500 transition-colors"
+                                className="flex items-center space-x-2 text-muted-foreground hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950 transition-all duration-200 hover:scale-110"
                                 data-testid={`button-share-${post.id}`}
                               >
                                 <Share className="w-4 h-4" />
-                                <span className="text-sm">Share</span>
+                                <span className="text-sm font-semibold">Share</span>
                               </Button>
                             </div>
                           </div>
@@ -519,22 +523,25 @@ WHERE condition;"
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Community Stats */}
-            <Card>
+            <Card className="border border-primary/20 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-primary/10">
               <CardHeader>
-                <CardTitle>Community Stats</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-primary" />
+                  Community Stats
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Total Posts</span>
-                  <span className="font-bold text-foreground">{posts?.length || 0}</span>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-primary/5 hover:from-primary/10 hover:to-primary/20 transition-all duration-200">
+                  <span className="text-muted-foreground font-medium">Total Posts</span>
+                  <span className="font-bold text-xl text-primary">{posts?.length || 0}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Active Today</span>
-                  <span className="font-bold text-foreground">0</span>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-green-500/5 hover:from-green-500/10 hover:to-green-500/20 transition-all duration-200">
+                  <span className="text-muted-foreground font-medium">Active Today</span>
+                  <span className="font-bold text-xl text-green-600">0</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Study Groups</span>
-                  <span className="font-bold text-foreground">0</span>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-background/50 to-blue-500/5 hover:from-blue-500/10 hover:to-blue-500/20 transition-all duration-200">
+                  <span className="text-muted-foreground font-medium">Study Groups</span>
+                  <span className="font-bold text-xl text-blue-600">0</span>
                 </div>
               </CardContent>
             </Card>
