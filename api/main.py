@@ -874,13 +874,13 @@ def get_problem(problem_id: str,
     return problem_data
 
 
-# New secure execution endpoints
+# New secure execution endpoints with job queue for burst protection
 @app.post("/api/problems/{problem_id}/submit")
 async def submit_solution(problem_id: str,
                           query_data: dict,
                           current_user: User = Depends(get_current_user),
                           db: Session = Depends(get_db)):
-    """Submit and execute SQL query for final evaluation"""
+    """Submit SQL query to job queue for asynchronous evaluation (protects DB from bursts)"""
     # Check if problem exists and is accessible
     problem = db.query(Problem).filter(Problem.id == problem_id).first()
     if not problem:
@@ -898,24 +898,52 @@ async def submit_solution(problem_id: str,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Query is required")
 
-    result = await secure_executor.submit_solution(current_user.id, problem_id,
-                                                   query, db)
+    # Check if Redis is available for job queue
+    if not redis_service.is_available():
+        # Fallback to direct execution if Redis is unavailable
+        result = await secure_executor.submit_solution(current_user.id, problem_id,
+                                                       query, db)
 
-    if not result['success']:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=result.get('feedback',
-                                              ['Submission failed'])[0])
+        if not result['success']:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=result.get('feedback',
+                                                  ['Submission failed'])[0])
 
-    # Track successful submission for recommendation system
-    if result['success']:
-        track_successful_submission(current_user.id, problem_id, db)
+        # Track successful submission for recommendation system
+        if result['success']:
+            track_successful_submission(current_user.id, problem_id, db)
 
-    # Add console output to submission response
-    result['console_output'] = format_console_output(result)
+        # Add console output to submission response
+        result['console_output'] = format_console_output(result)
+        
+        # Sanitize result to prevent JSON serialization errors
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(result)
     
-    # Sanitize result to prevent JSON serialization errors
-    from .secure_execution import sanitize_json_data
-    return sanitize_json_data(result)
+    # Enqueue submission to Redis job queue
+    try:
+        job_id = redis_service.enqueue_submission(
+            user_id=current_user.id,
+            problem_id=problem_id,
+            sql_query=query
+        )
+        
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Submission queued for processing. Poll /api/jobs/{job_id}/status for results."
+        }
+        
+    except Exception as e:
+        # Fallback to direct execution on queue error
+        result = await secure_executor.submit_solution(current_user.id, problem_id,
+                                                       query, db)
+        if result['success']:
+            track_successful_submission(current_user.id, problem_id, db)
+        result['console_output'] = format_console_output(result)
+        from .secure_execution import sanitize_json_data
+        return sanitize_json_data(result)
 
 
 # PostgreSQL sandbox functionality removed - using DuckDB only
