@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { MessageCircle, User, Send, ArrowLeft } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MessageCircle, User, Send, ArrowLeft, Search, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useChatApi } from '@/hooks/use-chat-api';
 import { useChatWebSocket } from '@/hooks/use-chat-websocket';
@@ -23,10 +24,13 @@ interface Conversation {
 
 export function CommunityChatBox() {
   const { user: currentUser, token } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
-  const { sendMessageApi, getChatHistory } = useChatApi();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('conversations');
+  const { sendMessageApi, getChatHistory, searchUsers, users, isSearching } = useChatApi();
   const { messages: wsMessages, isConnected, connect, disconnect } = useChatWebSocket(currentUser?.id, token);
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -95,8 +99,30 @@ export function CommunityChatBox() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      const timeoutId = setTimeout(() => {
+        searchUsers(searchQuery.trim());
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, searchUsers]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSelectUser = (user: any) => {
+    const newConversation: Conversation = {
+      conversation_id: `new-${user.id}`,
+      other_user_id: user.id,
+      other_user_username: user.username,
+      last_message: '',
+      last_message_timestamp: '',
+    };
+    setSelectedConversation(newConversation);
+    setSearchQuery('');
+    setActiveTab('conversations');
   };
 
   const loadChatHistory = async () => {
@@ -141,6 +167,7 @@ export function CommunityChatBox() {
       
       setMessage('');
       loadChatHistory();
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/conversations'] });
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -151,7 +178,7 @@ export function CommunityChatBox() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -202,62 +229,150 @@ export function CommunityChatBox() {
 
       <CardContent className="flex-1 flex flex-col overflow-hidden p-0">
         {!selectedConversation ? (
-          <div className="flex-1 overflow-hidden">
-            {isLoading ? (
-              <div className="p-4 space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-3 animate-pulse">
-                    <div className="w-10 h-10 bg-muted rounded-full" />
-                    <div className="flex-1 space-y-1">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-3 bg-muted rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium">No conversations yet</p>
-                <p className="text-xs mt-1">Start chatting with community members!</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="space-y-1 p-2">
-                  {conversations.map((conversation) => (
-                    <div
-                      key={conversation.conversation_id}
-                      onClick={() => setSelectedConversation(conversation)}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                      data-testid={`conversation-${conversation.other_user_id}`}
-                    >
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary font-semibold">
-                          {conversation.other_user_username.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium truncate">
-                            {conversation.other_user_username}
-                          </p>
-                          {conversation.last_message_timestamp && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatTimeAgo(conversation.last_message_timestamp)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {conversation.last_message || 'No messages yet'}
-                        </p>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
+              <TabsTrigger value="conversations" data-testid="tab-conversations">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chats
+              </TabsTrigger>
+              <TabsTrigger value="new-chat" data-testid="tab-new-chat">
+                <Users className="w-4 h-4 mr-2" />
+                New Chat
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="conversations" className="flex-1 overflow-hidden m-0">
+              {isLoading ? (
+                <div className="p-4 space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-3 animate-pulse">
+                      <div className="w-10 h-10 bg-muted rounded-full" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
                       </div>
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
-            )}
-          </div>
+              ) : conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium">No conversations yet</p>
+                  <p className="text-xs mt-1">Start a new chat to get started!</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-full">
+                  <div className="space-y-1 p-2">
+                    {conversations.map((conversation) => (
+                      <div
+                        key={conversation.conversation_id}
+                        onClick={() => setSelectedConversation(conversation)}
+                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                        data-testid={`conversation-${conversation.other_user_id}`}
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary font-semibold">
+                            {conversation.other_user_username.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-medium truncate">
+                              {conversation.other_user_username}
+                            </p>
+                            {conversation.last_message_timestamp && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatTimeAgo(conversation.last_message_timestamp)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {conversation.last_message || 'No messages yet'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+
+            <TabsContent value="new-chat" className="flex-1 overflow-hidden m-0 flex flex-col">
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search users by username..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-search-users"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                {isSearching ? (
+                  <div className="p-4 space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-3 animate-pulse">
+                        <div className="w-10 h-10 bg-muted rounded-full" />
+                        <div className="flex-1 space-y-1">
+                          <div className="h-4 bg-muted rounded w-3/4" />
+                          <div className="h-3 bg-muted rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : !searchQuery.trim() ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm font-medium">Search for users</p>
+                    <p className="text-xs mt-1">Type a username to find community members</p>
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm font-medium">No users found</p>
+                    <p className="text-xs mt-1">Try searching for a different username</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-full">
+                    <div className="space-y-1 p-2">
+                      {users.filter(user => user.id !== currentUser?.id).map((user) => (
+                        <div
+                          key={user.id}
+                          onClick={() => handleSelectUser(user)}
+                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                          data-testid={`user-search-result-${user.id}`}
+                        >
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary font-semibold">
+                              {user.username.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {user.username}
+                            </p>
+                            {(user.firstName || user.lastName) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {`${user.firstName || ''} ${user.lastName || ''}`.trim()}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <ScrollArea className="flex-1 p-4">
@@ -310,7 +425,7 @@ export function CommunityChatBox() {
                   placeholder="Type a message..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyDown}
                   className="flex-1"
                   data-testid="input-message"
                 />
