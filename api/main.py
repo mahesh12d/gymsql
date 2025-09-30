@@ -1245,6 +1245,98 @@ def get_official_solution(problem_id: str, db: Session = Depends(get_db)):
     return SolutionResponse.from_orm(solution)
 
 
+# Job status endpoints for async submission queue
+@app.get("/api/jobs/{job_id}/status")
+async def get_job_status(job_id: str, 
+                        current_user: User = Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    """Poll job status and retrieve results when complete"""
+    if not redis_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job queue service unavailable"
+        )
+    
+    # Get job status
+    status = redis_service.get_job_status(job_id)
+    
+    if not status:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found or expired"
+        )
+    
+    response = {
+        "job_id": job_id,
+        "status": status
+    }
+    
+    # If completed, get the result
+    if status == "completed":
+        result = redis_service.get_job_result(job_id)
+        
+        if result:
+            # Track successful submission for recommendation system
+            if result.get('success') and result.get('is_correct'):
+                problem_id = result.get('problem_id') or result.get('submission', {}).get('problem_id')
+                if problem_id:
+                    track_successful_submission(current_user.id, problem_id, db)
+            
+            # Add console output
+            result['console_output'] = format_console_output(result)
+            
+            # Sanitize and return result
+            from .secure_execution import sanitize_json_data
+            response["result"] = sanitize_json_data(result)
+        else:
+            response["result"] = {
+                "success": False,
+                "error": "Result expired or not found"
+            }
+    
+    return response
+
+
+@app.get("/api/jobs/{job_id}/result")
+async def get_job_result(job_id: str, 
+                        current_user: User = Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    """Get job result directly (returns 404 if not complete)"""
+    if not redis_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job queue service unavailable"
+        )
+    
+    result = redis_service.get_job_result(job_id)
+    
+    if not result:
+        status = redis_service.get_job_status(job_id)
+        if status == "queued" or status == "processing":
+            raise HTTPException(
+                status_code=status.HTTP_202_ACCEPTED,
+                detail=f"Job still {status}, please wait"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job result not found or expired"
+            )
+    
+    # Track successful submission for recommendation system
+    if result.get('success') and result.get('is_correct'):
+        problem_id = result.get('problem_id') or result.get('submission', {}).get('problem_id')
+        if problem_id:
+            track_successful_submission(current_user.id, problem_id, db)
+    
+    # Add console output
+    result['console_output'] = format_console_output(result)
+    
+    # Sanitize and return result
+    from .secure_execution import sanitize_json_data
+    return sanitize_json_data(result)
+
+
 # Leaderboard endpoints (Redis-powered for high performance)
 @app.get("/api/leaderboard",
          response_model=List[UserResponse],
