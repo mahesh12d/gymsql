@@ -11,8 +11,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfilePopover } from '@/components/UserProfilePopover';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import atomOneDark from 'react-syntax-highlighter/dist/styles/atom-one-dark';
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
@@ -357,7 +357,7 @@ WHERE condition;"
                             <div className="rounded-xl mb-4 overflow-hidden border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200" data-testid={`code-snippet-${post.id}`}>
                               <SyntaxHighlighter 
                                 language="sql" 
-                                style={vscDarkPlus}
+                                style={atomOneDark}
                                 customStyle={{
                                   margin: 0,
                                   borderRadius: '0.75rem',
