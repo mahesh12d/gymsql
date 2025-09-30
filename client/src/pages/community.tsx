@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, MessageCircle, Share, Code, Users, Activity, Send } from 'lucide-react';
+import { Heart, MessageCircle, Code, Activity, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -478,16 +477,6 @@ WHERE condition;"
                                   </div>
                                 </DialogContent>
                               </Dialog>
-                              
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="flex items-center space-x-2 text-muted-foreground hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950 transition-all duration-200 hover:scale-110"
-                                data-testid={`button-share-${post.id}`}
-                              >
-                                <Share className="w-4 h-4" />
-                                <span className="text-sm font-semibold">Share</span>
-                              </Button>
                             </div>
                           </div>
                         </div>
