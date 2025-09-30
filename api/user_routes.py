@@ -51,7 +51,7 @@ def search_users(
             firstName=user.first_name,
             lastName=user.last_name,
             profileImageUrl=user.profile_image_url,
-            isOnline=False  # TODO: Integrate with Redis presence system
+            isOnline=False
         ))
     
     return user_responses
@@ -77,5 +77,5 @@ def get_user_profile(
         firstName=user.first_name,
         lastName=user.last_name,
         profileImageUrl=user.profile_image_url,
-        isOnline=False  # TODO: Integrate with Redis presence system
+        isOnline=False
     )
