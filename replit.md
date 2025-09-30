@@ -69,7 +69,8 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ### Architecture Notes
 - Chat functionality has been removed to reduce overhead
-- The application uses PostgreSQL for all data persistence
+- The application uses PostgreSQL for all data persistence with Redis for performance optimization
+- Redis provides result caching (10 min TTL) and high-performance sorted-set leaderboards
 - All SQL query processing is handled synchronously through the secure executor
 
 ### Production Deployment (Autoscale)
@@ -80,6 +81,7 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ### Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string (auto-configured by Replit)
+- `REDIS_URL`: Redis connection string (configured via Replit secret)
 - `JWT_SECRET`: Auto-generated in development
 - `ADMIN_SECRET_KEY`: Auto-generated in development
 - `DEV_TOKEN_BYPASS`: Enabled in development for easier testing
@@ -89,10 +91,19 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 - `vite.config.ts`: Frontend build and dev server configuration
 - `api/main.py`: FastAPI application entry point
 - `api/database.py`: Database connection and pool configuration
+- `api/redis_service.py`: Redis connection and performance optimization service
 - `api/secure_execution.py`: Secure SQL query execution system
 - `scripts/dev_backend.cjs`: Development backend startup script
 
 ## Recent Changes
+
+### September 30, 2025 - Redis Integration for Performance
+- **Redis Service**: Created comprehensive Redis service with connection management and fallback mechanisms
+- **Result Caching**: Implemented query-hash-based caching for test queries (10 min TTL) to prevent stale results
+- **High-Performance Leaderboards**: Replaced database queries with Redis sorted sets for instant leaderboard access
+- **Idempotent Operations**: SADD-based solved problem tracking prevents race conditions and double-counting
+- **Admin Sync**: Added `/api/admin/sync-leaderboard` endpoint to rebuild Redis data from PostgreSQL
+- **Dependencies**: Installed `redis` package for Python Redis client
 
 ### September 30, 2025 - Replit Environment Setup
 - **GitHub Import**: Successfully imported and configured project for Replit environment
@@ -103,10 +114,7 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ### Earlier Changes - Architecture Simplification
 - **Chat System**: Removed user-to-user messaging, chat components, and related database tables (Conversation, Message)
-- **Redis**: Removed Redis dependency and all Redis-backed functionality
 - **WebSocket**: Removed WebSocket connections previously used for real-time chat
-- **Background Sync**: Removed Redis-to-PostgreSQL sync service
-- **Problem Queue**: Removed Redis-based job queue; all processing is now synchronous
 
 ### Impact
 - Reduced system complexity and overhead
