@@ -226,9 +226,6 @@ WHERE condition;"
                     
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-3">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" data-testid="button-image">
-                          <Image className="w-4 h-4" />
-                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -237,9 +234,6 @@ WHERE condition;"
                           data-testid="button-code"
                         >
                           <Code className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" data-testid="button-trophy">
-                          <Trophy className="w-4 h-4" />
                         </Button>
                       </div>
                       <Button
@@ -262,18 +256,15 @@ WHERE condition;"
                 {[...Array(3)].map((_, i) => (
                   <Card key={i} className="animate-pulse">
                     <CardContent className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-muted rounded-full" />
-                        <div className="flex-1 space-y-3">
-                          <div className="h-4 bg-muted rounded w-1/3" />
-                          <div className="h-4 bg-muted rounded" />
-                          <div className="h-4 bg-muted rounded w-4/5" />
-                          <div className="h-20 bg-muted rounded" />
-                          <div className="flex space-x-4">
-                            <div className="h-8 bg-muted rounded w-16" />
-                            <div className="h-8 bg-muted rounded w-16" />
-                            <div className="h-8 bg-muted rounded w-16" />
-                          </div>
+                      <div className="w-full space-y-3">
+                        <div className="h-4 bg-muted rounded w-1/3" />
+                        <div className="h-4 bg-muted rounded" />
+                        <div className="h-4 bg-muted rounded w-4/5" />
+                        <div className="h-20 bg-muted rounded" />
+                        <div className="flex space-x-4">
+                          <div className="h-8 bg-muted rounded w-16" />
+                          <div className="h-8 bg-muted rounded w-16" />
+                          <div className="h-8 bg-muted rounded w-16" />
                         </div>
                       </div>
                     </CardContent>
@@ -299,26 +290,7 @@ WHERE condition;"
                     className="border border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-card via-card to-primary/5 backdrop-blur-sm"
                   >
                     <CardContent className="p-6">
-                      <div className="flex items-start space-x-4">
-                        {/* Clickable Avatar for Chat */}
-                        <UserProfilePopover 
-                          user={{
-                            id: post.user.id,
-                            username: post.user.username,
-                            first_name: post.user.firstName,
-                            last_name: post.user.lastName,
-                            profileImageUrl: post.user.profileImageUrl,
-                            premium: post.user.premium
-                          }}
-                        >
-                          <Avatar className="w-12 h-12 ring-2 ring-primary/20 hover:ring-primary/60 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-110">
-                            <AvatarImage src={post.user.profileImageUrl} alt={post.user.username} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary/60 to-primary/80 text-primary-foreground font-bold">
-                              {post.user.username?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                        </UserProfilePopover>
-                        
+                      <div className="w-full">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             {/* Clickable Username for Chat */}
