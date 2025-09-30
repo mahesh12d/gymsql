@@ -1257,6 +1257,23 @@ async def get_job_status(job_id: str,
             detail="Job queue service unavailable"
         )
     
+    # Security: Verify user owns this job
+    job_owner = redis_service.get_job_owner(job_id)
+    
+    if not job_owner:
+        # Job doesn't exist or expired
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found or expired"
+        )
+    
+    if str(job_owner) != str(current_user.id):
+        # Return 404 to avoid revealing job existence to unauthorized users
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found or expired"
+        )
+    
     # Get job status
     status = redis_service.get_job_status(job_id)
     
@@ -1306,6 +1323,23 @@ async def get_job_result(job_id: str,
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Job queue service unavailable"
+        )
+    
+    # Security: Verify user owns this job
+    job_owner = redis_service.get_job_owner(job_id)
+    
+    if not job_owner:
+        # Job doesn't exist or expired
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found or expired"
+        )
+    
+    if str(job_owner) != str(current_user.id):
+        # Return 404 to avoid revealing job existence to unauthorized users
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found or expired"
         )
     
     result = redis_service.get_job_result(job_id)

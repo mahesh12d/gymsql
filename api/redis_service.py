@@ -205,6 +205,21 @@ class RedisService:
             print(f"Redis job status error: {e}")
             return None
     
+    def get_job_owner(self, job_id: str) -> Optional[str]:
+        """Get job owner user_id for authorization checks"""
+        if not self.is_available():
+            return None
+            
+        try:
+            user_id = self.client.hget(f"problems:job:{job_id}", "user_id")
+            # Handle both str and bytes return types
+            if isinstance(user_id, bytes):
+                user_id = user_id.decode('utf-8')
+            return str(user_id) if user_id else None
+        except Exception as e:
+            print(f"Redis job owner get error: {e}")
+            return None
+    
     # ==================== LEADERBOARDS ====================
     
     def increment_leaderboard(self, user_id: str, problem_id: str, score: int = 1, topic: Optional[str] = None):
