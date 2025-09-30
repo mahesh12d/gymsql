@@ -32,10 +32,11 @@ if not DATABASE_URL:
 # Create engine with proper SSL and connection pooling
 engine = create_engine(
     DATABASE_URL,
+    pool_size=20,        # Increase pool size for concurrent requests
     pool_pre_ping=True,  # Verify connections before use
     pool_recycle=300,    # Recycle connections every 5 minutes
-    pool_timeout=10,     # Timeout for getting connection from pool
-    max_overflow=0,      # No overflow connections
+    pool_timeout=30,     # Timeout for getting connection from pool
+    max_overflow=10,     # Allow 10 additional connections beyond pool size
     echo=False          # Set to True for SQL logging if needed
 )
 
