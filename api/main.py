@@ -1529,14 +1529,16 @@ def get_community_posts(current_user: Optional[User] = Depends(get_current_user_
         liked_posts = db.query(PostLike.post_id).filter(
             PostLike.user_id == current_user.id
         ).all()
-        liked_post_ids = {like.post_id for like in liked_posts}
+        # Normalize to strings to ensure type consistency
+        liked_post_ids = {str(like.post_id) for like in liked_posts}
 
     # Build response with liked status
     response = []
     for post in filtered_posts:
-        post_dict = CommunityPostResponse.from_orm(post).model_dump()
-        post_dict['liked_by_current_user'] = post.id in liked_post_ids
-        response.append(CommunityPostResponse(**post_dict))
+        post_response = CommunityPostResponse.from_orm(post)
+        # Set the liked status directly as an attribute (compare as strings)
+        post_response.liked_by_current_user = str(post.id) in liked_post_ids
+        response.append(post_response)
     
     return response
 
