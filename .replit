@@ -90,6 +90,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Redis Server"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -101,6 +105,17 @@ outputType = "webview"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Redis Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "redis-server --bind 127.0.0.1 --port 6379 --protected-mode no --save \"\""
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 integrations = [
