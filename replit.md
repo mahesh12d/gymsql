@@ -97,6 +97,20 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ## Recent Changes
 
+### October 1, 2025 - Admin Panel Table Preview: Sample Data Auto-Population with Manual Schema Definition
+- **Data Source Workflow Change**: When applying validated datasets to the problem draft, sample data is now auto-populated from the uploaded file while column types are left empty for manual specification
+- **Enhanced Visual Feedback**: 
+  - Columns with missing types show a red "Type Required" badge
+  - Empty type dropdowns are highlighted with orange styling
+  - Alert banner notifies admins when column types need to be set
+- **Admin Workflow**: 
+  1. Upload and validate dataset file (CSV/Parquet) in Data Source tab
+  2. Click "Apply to Draft" - sample data is automatically extracted
+  3. Navigate to Create Question tab
+  4. Edit table to manually set data types for each column
+  5. Sample data remains editable throughout
+- **Files Modified**: `client/src/contexts/AdminContext.tsx`, `client/src/components/admin/EnhancedTablePreview.tsx`
+
 ### October 1, 2025 - Community Page Performance Optimization
 - **Post Count Removal**: Removed post count badges from community page filter dropdown to improve performance
 - **Resource Optimization**: Eliminated `postCounts` calculation that was computed on every render

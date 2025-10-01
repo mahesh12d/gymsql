@@ -282,15 +282,24 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       return state;
     case 'APPLY_UNIFIED_VALIDATION_TO_DRAFT':
       if (state.datasetValidation?.success && state.datasetValidation.validated_datasets) {
-        const tables = state.datasetValidation.validated_datasets.map((dataset) => ({
-          name: dataset.table_name,
-          columns: (dataset.table_schema || []).map((col) => ({
-            name: col.column,
-            type: col.type,
-            description: `${col.column} column (${col.type})`
-          })),
-          sample_data: dataset.sample_data || []
-        }));
+        const tables = state.datasetValidation.validated_datasets.map((dataset) => {
+          const sampleData = dataset.sample_data || [];
+          
+          // Infer column names from first row of sample data, but leave types empty for admin to fill
+          const inferredColumns = sampleData.length > 0 
+            ? Object.keys(sampleData[0]).map(key => ({
+                name: key,
+                type: '', // Empty type - admin must fill manually
+                description: ''
+              }))
+            : [];
+          
+          return {
+            name: dataset.table_name,
+            columns: inferredColumns,
+            sample_data: sampleData
+          };
+        });
         
         // Extract S3 datasets info from validated datasets
         const s3_datasets = state.datasets.map((dataset) => ({

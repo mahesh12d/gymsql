@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit2, Save, X, Eye, EyeOff, Database, Columns, Hash, Plus, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Edit2, Save, X, Eye, EyeOff, Database, Columns, Hash, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface TableColumn {
   name: string;
@@ -252,6 +253,11 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
     );
   }
 
+  // Check if any table has columns with empty types
+  const hasEmptyTypes = tables.some(table => 
+    table.columns.some(col => !col.type)
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -265,6 +271,15 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
           </Badge>
         )}
       </div>
+
+      {hasEmptyTypes && !readOnly && (
+        <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+          <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <AlertDescription className="text-orange-800 dark:text-orange-200">
+            <strong>Action Required:</strong> Some columns need data types to be set. Click "Edit" on the table to set column types manually.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {tables.map((table, tableIndex) => {
         const isEditing = editingTable === tableIndex;
@@ -424,9 +439,10 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
                               <select
                                 value={column.type}
                                 onChange={(e) => handleColumnTypeChange(tableIndex, columnIndex, e.target.value)}
-                                className="h-8 w-full border rounded px-2 text-sm"
+                                className={`h-8 w-full border rounded px-2 text-sm ${!column.type ? 'border-orange-500 bg-orange-50 dark:bg-orange-950' : ''}`}
                                 data-testid={`select-column-type-${tableIndex}-${columnIndex}`}
                               >
+                                <option value="" disabled>Select type...</option>
                                 {COLUMN_TYPES.map((type) => (
                                   <option key={type} value={type}>
                                     {type}
@@ -435,12 +451,12 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
                               </select>
                             ) : (
                               <Badge 
-                                variant="outline" 
+                                variant={column.type ? "outline" : "destructive"}
                                 className={`text-xs ${!readOnly ? 'cursor-pointer hover:bg-primary/10' : ''}`}
                                 onClick={() => !readOnly && handleEditTable(tableIndex)}
                                 data-testid={`text-column-type-${tableIndex}-${columnIndex}`}
                               >
-                                {column.type}
+                                {column.type || 'Type Required'}
                               </Badge>
                             )}
                           </TableCell>
