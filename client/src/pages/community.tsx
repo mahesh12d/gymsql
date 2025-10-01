@@ -1,13 +1,19 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, MessageCircle, Code, Activity, Send } from 'lucide-react';
+import { Heart, MessageCircle, Code, Activity, Send, Dumbbell, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -227,23 +233,54 @@ export default function Community() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Feed */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Filter Tabs */}
-            <Tabs value={postFilter} onValueChange={(value) => setPostFilter(value as PostFilter)}>
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="all" data-testid="tab-all-posts">
-                  All Posts
-                  <Badge variant="secondary" className="ml-2">{postCounts.all}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="general" data-testid="tab-general-posts">
-                  General
-                  <Badge variant="secondary" className="ml-2">{postCounts.general}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="problems" data-testid="tab-problem-posts">
-                  Problem Discussions
-                  <Badge variant="secondary" className="ml-2">{postCounts.problems}</Badge>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Filter Dropdown with Gym Animation */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Community Feed</h2>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="relative group hover:border-primary/50 transition-all duration-300"
+                    data-testid="dropdown-filter-trigger"
+                  >
+                    <Dumbbell className="w-4 h-4 mr-2 text-primary animate-bounce group-hover:animate-pulse" />
+                    <span className="font-semibold">
+                      {postFilter === 'all' && 'All Posts'}
+                      {postFilter === 'general' && 'General'}
+                      {postFilter === 'problems' && 'Problem Discussions'}
+                    </span>
+                    <Badge variant="secondary" className="ml-2">
+                      {postFilter === 'all' && postCounts.all}
+                      {postFilter === 'general' && postCounts.general}
+                      {postFilter === 'problems' && postCounts.problems}
+                    </Badge>
+                    <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuRadioGroup value={postFilter} onValueChange={(value) => setPostFilter(value as PostFilter)}>
+                    <DropdownMenuRadioItem value="all" data-testid="dropdown-all-posts">
+                      <div className="flex items-center justify-between w-full">
+                        <span>All Posts</span>
+                        <Badge variant="secondary" className="ml-2">{postCounts.all}</Badge>
+                      </div>
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="general" data-testid="dropdown-general-posts">
+                      <div className="flex items-center justify-between w-full">
+                        <span>General</span>
+                        <Badge variant="secondary" className="ml-2">{postCounts.general}</Badge>
+                      </div>
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="problems" data-testid="dropdown-problem-posts">
+                      <div className="flex items-center justify-between w-full">
+                        <span>Problem Discussions</span>
+                        <Badge variant="secondary" className="ml-2">{postCounts.problems}</Badge>
+                      </div>
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {/* Create Post */}
             {user && (
