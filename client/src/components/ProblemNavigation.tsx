@@ -192,7 +192,7 @@ const ProblemNavigation = memo(function ProblemNavigation({
                 disabled={bookmarkMutation.isPending}
                 variant="ghost"
                 size="sm"
-                className={`h-8 w-8 p-0 ${problem.isBookmarked ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}
+                className={`h-8 w-8 p-0 ${problem.isBookmarked ? 'text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-950' : 'text-muted-foreground hover:bg-muted/50'}`}
                 data-testid="button-bookmark"
               >
                 <Bookmark className={`h-4 w-4 ${problem.isBookmarked ? 'fill-current' : ''}`} />
@@ -204,7 +204,7 @@ const ProblemNavigation = memo(function ProblemNavigation({
                   disabled={upvoteMutation.isPending}
                   variant="ghost"
                   size="sm"
-                  className={`h-8 w-8 p-0 ${problem.isUpvoted ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
+                  className={`h-8 w-8 p-0 ${problem.isUpvoted ? 'text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-950/50 hover:bg-green-100 dark:hover:bg-green-950' : 'text-muted-foreground hover:bg-muted/50'}`}
                   data-testid="button-upvote"
                 >
                   <ThumbsUp className={`h-4 w-4 ${problem.isUpvoted ? 'fill-current' : ''}`} />
@@ -222,7 +222,7 @@ const ProblemNavigation = memo(function ProblemNavigation({
                   disabled={downvoteMutation.isPending}
                   variant="ghost"
                   size="sm"
-                  className={`h-8 w-8 p-0 ${problem.isDownvoted ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}
+                  className={`h-8 w-8 p-0 ${problem.isDownvoted ? 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-950' : 'text-muted-foreground hover:bg-muted/50'}`}
                   data-testid="button-downvote"
                 >
                   <ThumbsDown className={`h-4 w-4 ${problem.isDownvoted ? 'fill-current' : ''}`} />

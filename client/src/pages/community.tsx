@@ -1,50 +1,66 @@
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, MessageCircle, Code, Activity, Send, Dumbbell, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Heart,
+  MessageCircle,
+  Code,
+  Activity,
+  Send,
+  Dumbbell,
+  ChevronDown,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/use-auth';
-import { communityApi } from '@/lib/auth';
-import { useToast } from '@/hooks/use-toast';
-import { UserProfilePopover } from '@/components/UserProfilePopover';
-import SyntaxHighlighter from 'react-syntax-highlighter';
-import atomOneDark from 'react-syntax-highlighter/dist/styles/atom-one-dark';
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
+import { communityApi } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import atomOneDark from "react-syntax-highlighter/dist/styles/atom-one-dark";
 
-type PostFilter = 'all' | 'general' | 'problems';
+type PostFilter = "all" | "general" | "problems";
 
 export default function Community() {
-  const [newPostContent, setNewPostContent] = useState('');
-  const [newPostCodeSnippet, setNewPostCodeSnippet] = useState('');
+  const [newPostContent, setNewPostContent] = useState("");
+  const [newPostCodeSnippet, setNewPostCodeSnippet] = useState("");
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
-  const [selectedPostComments, setSelectedPostComments] = useState<string | null>(null);
-  const [newComment, setNewComment] = useState('');
+  const [selectedPostComments, setSelectedPostComments] = useState<
+    string | null
+  >(null);
+  const [newComment, setNewComment] = useState("");
   const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
-  const [postFilter, setPostFilter] = useState<PostFilter>('all');
+  const [postFilter, setPostFilter] = useState<PostFilter>("all");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: posts, isLoading: postsLoading } = useQuery({
-    queryKey: ['/api/community/posts'],
+    queryKey: ["/api/community/posts"],
     queryFn: () => communityApi.getPosts(),
   });
 
   // Filter out premium problem posts for non-premium users
   const accessiblePosts = useMemo(() => {
     if (!posts) return [];
-    
-    return posts.filter(post => {
+
+    return posts.filter((post) => {
       // If post is about a premium problem and user is not premium, hide it
       if (post.problem?.premium === true && (!user || !user.premium)) {
         return false;
@@ -56,50 +72,51 @@ export default function Community() {
   // Calculate post counts for each category (only accessible posts)
   const postCounts = useMemo(() => {
     if (!accessiblePosts) return { all: 0, general: 0, problems: 0 };
-    
-    const general = accessiblePosts.filter(post => !post.problem).length;
-    const problems = accessiblePosts.filter(post => post.problem).length;
-    
+
+    const general = accessiblePosts.filter((post) => !post.problem).length;
+    const problems = accessiblePosts.filter((post) => post.problem).length;
+
     return {
       all: accessiblePosts.length,
       general,
-      problems
+      problems,
     };
   }, [accessiblePosts]);
 
   // Filter posts based on selected filter
   const filteredPosts = useMemo(() => {
     if (!accessiblePosts) return [];
-    
+
     switch (postFilter) {
-      case 'general':
-        return accessiblePosts.filter(post => !post.problem);
-      case 'problems':
-        return accessiblePosts.filter(post => post.problem);
-      case 'all':
+      case "general":
+        return accessiblePosts.filter((post) => !post.problem);
+      case "problems":
+        return accessiblePosts.filter((post) => post.problem);
+      case "all":
       default:
         return accessiblePosts;
     }
   }, [accessiblePosts, postFilter]);
 
   const createPostMutation = useMutation({
-    mutationFn: (postData: { content: string; codeSnippet?: string }) => 
+    mutationFn: (postData: { content: string; codeSnippet?: string }) =>
       communityApi.createPost(postData),
     onSuccess: () => {
-      setNewPostContent('');
-      setNewPostCodeSnippet('');
+      setNewPostContent("");
+      setNewPostCodeSnippet("");
       setShowCodeSnippet(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
       toast({
-        title: 'Success!',
-        description: 'Your post has been shared with the community.',
+        title: "Success!",
+        description: "Your post has been shared with the community.",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Failed to create post',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
+        title: "Failed to create post",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     },
   });
@@ -109,53 +126,57 @@ export default function Community() {
       isLiked ? communityApi.unlikePost(postId) : communityApi.likePost(postId),
     onMutate: async ({ postId, isLiked }) => {
       // Add to pending likes
-      setPendingLikes(prev => new Set(prev).add(postId));
-      
+      setPendingLikes((prev) => new Set(prev).add(postId));
+
       // Cancel outgoing queries
-      await queryClient.cancelQueries({ queryKey: ['/api/community/posts'] });
-      
+      await queryClient.cancelQueries({ queryKey: ["/api/community/posts"] });
+
       // Snapshot previous value
-      const previousPosts = queryClient.getQueryData(['/api/community/posts']);
-      
+      const previousPosts = queryClient.getQueryData(["/api/community/posts"]);
+
       // Optimistically update the cache
-      queryClient.setQueryData(['/api/community/posts'], (old: any) => {
+      queryClient.setQueryData(["/api/community/posts"], (old: any) => {
         if (!old) return old;
         return old.map((post: any) => {
           if (post.id === postId) {
             return {
               ...post,
               likedByCurrentUser: !isLiked,
-              likes: isLiked ? post.likes - 1 : post.likes + 1
+              likes: isLiked ? post.likes - 1 : post.likes + 1,
             };
           }
           return post;
         });
       });
-      
+
       return { previousPosts };
     },
     onError: (error, { postId }, context) => {
       // Revert optimistic update
       if (context?.previousPosts) {
-        queryClient.setQueryData(['/api/community/posts'], context.previousPosts);
+        queryClient.setQueryData(
+          ["/api/community/posts"],
+          context.previousPosts,
+        );
       }
-      
+
       toast({
-        title: 'Action failed',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
+        title: "Action failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     },
     onSettled: (data, error, { postId }) => {
       // Remove from pending likes
-      setPendingLikes(prev => {
+      setPendingLikes((prev) => {
         const newSet = new Set(prev);
         newSet.delete(postId);
         return newSet;
       });
-      
+
       // Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
     },
   });
 
@@ -171,26 +192,29 @@ export default function Community() {
     mutationFn: ({ postId, content }: { postId: string; content: string }) =>
       communityApi.createComment(postId, content),
     onSuccess: () => {
-      setNewComment('');
-      queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${selectedPostComments}/comments`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/community/posts'] });
+      setNewComment("");
+      queryClient.invalidateQueries({
+        queryKey: [`/api/community/posts/${selectedPostComments}/comments`],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
       toast({
-        title: 'Comment posted!',
-        description: 'Your comment has been added.',
+        title: "Comment posted!",
+        description: "Your comment has been added.",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Failed to post comment',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
+        title: "Failed to post comment",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     },
   });
 
   const handleCreatePost = () => {
     if (!newPostContent.trim()) return;
-    
+
     createPostMutation.mutate({
       content: newPostContent,
       codeSnippet: newPostCodeSnippet || undefined,
@@ -207,18 +231,20 @@ export default function Community() {
 
   const handleCreateComment = () => {
     if (!newComment.trim() || !selectedPostComments) return;
-    createCommentMutation.mutate({ 
-      postId: selectedPostComments, 
-      content: newComment 
+    createCommentMutation.mutate({
+      postId: selectedPostComments,
+      content: newComment,
     });
   };
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
+    const diffInHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60),
+    );
+
+    if (diffInHours < 1) return "Just now";
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
     return date.toLocaleDateString();
@@ -226,21 +252,28 @@ export default function Community() {
 
   const getLevelBadgeColor = (level: string) => {
     switch (level) {
-      case 'SQL Powerlifter': return 'bg-purple-100 text-purple-800';
-      case 'SQL Athlete': return 'bg-blue-100 text-blue-800';
-      case 'SQL Trainee': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "SQL Powerlifter":
+        return "bg-purple-100 text-purple-800";
+      case "SQL Athlete":
+        return "bg-blue-100 text-blue-800";
+      case "SQL Trainee":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
-
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-foreground mb-4">SQL Gym Community</h1>
-          <p className="text-xl text-muted-foreground">Connect, share, and motivate each other</p>
+          <h1 className="text-4xl font-bold text-foreground mb-4">
+            SQL Gym Community
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            Connect, share, and motivate each other
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -248,37 +281,53 @@ export default function Community() {
           <div className="lg:col-span-2 space-y-6">
             {/* Filter Dropdown with Gym Animation */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-foreground">Community Feed</h2>
+              <h2 className="text-2xl font-bold text-foreground">
+                Community Feed
+              </h2>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="relative group hover:border-primary/50 transition-all duration-300"
                     data-testid="dropdown-filter-trigger"
                   >
                     <Dumbbell className="w-4 h-4 mr-2 text-primary animate-bounce group-hover:animate-pulse" />
                     <span className="font-semibold">
-                      {postFilter === 'all' && 'All Posts'}
-                      {postFilter === 'general' && 'General'}
-                      {postFilter === 'problems' && 'Problem Discussions'}
+                      {postFilter === "all" && "All Posts"}
+                      {postFilter === "general" && "General"}
+                      {postFilter === "problems" && "Problem Discussions"}
                     </span>
                     <Badge variant="secondary" className="ml-2">
-                      {postFilter === 'all' && postCounts.all}
-                      {postFilter === 'general' && postCounts.general}
-                      {postFilter === 'problems' && postCounts.problems}
+                      {postFilter === "all" && postCounts.all}
+                      {postFilter === "general" && postCounts.general}
+                      {postFilter === "problems" && postCounts.problems}
                     </Badge>
                     <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuRadioGroup value={postFilter} onValueChange={(value) => setPostFilter(value as PostFilter)}>
-                    <DropdownMenuRadioItem value="all" data-testid="dropdown-all-posts">
+                  <DropdownMenuRadioGroup
+                    value={postFilter}
+                    onValueChange={(value) =>
+                      setPostFilter(value as PostFilter)
+                    }
+                  >
+                    <DropdownMenuRadioItem
+                      value="all"
+                      data-testid="dropdown-all-posts"
+                    >
                       All Posts
                     </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="general" data-testid="dropdown-general-posts">
+                    <DropdownMenuRadioItem
+                      value="general"
+                      data-testid="dropdown-general-posts"
+                    >
                       General
                     </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="problems" data-testid="dropdown-problem-posts">
+                    <DropdownMenuRadioItem
+                      value="problems"
+                      data-testid="dropdown-problem-posts"
+                    >
                       Problem Discussions
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
@@ -299,7 +348,7 @@ export default function Community() {
                       className="resize-none mb-3 border-2 focus:border-primary/50 transition-colors"
                       data-testid="textarea-new-post"
                     />
-                    
+
                     {/* Code Snippet Input */}
                     {showCodeSnippet && (
                       <Textarea
@@ -314,13 +363,13 @@ WHERE condition;"
                         data-testid="textarea-code-snippet"
                       />
                     )}
-                    
+
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-3">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className={`${showCodeSnippet ? 'text-primary bg-primary/10' : 'text-muted-foreground'} hover:text-primary`}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`${showCodeSnippet ? "text-primary bg-primary/10" : "text-muted-foreground"} hover:text-primary`}
                           onClick={() => setShowCodeSnippet(!showCodeSnippet)}
                           data-testid="button-code"
                         >
@@ -329,11 +378,13 @@ WHERE condition;"
                       </div>
                       <Button
                         onClick={handleCreatePost}
-                        disabled={!newPostContent.trim() || createPostMutation.isPending}
+                        disabled={
+                          !newPostContent.trim() || createPostMutation.isPending
+                        }
                         className="dumbbell-btn bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                         data-testid="button-share-post"
                       >
-                        {createPostMutation.isPending ? 'Sharing...' : 'Share'}
+                        {createPostMutation.isPending ? "Sharing..." : "Share"}
                       </Button>
                     </div>
                   </div>
@@ -369,22 +420,26 @@ WHERE condition;"
                     <MessageCircle className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {postFilter === 'general' ? 'No general posts yet' : 
-                     postFilter === 'problems' ? 'No problem discussions yet' : 
-                     'No posts yet'}
+                    {postFilter === "general"
+                      ? "No general posts yet"
+                      : postFilter === "problems"
+                        ? "No problem discussions yet"
+                        : "No posts yet"}
                   </h3>
                   <p className="text-muted-foreground">
-                    {postFilter === 'all' ? 'Be the first to share something with the community!' :
-                     postFilter === 'general' ? 'Be the first to share a general post!' :
-                     'Be the first to discuss a problem!'}
+                    {postFilter === "all"
+                      ? "Be the first to share something with the community!"
+                      : postFilter === "general"
+                        ? "Be the first to share a general post!"
+                        : "Be the first to discuss a problem!"}
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-6">
                 {filteredPosts.map((post) => (
-                  <Card 
-                    key={post.id} 
+                  <Card
+                    key={post.id}
                     data-testid={`post-${post.id}`}
                     className="border border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br from-card via-card to-primary/5 backdrop-blur-sm"
                   >
@@ -393,53 +448,75 @@ WHERE condition;"
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             {/* Clickable Username for Chat */}
-                            <UserProfilePopover 
+                            <UserProfilePopover
                               user={{
                                 id: post.user.id,
                                 username: post.user.username,
                                 first_name: post.user.firstName,
                                 last_name: post.user.lastName,
                                 profileImageUrl: post.user.profileImageUrl,
-                                premium: post.user.premium
+                                premium: post.user.premium,
                               }}
                             >
-                              <h4 className="font-bold text-foreground hover:text-primary cursor-pointer transition-all duration-200 hover:scale-105 inline-block" 
-                                  data-testid={`text-post-author-${post.id}`}>
-                                {post.user.firstName && post.user.lastName 
+                              <h4
+                                className="font-bold text-foreground hover:text-primary cursor-pointer transition-all duration-200 hover:scale-105 inline-block"
+                                data-testid={`text-post-author-${post.id}`}
+                              >
+                                {post.user.firstName && post.user.lastName
                                   ? `${post.user.firstName} ${post.user.lastName}`
                                   : post.user.username}
                               </h4>
                             </UserProfilePopover>
-                            <span className="text-sm text-muted-foreground">•</span>
-                            <span className="text-sm text-muted-foreground" data-testid={`text-post-time-${post.id}`}>
+                            <span className="text-sm text-muted-foreground">
+                              •
+                            </span>
+                            <span
+                              className="text-sm text-muted-foreground"
+                              data-testid={`text-post-time-${post.id}`}
+                            >
                               {formatTimeAgo(post.createdAt)}
                             </span>
-                            <Badge className={`text-xs ${getLevelBadgeColor(post.user.level)} shadow-sm hover:shadow-md transition-shadow duration-200`}>
+                            <Badge
+                              className={`text-xs ${getLevelBadgeColor(post.user.level)} shadow-sm hover:shadow-md transition-shadow duration-200`}
+                            >
                               {post.user.level}
                             </Badge>
                           </div>
-                          
+
                           {/* Problem Information - Only show on community page */}
                           {post.problem && (
                             <div className="flex items-center space-x-2 mb-3">
-                              <span className="text-sm text-muted-foreground">Discussing:</span>
-                              <span className="text-sm font-medium text-primary" data-testid={`text-problem-title-${post.id}`}>
+                              <span className="text-sm text-muted-foreground">
+                                Discussing:
+                              </span>
+                              <span
+                                className="text-sm font-medium text-primary"
+                                data-testid={`text-problem-title-${post.id}`}
+                              >
                                 {post.problem.title}
                               </span>
                               {post.problem.company && (
                                 <>
-                                  <span className="text-sm text-muted-foreground">•</span>
-                                  <Badge variant="secondary" className="text-xs" data-testid={`badge-company-${post.id}`}>
+                                  <span className="text-sm text-muted-foreground">
+                                    •
+                                  </span>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                    data-testid={`badge-company-${post.id}`}
+                                  >
                                     {post.problem.company}
                                   </Badge>
                                 </>
                               )}
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className={`text-xs ${
-                                  post.problem.difficulty === 'Easy' ? 'text-green-600 border-green-300' :
-                                  post.problem.difficulty === 'Medium' ? 'text-yellow-600 border-yellow-300' :
-                                  'text-red-600 border-red-300'
+                                  post.problem.difficulty === "Easy"
+                                    ? "text-green-600 border-green-300"
+                                    : post.problem.difficulty === "Medium"
+                                      ? "text-yellow-600 border-yellow-300"
+                                      : "text-red-600 border-red-300"
                                 }`}
                                 data-testid={`badge-difficulty-${post.id}`}
                               >
@@ -447,55 +524,70 @@ WHERE condition;"
                               </Badge>
                             </div>
                           )}
-                          
-                          <p className="text-foreground mb-4 leading-relaxed" data-testid={`text-post-content-${post.id}`}>
+
+                          <p
+                            className="text-foreground mb-4 leading-relaxed"
+                            data-testid={`text-post-content-${post.id}`}
+                          >
                             {post.content}
                           </p>
-                          
+
                           {/* Code Snippet */}
                           {post.codeSnippet && (
-                            <div className="rounded-xl mb-4 overflow-hidden border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200" data-testid={`code-snippet-${post.id}`}>
-                              <SyntaxHighlighter 
-                                language="sql" 
+                            <div
+                              className="rounded-xl mb-4 overflow-hidden border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200"
+                              data-testid={`code-snippet-${post.id}`}
+                            >
+                              <SyntaxHighlighter
+                                language="sql"
                                 style={atomOneDark}
                                 customStyle={{
                                   margin: 0,
-                                  borderRadius: '0.75rem',
-                                  fontSize: '0.875rem',
+                                  borderRadius: "0.75rem",
+                                  fontSize: "0.875rem",
                                 }}
                               >
                                 {post.codeSnippet}
                               </SyntaxHighlighter>
                             </div>
                           )}
-                          
+
                           {/* Actions */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-6">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleLikePost(post.id, post.likedByCurrentUser)}
+                                onClick={() =>
+                                  handleLikePost(
+                                    post.id,
+                                    post.likedByCurrentUser,
+                                  )
+                                }
                                 className={`flex items-center space-x-2 transition-all duration-200 hover:scale-110 ${
-                                  post.likedByCurrentUser 
-                                    ? 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950' 
-                                    : 'text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950'
+                                  post.likedByCurrentUser
+                                    ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-950"
+                                    : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
                                 }`}
                                 data-testid={`button-like-${post.id}`}
                                 disabled={pendingLikes.has(post.id)}
                               >
-                                <Heart className={`w-4 h-4 transition-all duration-200 ${post.likedByCurrentUser ? 'fill-current animate-pulse' : ''}`} />
-                                <span className="text-sm font-semibold">{post.likes}</span>
+                                <Heart
+                                  className={`w-4 h-4 transition-all duration-200 ${post.likedByCurrentUser ? "fill-current" : ""}`}
+                                />
+                                <span className="text-sm font-semibold">
+                                  {post.likes}
+                                </span>
                               </Button>
-                              
-                              <Dialog 
+
+                              <Dialog
                                 open={selectedPostComments === post.id}
                                 onOpenChange={(open) => {
                                   if (open) {
                                     handleOpenComments(post.id);
                                   } else {
                                     setSelectedPostComments(null);
-                                    setNewComment('');
+                                    setNewComment("");
                                   }
                                 }}
                               >
@@ -507,69 +599,101 @@ WHERE condition;"
                                     data-testid={`button-comment-${post.id}`}
                                   >
                                     <MessageCircle className="w-4 h-4" />
-                                    <span className="text-sm font-semibold">{post.comments}</span>
+                                    <span className="text-sm font-semibold">
+                                      {post.comments}
+                                    </span>
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                                   <DialogHeader>
                                     <DialogTitle>Comments</DialogTitle>
                                   </DialogHeader>
-                                  
+
                                   {/* Comments List */}
                                   <div className="space-y-4 mb-4">
-                                    {selectedPostComments === post.id && comments.length > 0 ? (
+                                    {selectedPostComments === post.id &&
+                                    comments.length > 0 ? (
                                       comments.map((comment: any) => (
-                                        <div key={comment.id} className="border-b pb-3">
+                                        <div
+                                          key={comment.id}
+                                          className="border-b pb-3"
+                                        >
                                           <div className="flex items-start space-x-3">
                                             <Avatar className="w-8 h-8">
-                                              <AvatarImage src={comment.user.profileImageUrl} alt={comment.user.username} />
+                                              <AvatarImage
+                                                src={
+                                                  comment.user.profileImageUrl
+                                                }
+                                                alt={comment.user.username}
+                                              />
                                               <AvatarFallback>
-                                                {comment.user.username?.charAt(0).toUpperCase() || 'U'}
+                                                {comment.user.username
+                                                  ?.charAt(0)
+                                                  .toUpperCase() || "U"}
                                               </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
                                               <div className="flex items-center space-x-2 mb-1">
-                                                <span className="font-semibold text-sm">{comment.user.username}</span>
+                                                <span className="font-semibold text-sm">
+                                                  {comment.user.username}
+                                                </span>
                                                 <span className="text-xs text-muted-foreground">
-                                                  {formatTimeAgo(comment.createdAt)}
+                                                  {formatTimeAgo(
+                                                    comment.createdAt,
+                                                  )}
                                                 </span>
                                               </div>
-                                              <p className="text-sm text-foreground">{comment.content}</p>
+                                              <p className="text-sm text-foreground">
+                                                {comment.content}
+                                              </p>
                                             </div>
                                           </div>
                                         </div>
                                       ))
                                     ) : (
                                       <p className="text-muted-foreground text-sm text-center py-8">
-                                        No comments yet. Be the first to comment!
+                                        No comments yet. Be the first to
+                                        comment!
                                       </p>
                                     )}
                                   </div>
-                                  
+
                                   {/* Add Comment */}
                                   <div className="border-t pt-4">
                                     <div className="flex space-x-3">
                                       <Avatar className="w-8 h-8">
-                                        <AvatarImage src={user?.profileImageUrl} alt={user?.username} />
+                                        <AvatarImage
+                                          src={user?.profileImageUrl}
+                                          alt={user?.username}
+                                        />
                                         <AvatarFallback>
-                                          {user?.username?.charAt(0).toUpperCase() || 'U'}
+                                          {user?.username
+                                            ?.charAt(0)
+                                            .toUpperCase() || "U"}
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="flex-1 space-y-2">
                                         <Textarea
                                           placeholder="Write a comment..."
                                           value={newComment}
-                                          onChange={(e) => setNewComment(e.target.value)}
+                                          onChange={(e) =>
+                                            setNewComment(e.target.value)
+                                          }
                                           className="min-h-[80px] resize-none"
                                         />
                                         <div className="flex justify-end">
                                           <Button
                                             onClick={handleCreateComment}
-                                            disabled={!newComment.trim() || createCommentMutation.isPending}
+                                            disabled={
+                                              !newComment.trim() ||
+                                              createCommentMutation.isPending
+                                            }
                                             size="sm"
                                           >
                                             <Send className="w-4 h-4 mr-2" />
-                                            {createCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
+                                            {createCommentMutation.isPending
+                                              ? "Posting..."
+                                              : "Post Comment"}
                                           </Button>
                                         </div>
                                       </div>
@@ -589,8 +713,7 @@ WHERE condition;"
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-          </div>
+          <div className="space-y-6"></div>
         </div>
       </div>
     </div>
