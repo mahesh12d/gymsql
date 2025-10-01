@@ -288,17 +288,20 @@ class SecureQueryExecutor:
             
             # STEP 6.5: Create ExecutionResult records for each test case
             for test_result in test_results:
+                # Pack extra fields into validation_details JSONB
+                validation_details = test_result.get('validation_details', {})
+                validation_details['user_output'] = test_result.get('user_output', [])
+                validation_details['expected_output'] = test_result.get('expected_output', [])
+                validation_details['output_matches'] = test_result.get('output_matches', False)
+                validation_details['feedback'] = test_result.get('feedback', [])
+                
                 execution_result = ExecutionResult(
                     submission_id=submission.id,
                     test_case_id=test_result.get('test_case_id'),
                     is_correct=test_result.get('is_correct', False),
                     execution_time_ms=test_result.get('execution_time_ms', 0),
-                    execution_status=test_result.get('execution_status', 'SUCCESS'),
-                    validation_details=test_result.get('validation_details', {}),
-                    user_output=test_result.get('user_output', []),
-                    expected_output=test_result.get('expected_output', []),
-                    output_matches=test_result.get('output_matches', False),
-                    feedback=test_result.get('feedback', [])
+                    status=test_result.get('execution_status', 'SUCCESS'),
+                    validation_details=validation_details
                 )
                 db.add(execution_result)
             
