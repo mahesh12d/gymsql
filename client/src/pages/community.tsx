@@ -273,22 +273,13 @@ export default function Community() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuRadioGroup value={postFilter} onValueChange={(value) => setPostFilter(value as PostFilter)}>
                     <DropdownMenuRadioItem value="all" data-testid="dropdown-all-posts">
-                      <div className="flex items-center justify-between w-full">
-                        <span>All Posts</span>
-                        <Badge variant="secondary" className="ml-2">{postCounts.all}</Badge>
-                      </div>
+                      All Posts
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="general" data-testid="dropdown-general-posts">
-                      <div className="flex items-center justify-between w-full">
-                        <span>General</span>
-                        <Badge variant="secondary" className="ml-2">{postCounts.general}</Badge>
-                      </div>
+                      General
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="problems" data-testid="dropdown-problem-posts">
-                      <div className="flex items-center justify-between w-full">
-                        <span>Problem Discussions</span>
-                        <Badge variant="secondary" className="ml-2">{postCounts.problems}</Badge>
-                      </div>
+                      Problem Discussions
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
