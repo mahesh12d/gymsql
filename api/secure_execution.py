@@ -324,6 +324,11 @@ class SecureQueryExecutor:
             db.refresh(submission)
 
             # STEP 7: Build minimal response
+            logger.info(f"📋 Building response with {len(test_results)} test results")
+            if test_results:
+                for i, tr in enumerate(test_results):
+                    logger.info(f"   Test {i}: test_case_id={tr.get('test_case_id')}, has_validation_details={tr.get('validation_details') is not None}")
+            
             result = {
                 'success': True,
                 'submission_id': submission.id,
