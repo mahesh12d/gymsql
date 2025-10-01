@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit2, Save, X, Eye, EyeOff, Database, Columns, Hash } from 'lucide-react';
+import { Edit2, Save, X, Eye, EyeOff, Database, Columns, Hash, Plus, Trash2 } from 'lucide-react';
 
 interface TableColumn {
   name: string;
@@ -84,6 +84,55 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
     setEditedTables(updated);
   };
 
+  const handleAddColumn = (tableIndex: number) => {
+    const updated = deepCloneTables(editedTables);
+    const newColumnName = `column_${updated[tableIndex].columns.length + 1}`;
+    updated[tableIndex].columns.push({
+      name: newColumnName,
+      type: 'VARCHAR'
+    });
+    // Add empty values for this column in all sample data rows
+    updated[tableIndex].sample_data = updated[tableIndex].sample_data.map(row => ({
+      ...row,
+      [newColumnName]: ''
+    }));
+    setEditedTables(updated);
+  };
+
+  const handleDeleteColumn = (tableIndex: number, columnIndex: number) => {
+    const updated = deepCloneTables(editedTables);
+    const columnName = updated[tableIndex].columns[columnIndex].name;
+    updated[tableIndex].columns.splice(columnIndex, 1);
+    // Remove this column from all sample data rows
+    updated[tableIndex].sample_data = updated[tableIndex].sample_data.map(row => {
+      const { [columnName]: _, ...rest } = row;
+      return rest;
+    });
+    setEditedTables(updated);
+  };
+
+  const handleAddRow = (tableIndex: number) => {
+    const updated = deepCloneTables(editedTables);
+    const newRow: Record<string, any> = {};
+    updated[tableIndex].columns.forEach(col => {
+      newRow[col.name] = '';
+    });
+    updated[tableIndex].sample_data.push(newRow);
+    setEditedTables(updated);
+  };
+
+  const handleDeleteRow = (tableIndex: number, rowIndex: number) => {
+    const updated = deepCloneTables(editedTables);
+    updated[tableIndex].sample_data.splice(rowIndex, 1);
+    setEditedTables(updated);
+  };
+
+  const handleCellValueChange = (tableIndex: number, rowIndex: number, columnName: string, value: string) => {
+    const updated = deepCloneTables(editedTables);
+    updated[tableIndex].sample_data[rowIndex][columnName] = value;
+    setEditedTables(updated);
+  };
+
   const toggleSampleData = (tableIndex: number) => {
     setShowSampleData(prev => ({
       ...prev,
@@ -91,16 +140,39 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
     }));
   };
 
-  const renderSampleData = (table: TableData) => {
-    if (!table.sample_data || table.sample_data.length === 0) return null;
+  const renderSampleData = (table: TableData, tableIndex: number, isEditing: boolean) => {
+    if (table.columns.length === 0) {
+      return (
+        <div className="mt-4 border rounded-lg overflow-hidden">
+          <div className="bg-muted/30 px-3 py-2 border-b">
+            <h5 className="text-sm font-medium text-muted-foreground">Sample Data</h5>
+          </div>
+          <div className="p-4 text-center text-muted-foreground text-sm">
+            Add columns first to add sample data
+          </div>
+        </div>
+      );
+    }
 
-    const headers = Object.keys(table.sample_data[0]);
-    const displayRows = table.sample_data.slice(0, 5); // Show first 5 rows
+    const headers = table.columns.map(col => col.name);
+    const displayRows = isEditing ? table.sample_data : table.sample_data.slice(0, 5);
 
     return (
       <div className="mt-4 border rounded-lg overflow-hidden">
-        <div className="bg-muted/30 px-3 py-2 border-b">
+        <div className="bg-muted/30 px-3 py-2 border-b flex items-center justify-between">
           <h5 className="text-sm font-medium text-muted-foreground">Sample Data</h5>
+          {isEditing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleAddRow(tableIndex)}
+              className="h-7 text-xs"
+              data-testid={`button-add-row-${tableIndex}`}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Row
+            </Button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -111,22 +183,55 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
                     {header}
                   </TableHead>
                 ))}
+                {isEditing && <TableHead className="font-medium w-16"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayRows.map((row, index) => (
-                <TableRow key={index} className="text-xs">
-                  {headers.map((header) => (
-                    <TableCell key={header} className="py-1 px-2 max-w-32 truncate">
-                      {String(row[header] ?? '')}
-                    </TableCell>
-                  ))}
+              {table.sample_data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={headers.length + (isEditing ? 1 : 0)} className="text-center text-muted-foreground py-4 text-xs">
+                    {isEditing ? 'Click "Add Row" to add sample data' : 'No sample data available'}
+                  </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                displayRows.map((row, rowIndex) => (
+                  <TableRow key={rowIndex} className="text-xs">
+                    {headers.map((header) => (
+                      <TableCell key={header} className="py-1 px-2">
+                        {isEditing ? (
+                          <Input
+                            value={String(row[header] ?? '')}
+                            onChange={(e) => handleCellValueChange(tableIndex, rowIndex, header, e.target.value)}
+                            className="h-7 text-xs"
+                            data-testid={`input-cell-${tableIndex}-${rowIndex}-${header}`}
+                          />
+                        ) : (
+                          <span className="max-w-32 truncate block" title={String(row[header] ?? '')}>
+                            {String(row[header] ?? '')}
+                          </span>
+                        )}
+                      </TableCell>
+                    ))}
+                    {isEditing && (
+                      <TableCell className="py-1 px-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteRow(tableIndex, rowIndex)}
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          data-testid={`button-delete-row-${tableIndex}-${rowIndex}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
-        {table.sample_data.length > 5 && (
+        {!isEditing && table.sample_data.length > 5 && (
           <div className="px-3 py-2 text-xs text-muted-foreground bg-muted/10 border-t">
             ... and {table.sample_data.length - 5} more rows
           </div>
@@ -263,70 +368,104 @@ export function EnhancedTablePreview({ tables, onTableUpdate, readOnly = false }
             <CardContent className="pt-0">
               {/* Schema Display */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-3 py-2 border-b">
+                <div className="bg-muted/30 px-3 py-2 border-b flex items-center justify-between">
                   <h5 className="text-sm font-medium text-muted-foreground">Table Schema</h5>
+                  {isEditing && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAddColumn(tableIndex)}
+                      className="h-7 text-xs"
+                      data-testid={`button-add-column-${tableIndex}`}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Column
+                    </Button>
+                  )}
                 </div>
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/20">
                       <TableHead className="font-medium">Column Name</TableHead>
                       <TableHead className="font-medium">Data Type</TableHead>
+                      {isEditing && <TableHead className="font-medium w-16"></TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentTable.columns.map((column, columnIndex) => (
-                      <TableRow key={columnIndex}>
-                        <TableCell className="py-2">
-                          {isEditing ? (
-                            <Input
-                              value={column.name}
-                              onChange={(e) => handleColumnNameChange(tableIndex, columnIndex, e.target.value)}
-                              className="font-mono text-sm h-8"
-                              data-testid={`input-column-name-${tableIndex}-${columnIndex}`}
-                            />
-                          ) : (
-                            <span 
-                              className={`font-mono text-sm ${!readOnly ? 'cursor-pointer hover:text-primary' : ''}`}
-                              onClick={() => !readOnly && handleEditTable(tableIndex)}
-                              data-testid={`text-column-name-${tableIndex}-${columnIndex}`}
-                            >
-                              {column.name}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-2">
-                          {isEditing ? (
-                            <select
-                              value={column.type}
-                              onChange={(e) => handleColumnTypeChange(tableIndex, columnIndex, e.target.value)}
-                              className="h-8 w-full border rounded px-2 text-sm"
-                              data-testid={`select-column-type-${tableIndex}-${columnIndex}`}
-                            >
-                              {COLUMN_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${!readOnly ? 'cursor-pointer hover:bg-primary/10' : ''}`}
-                              onClick={() => !readOnly && handleEditTable(tableIndex)}
-                              data-testid={`text-column-type-${tableIndex}-${columnIndex}`}
-                            >
-                              {column.type}
-                            </Badge>
-                          )}
+                    {currentTable.columns.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={isEditing ? 3 : 2} className="text-center text-muted-foreground py-4">
+                          {isEditing ? 'Click "Add Column" to add columns' : 'No columns defined'}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      currentTable.columns.map((column, columnIndex) => (
+                        <TableRow key={columnIndex}>
+                          <TableCell className="py-2">
+                            {isEditing ? (
+                              <Input
+                                value={column.name}
+                                onChange={(e) => handleColumnNameChange(tableIndex, columnIndex, e.target.value)}
+                                className="font-mono text-sm h-8"
+                                data-testid={`input-column-name-${tableIndex}-${columnIndex}`}
+                              />
+                            ) : (
+                              <span 
+                                className={`font-mono text-sm ${!readOnly ? 'cursor-pointer hover:text-primary' : ''}`}
+                                onClick={() => !readOnly && handleEditTable(tableIndex)}
+                                data-testid={`text-column-name-${tableIndex}-${columnIndex}`}
+                              >
+                                {column.name}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            {isEditing ? (
+                              <select
+                                value={column.type}
+                                onChange={(e) => handleColumnTypeChange(tableIndex, columnIndex, e.target.value)}
+                                className="h-8 w-full border rounded px-2 text-sm"
+                                data-testid={`select-column-type-${tableIndex}-${columnIndex}`}
+                              >
+                                {COLUMN_TYPES.map((type) => (
+                                  <option key={type} value={type}>
+                                    {type}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${!readOnly ? 'cursor-pointer hover:bg-primary/10' : ''}`}
+                                onClick={() => !readOnly && handleEditTable(tableIndex)}
+                                data-testid={`text-column-type-${tableIndex}-${columnIndex}`}
+                              >
+                                {column.type}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          {isEditing && (
+                            <TableCell className="py-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteColumn(tableIndex, columnIndex)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                data-testid={`button-delete-column-${tableIndex}-${columnIndex}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
 
               {/* Sample Data */}
-              {showSampleData[tableIndex] && renderSampleData(table)}
+              {showSampleData[tableIndex] && renderSampleData(currentTable, tableIndex, isEditing)}
             </CardContent>
           </Card>
         );
