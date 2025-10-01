@@ -40,34 +40,47 @@ export default function Community() {
     queryFn: () => communityApi.getPosts(),
   });
 
-  // Calculate post counts for each category
-  const postCounts = useMemo(() => {
-    if (!posts) return { all: 0, general: 0, problems: 0 };
+  // Filter out premium problem posts for non-premium users
+  const accessiblePosts = useMemo(() => {
+    if (!posts) return [];
     
-    const general = posts.filter(post => !post.problem).length;
-    const problems = posts.filter(post => post.problem).length;
+    return posts.filter(post => {
+      // If post is about a premium problem and user is not premium, hide it
+      if (post.problem?.premium === true && (!user || !user.premium)) {
+        return false;
+      }
+      return true;
+    });
+  }, [posts, user]);
+
+  // Calculate post counts for each category (only accessible posts)
+  const postCounts = useMemo(() => {
+    if (!accessiblePosts) return { all: 0, general: 0, problems: 0 };
+    
+    const general = accessiblePosts.filter(post => !post.problem).length;
+    const problems = accessiblePosts.filter(post => post.problem).length;
     
     return {
-      all: posts.length,
+      all: accessiblePosts.length,
       general,
       problems
     };
-  }, [posts]);
+  }, [accessiblePosts]);
 
   // Filter posts based on selected filter
   const filteredPosts = useMemo(() => {
-    if (!posts) return [];
+    if (!accessiblePosts) return [];
     
     switch (postFilter) {
       case 'general':
-        return posts.filter(post => !post.problem);
+        return accessiblePosts.filter(post => !post.problem);
       case 'problems':
-        return posts.filter(post => post.problem);
+        return accessiblePosts.filter(post => post.problem);
       case 'all':
       default:
-        return posts;
+        return accessiblePosts;
     }
-  }, [posts, postFilter]);
+  }, [accessiblePosts, postFilter]);
 
   const createPostMutation = useMutation({
     mutationFn: (postData: { content: string; codeSnippet?: string }) => 
