@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Heart, MessageCircle, Code, Activity, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { communityApi } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfilePopover } from '@/components/UserProfilePopover';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import atomOneDark from 'react-syntax-highlighter/dist/styles/atom-one-dark';
+
+type PostFilter = 'all' | 'general' | 'problems';
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState('');
@@ -21,6 +24,7 @@ export default function Community() {
   const [selectedPostComments, setSelectedPostComments] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
+  const [postFilter, setPostFilter] = useState<PostFilter>('all');
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,6 +33,35 @@ export default function Community() {
     queryKey: ['/api/community/posts'],
     queryFn: () => communityApi.getPosts(),
   });
+
+  // Calculate post counts for each category
+  const postCounts = useMemo(() => {
+    if (!posts) return { all: 0, general: 0, problems: 0 };
+    
+    const general = posts.filter(post => !post.problem).length;
+    const problems = posts.filter(post => post.problem).length;
+    
+    return {
+      all: posts.length,
+      general,
+      problems
+    };
+  }, [posts]);
+
+  // Filter posts based on selected filter
+  const filteredPosts = useMemo(() => {
+    if (!posts) return [];
+    
+    switch (postFilter) {
+      case 'general':
+        return posts.filter(post => !post.problem);
+      case 'problems':
+        return posts.filter(post => post.problem);
+      case 'all':
+      default:
+        return posts;
+    }
+  }, [posts, postFilter]);
 
   const createPostMutation = useMutation({
     mutationFn: (postData: { content: string; codeSnippet?: string }) => 
@@ -194,6 +227,24 @@ export default function Community() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Feed */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Filter Tabs */}
+            <Tabs value={postFilter} onValueChange={(value) => setPostFilter(value as PostFilter)}>
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="all" data-testid="tab-all-posts">
+                  All Posts
+                  <Badge variant="secondary" className="ml-2">{postCounts.all}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="general" data-testid="tab-general-posts">
+                  General
+                  <Badge variant="secondary" className="ml-2">{postCounts.general}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="problems" data-testid="tab-problem-posts">
+                  Problem Discussions
+                  <Badge variant="secondary" className="ml-2">{postCounts.problems}</Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {/* Create Post */}
             {user && (
               <Card className="border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background via-background to-primary/5">
@@ -270,19 +321,27 @@ WHERE condition;"
                   </Card>
                 ))}
               </div>
-            ) : posts?.length === 0 ? (
+            ) : filteredPosts.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                     <MessageCircle className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">No posts yet</h3>
-                  <p className="text-muted-foreground">Be the first to share something with the community!</p>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    {postFilter === 'general' ? 'No general posts yet' : 
+                     postFilter === 'problems' ? 'No problem discussions yet' : 
+                     'No posts yet'}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {postFilter === 'all' ? 'Be the first to share something with the community!' :
+                     postFilter === 'general' ? 'Be the first to share a general post!' :
+                     'Be the first to discuss a problem!'}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-6">
-                {posts?.map((post) => (
+                {filteredPosts.map((post) => (
                   <Card 
                     key={post.id} 
                     data-testid={`post-${post.id}`}
