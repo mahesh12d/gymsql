@@ -194,6 +194,7 @@ class CommunityPostResponse(CommunityPostBase):
     created_at: datetime
     user: UserResponse
     problem: Optional[CommunityProblemResponse] = None
+    liked_by_current_user: bool = False
 
 # Post comment schemas
 class PostCommentBase(CamelCaseModel):

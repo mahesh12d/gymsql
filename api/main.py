@@ -1523,7 +1523,22 @@ def get_community_posts(current_user: Optional[User] = Depends(get_current_user_
             filtered_posts.append(post)
         # Otherwise, exclude the post
 
-    return [CommunityPostResponse.from_orm(post) for post in filtered_posts]
+    # Get liked posts for the current user
+    liked_post_ids = set()
+    if current_user:
+        liked_posts = db.query(PostLike.post_id).filter(
+            PostLike.user_id == current_user.id
+        ).all()
+        liked_post_ids = {like.post_id for like in liked_posts}
+
+    # Build response with liked status
+    response = []
+    for post in filtered_posts:
+        post_dict = CommunityPostResponse.from_orm(post).model_dump()
+        post_dict['liked_by_current_user'] = post.id in liked_post_ids
+        response.append(CommunityPostResponse(**post_dict))
+    
+    return response
 
 
 @app.post("/api/community/posts",
