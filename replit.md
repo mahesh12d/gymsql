@@ -97,6 +97,19 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ## Recent Changes
 
+### October 1, 2025 - Community Page Performance Optimization
+- **Post Count Removal**: Removed post count badges from community page filter dropdown to improve performance
+- **Resource Optimization**: Eliminated `postCounts` calculation that was computed on every render
+- **Impact**: Reduced computational overhead when filtering community posts
+- **Files Modified**: `client/src/pages/community.tsx`
+
+### October 1, 2025 - Replit Environment Configuration
+- **Workflow Setup**: Configured "Start application" workflow with webview output on port 5000
+- **Frontend Configuration**: Verified Vite server properly configured with `allowedHosts: true` for Replit proxy
+- **Backend Configuration**: Confirmed FastAPI running on localhost:8000 with proper proxy setup
+- **Deployment**: Configured autoscale deployment target with build and run commands
+- **Status**: Application fully operational in Replit environment
+
 ### October 1, 2025 - Database Schema Cleanup
 - **Chat Tables Removal**: Permanently removed all deprecated chat-related database tables to free up space and align backend with current architecture
 - **Tables Removed**: chat_messages, chat_participants, chat_rooms, conversations, conversation_participants, messages, user_presence, submission_queue

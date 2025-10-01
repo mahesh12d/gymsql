@@ -69,20 +69,6 @@ export default function Community() {
     });
   }, [posts, user]);
 
-  // Calculate post counts for each category (only accessible posts)
-  const postCounts = useMemo(() => {
-    if (!accessiblePosts) return { all: 0, general: 0, problems: 0 };
-
-    const general = accessiblePosts.filter((post) => !post.problem).length;
-    const problems = accessiblePosts.filter((post) => post.problem).length;
-
-    return {
-      all: accessiblePosts.length,
-      general,
-      problems,
-    };
-  }, [accessiblePosts]);
-
   // Filter posts based on selected filter
   const filteredPosts = useMemo(() => {
     if (!accessiblePosts) return [];
@@ -297,11 +283,6 @@ export default function Community() {
                       {postFilter === "general" && "General"}
                       {postFilter === "problems" && "Problem Discussions"}
                     </span>
-                    <Badge variant="secondary" className="ml-2">
-                      {postFilter === "all" && postCounts.all}
-                      {postFilter === "general" && postCounts.general}
-                      {postFilter === "problems" && postCounts.problems}
-                    </Badge>
                     <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </Button>
                 </DropdownMenuTrigger>
