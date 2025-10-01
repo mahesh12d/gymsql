@@ -637,107 +637,21 @@ class SecureQueryExecutor:
                             })
                     ]
 
-            # Check for master_solution ONLY (no fallbacks)
-            if hasattr(problem, 'master_solution') and problem.master_solution:
-                expected_output = problem.master_solution
-                logger.info(f"✅ Using master_solution for problem {problem_id}")
-                logger.info(f"📊 master_solution has {len(expected_output)} rows")
-            else:
-                logger.warning(f"⚠️  No master_solution found for problem {problem_id}")
-                expected_output = None
-
-            if expected_output:
-                # Get or create a real test case for master_solution (only create during submission)
-                # The for_submission parameter is passed from the caller context
-                # For now, always create since this is in validation path
-                test_case_id = self._get_or_create_master_solution_test_case(
-                    db, problem_id, expected_output, for_submission=True)
-                
-                result = await self._execute_query_fast(sandbox, query)
-
-                if result.get('success'):
-                    user_results = result.get('results', [])
-
-                    # Enhanced comparison with detailed feedback
-                    is_correct, comparison_details = self._compare_results_detailed(
-                        user_results, expected_output)
-
-                    feedback = []
-                    if is_correct:
-                        feedback.append(
-                            'Results match expected output perfectly')
-                    else:
-                        feedback.extend(comparison_details)
-
-                    # Create detailed validation structure for frontend
-                    validation_details = self._create_validation_details(
-                        user_results, expected_output)
-
-                    return [
-                        self._build_validation_result(
-                            test_case_id=test_case_id,
-                            test_case_name='Expected Output Check',
-                            is_correct=is_correct,
-                            feedback=feedback,
-                            execution_time_ms=result.get(
-                                'execution_time_ms', 0),
-                            user_output=user_results,
-                            expected_output=expected_output,
-                            validation_details=validation_details,
-                            output_matches=is_correct)
-                    ]
-                else:
-                    return [
-                        self._build_validation_result(
-                            test_case_id=test_case_id,
-                            test_case_name='Expected Output Check',
-                            is_correct=False,
-                            feedback=[
-                                result.get('error', 'Query execution failed')
-                            ],
-                            validation_details={
-                                'row_comparisons': [],
-                                'matching_row_count':
-                                0,
-                                'total_row_count':
-                                0,
-                                'comparison_differences': [
-                                    result.get('error',
-                                               'Query execution failed')
-                                ]
-                            })
-                    ]
-
-            # Fallback: just execute query and return success
-            result = await self._execute_query_fast(sandbox, query)
-
-            if result.get('success'):
-                return [
-                    self._build_validation_result(
-                        test_case_id='basic_execution',
-                        test_case_name='Query Execution',
-                        is_correct=True,
-                        feedback=['Query executed successfully'],
-                        execution_time_ms=result.get('execution_time_ms', 0),
-                        user_output=result.get('results', []))
-                ]
-            else:
-                return [
-                    self._build_validation_result(
-                        test_case_id='execution_error',
-                        test_case_name='Query Execution',
-                        is_correct=False,
-                        feedback=[result.get('error', 'Query failed')],
-                        validation_details={
-                            'row_comparisons': [],
-                            'matching_row_count':
-                            0,
-                            'total_row_count':
-                            0,
-                            'comparison_differences':
-                            [result.get('error', 'Query failed')]
-                        })
-                ]
+            # No test cases found - return error message
+            logger.warning(f"⚠️  No test cases found for problem {problem_id}")
+            return [
+                self._build_validation_result(
+                    test_case_id='no_test_cases',
+                    test_case_name='No Test Cases',
+                    is_correct=False,
+                    feedback=['No test case available. Please provide test case.'],
+                    validation_details={
+                        'row_comparisons': [],
+                        'matching_row_count': 0,
+                        'total_row_count': 0,
+                        'comparison_differences': ['No test cases configured for this problem']
+                    })
+            ]
 
         except Exception as e:
             logger.error(f"Validation failed: {e}")
