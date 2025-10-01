@@ -97,6 +97,13 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ## Recent Changes
 
+### October 1, 2025 - Database Schema Cleanup
+- **Chat Tables Removal**: Permanently removed all deprecated chat-related database tables to free up space and align backend with current architecture
+- **Tables Removed**: chat_messages, chat_participants, chat_rooms, conversations, conversation_participants, messages, user_presence, submission_queue
+- **Space Freed**: Approximately 592 kB of database storage
+- **Impact**: Cleaner database schema, improved maintainability, reduced backup size
+- **Cleanup Script**: Created `scripts/cleanup_chat_tables.sql` for documentation
+
 ### September 30, 2025 - Redis Integration for Performance
 - **Redis Service**: Created comprehensive Redis service with connection management and fallback mechanisms
 - **Result Caching**: Implemented query-hash-based caching for test queries (10 min TTL) to prevent stale results
