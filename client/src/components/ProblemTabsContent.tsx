@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import ProblemDescriptionTab from '@/components/ProblemDescriptionTab';
 import AnswersScreen from '@/components/AnswersScreen';
+import ResultComparisonTable from './ResultComparisonTable';
 
 interface Problem {
   id?: string;
@@ -767,6 +768,14 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
                             data={mainTestResult.expected_output} 
                             title="Expected Output" 
                           />
+                          
+                          {/* Detailed Result Comparison */}
+                          {mainTestResult.validation_details && (
+                            <ResultComparisonTable 
+                              validationDetails={mainTestResult.validation_details}
+                              isCorrect={latestSubmissionResult.is_correct}
+                            />
+                          )}
                         </>
                       ) : null;
                     })()}
@@ -775,41 +784,8 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
               </div>
             )}
 
-            {/* Submission History */}
-            {userSubmissions.length > 0 ? (
-              <div className="space-y-3">
-                <h4 className="text-md font-semibold text-foreground border-t pt-4">
-                  Submission History
-                </h4>
-                {userSubmissions.map((submission, index) => (
-                  <Card key={submission.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            submission.isCorrect ? "bg-green-500" : "bg-red-500"
-                          }`}
-                        />
-                        <span className="text-sm font-mono">
-                          Submission {index + 1}
-                        </span>
-                        {submission.isCorrect && (
-                          <Badge className="bg-green-100 text-green-800 text-xs">
-                            ✓ Accepted
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(submission.submittedAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      Runtime: {submission.executionTime || "N/A"}ms
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : !latestSubmissionResult && (
+            {/* Show message when no submissions */}
+            {!latestSubmissionResult && userSubmissions.length === 0 && (
               <div className="text-center py-8">
                 <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h4 className="text-base font-semibold text-foreground mb-2">
