@@ -287,7 +287,22 @@ class SecureQueryExecutor:
             db.flush()  # Get submission.id without committing
             
             # STEP 6.5: Create ExecutionResult records for each test case
+            # Prefetch all valid test_case_ids for this problem to ensure FK integrity
+            valid_test_case_ids = {
+                tc.id for tc in db.query(TestCase).filter(
+                    TestCase.problem_id == problem_id
+                ).all()
+            }
+            
             for test_result in test_results:
+                test_case_id = test_result.get('test_case_id')
+                
+                # Only create ExecutionResult if test_case_id exists in database
+                # This handles all synthetic/fallback IDs automatically without hardcoding
+                if not test_case_id or test_case_id not in valid_test_case_ids:
+                    logger.info(f"Skipping ExecutionResult creation for non-existent test_case_id: {test_case_id}")
+                    continue
+                
                 # Pack extra fields into validation_details JSONB
                 validation_details = test_result.get('validation_details', {})
                 validation_details['user_output'] = test_result.get('user_output', [])
@@ -297,7 +312,7 @@ class SecureQueryExecutor:
                 
                 execution_result = ExecutionResult(
                     submission_id=submission.id,
-                    test_case_id=test_result.get('test_case_id'),
+                    test_case_id=test_case_id,
                     is_correct=test_result.get('is_correct', False),
                     execution_time_ms=test_result.get('execution_time_ms', 0),
                     status=test_result.get('execution_status', 'SUCCESS'),
@@ -479,6 +494,62 @@ class SecureQueryExecutor:
         except Exception as e:
             return {'success': False, 'error': str(e), 'execution_time_ms': 0}
 
+    def _get_or_create_master_solution_test_case(self, db: Session, problem_id: str, expected_output: List[Dict], for_submission: bool = True) -> Optional[str]:
+        """Get or create a hidden test case for master_solution validation
+        
+        Args:
+            db: Database session
+            problem_id: Problem ID
+            expected_output: Expected output from master_solution
+            for_submission: If True, create if not exists (submit flow). If False, only fetch (test flow)
+        
+        Returns:
+            Test case ID if exists/created, None if for_submission=False and doesn't exist
+        """
+        # Check if test case already exists with MASTER_SOLUTION marker
+        test_case = db.query(TestCase).filter(
+            TestCase.problem_id == problem_id,
+            TestCase.validation_rules['type'].astext == 'MASTER_SOLUTION'
+        ).first()
+        
+        if test_case:
+            # Update expected_output if it changed
+            if test_case.expected_output != expected_output:
+                test_case.expected_output = expected_output
+                db.flush()
+                logger.info(f"Updated expected_output for master_solution test case {test_case.id}")
+            return test_case.id
+        
+        # Only create during submission, not during testing
+        if not for_submission:
+            logger.info(f"Master solution test case doesn't exist for problem {problem_id}, skipping creation during test")
+            return None
+        
+        # Get max order_index to avoid conflicts
+        max_order = db.query(TestCase.order_index).filter(
+            TestCase.problem_id == problem_id
+        ).order_by(TestCase.order_index.desc()).first()
+        
+        next_order = (max_order[0] + 1) if max_order and max_order[0] is not None else 0
+        
+        # Create new hidden test case for master_solution
+        test_case = TestCase(
+            problem_id=problem_id,
+            name='Expected Output Check',
+            description='Validates against master solution',
+            input_data={},
+            expected_output=expected_output,
+            is_hidden=True,
+            order_index=next_order,
+            validation_rules={'type': 'MASTER_SOLUTION'}
+        )
+        
+        db.add(test_case)
+        db.flush()  # Get the ID without committing
+        
+        logger.info(f"Created hidden test case {test_case.id} for master_solution on problem {problem_id} with order_index {next_order}")
+        return test_case.id
+
     async def _execute_minimal_validation(self, sandbox: DuckDBSandbox,
                                           problem_id: str, query: str,
                                           db: Session) -> List[Dict[str, Any]]:
@@ -571,6 +642,12 @@ class SecureQueryExecutor:
                 expected_output = None
 
             if expected_output:
+                # Get or create a real test case for master_solution (only create during submission)
+                # The for_submission parameter is passed from the caller context
+                # For now, always create since this is in validation path
+                test_case_id = self._get_or_create_master_solution_test_case(
+                    db, problem_id, expected_output, for_submission=True)
+                
                 result = await self._execute_query_fast(sandbox, query)
 
                 if result.get('success'):
@@ -593,7 +670,7 @@ class SecureQueryExecutor:
 
                     return [
                         self._build_validation_result(
-                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_id=test_case_id,
                             test_case_name='Expected Output Check',
                             is_correct=is_correct,
                             feedback=feedback,
@@ -607,7 +684,7 @@ class SecureQueryExecutor:
                 else:
                     return [
                         self._build_validation_result(
-                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_id=test_case_id,
                             test_case_name='Expected Output Check',
                             is_correct=False,
                             feedback=[
