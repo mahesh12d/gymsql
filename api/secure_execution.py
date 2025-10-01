@@ -251,15 +251,18 @@ class SecureQueryExecutor:
             if not is_safe:
                 return self._create_error_response(security_errors[0])
 
-            # STEP 2: Fast cache check (skip for now to avoid complexity)
+            # STEP 2: Fast cache check (cache all results, not just correct ones)
             cache_key = self._cache.make_key(query, problem_id)
             cached = self._cache.get(cache_key)
-            if cached and cached.get('is_correct'):
+            if cached:
+                logger.info(f"✨ Cache HIT for problem {problem_id}")
                 # Fast submission creation from cache
                 submission = self._create_submission_fast(
                     user_id, problem_id, query, cached, db)
                 cached['submission_id'] = submission.id
                 return cached
+            else:
+                logger.info(f"💾 Cache MISS for problem {problem_id}")
 
             # STEP 3: Get sandbox (reuse existing if possible)
             sandbox = await self._get_sandbox_fast(user_id, problem_id, db)
@@ -346,9 +349,9 @@ class SecureQueryExecutor:
                 'security_warnings': []
             }
 
-            # STEP 8: Cache successful results
-            if is_correct:
-                self._cache.set(cache_key, result)
+            # STEP 8: Cache ALL results (correct and incorrect) for faster re-submission
+            self._cache.set(cache_key, result)
+            logger.info(f"💾 Cached result for problem {problem_id} (is_correct={is_correct})")
 
             # STEP 9: Async user progress update (fire and forget)
             if is_correct:
