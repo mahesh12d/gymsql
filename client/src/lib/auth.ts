@@ -52,7 +52,8 @@ async function apiRequest<T = any>(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new ApiError(response.status, data.message || "An error occurred");
+    // FastAPI uses 'detail' field for error messages, fallback to 'message' or generic error
+    throw new ApiError(response.status, data.detail || data.message || "An error occurred");
   }
 
   return data;
