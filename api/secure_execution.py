@@ -561,21 +561,14 @@ class SecureQueryExecutor:
                             })
                     ]
 
-            # Check for expected output - prioritize master_solution, then fallback to legacy fields
-            expected_output = None
-
-            # First priority: master_solution field (new admin system)
+            # Check for master_solution ONLY (no fallbacks)
             if hasattr(problem, 'master_solution') and problem.master_solution:
                 expected_output = problem.master_solution
-
-            # Second priority: legacy expected_output column
-            elif hasattr(problem,
-                         'expected_output') and problem.expected_output:
-                expected_output = problem.expected_output
-
-            # Third priority: legacy question.expectedOutput for backward compatibility
-            elif problem.question and isinstance(problem.question, dict):
-                expected_output = problem.question.get('expectedOutput', [])
+                logger.info(f"✅ Using master_solution for problem {problem_id}")
+                logger.info(f"📊 master_solution has {len(expected_output)} rows")
+            else:
+                logger.warning(f"⚠️  No master_solution found for problem {problem_id}")
+                expected_output = None
 
             if expected_output:
                 result = await self._execute_query_fast(sandbox, query)
