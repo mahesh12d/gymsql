@@ -1,0 +1,70 @@
+if hasattr(problem, 'master_solution') and problem.master_solution:
+                expected_output = problem.master_solution
+
+            # Second priority: legacy expected_output column
+            elif hasattr(problem,
+                         'expected_output') and problem.expected_output:
+                expected_output = problem.expected_output
+
+            # Third priority: legacy question.expectedOutput for backward compatibility
+            elif problem.question and isinstance(problem.question, dict):
+                expected_output = problem.question.get('expectedOutput', [])
+
+            if expected_output:
+                result = await self._execute_query_fast(sandbox, query)
+
+                if result.get('success'):
+                    user_results = result.get('results', [])
+
+                    # Enhanced comparison with detailed feedback
+                    is_correct, comparison_details = self._compare_results_detailed(
+                        user_results, expected_output)
+
+                    feedback = []
+                    if is_correct:
+                        feedback.append(
+                            'Results match expected output perfectly')
+                    else:
+                        feedback.extend(comparison_details)
+
+                    # Create detailed validation structure for frontend
+                    validation_details = self._create_validation_details(
+                        user_results, expected_output)
+
+                    return [
+                        self._build_validation_result(
+                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_name='Expected Output Check',
+                            is_correct=is_correct,
+                            feedback=feedback,
+                            execution_time_ms=result.get(
+                                'execution_time_ms', 0),
+                            user_output=user_results,
+                            expected_output=expected_output,
+                            validation_details=validation_details,
+                            output_matches=is_correct)
+                    ]
+                else:
+                    return [
+                        self._build_validation_result(
+                            test_case_id=f"{problem_id}_expected_output",
+                            test_case_name='Expected Output Check',
+                            is_correct=False,
+                            feedback=[
+                                result.get('error', 'Query execution failed')
+                            ],
+                            validation_details={
+                                'row_comparisons': [],
+                                'matching_row_count':
+                                0,
+                                'total_row_count':
+                                0,
+                                'comparison_differences': [
+                                    result.get('error',
+                                               'Query execution failed')
+                                ]
+                            })
+                    ]
+
+            # Fallback: just execute query and return success
+            result = await self._execute_query_fast(sandbox, query)
