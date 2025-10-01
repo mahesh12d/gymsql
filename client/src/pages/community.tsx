@@ -292,7 +292,7 @@ export default function Community() {
                 <CardContent className="p-6">
                   <div className="w-full">
                     <Textarea
-                      placeholder="Share your SQL journey, tips, or celebrate your achievements..."
+                      placeholder="Ask your SQL questions, share solutions or just chat with the community!"
                       value={newPostContent}
                       onChange={(e) => setNewPostContent(e.target.value)}
                       rows={3}
