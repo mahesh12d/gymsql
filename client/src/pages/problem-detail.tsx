@@ -72,11 +72,72 @@ export default function ProblemDetail() {
     },
   });
 
-  // Memoized submit solution mutation
+  // Memoized submit solution mutation with job polling support
   const submitSolutionMutation = useMutation({
     mutationFn: async (query: string) => {
       if (!problemId) throw new Error("No problem selected");
-      return submissionsApi.submit(problemId, query);
+      const response = await submissionsApi.submit(problemId, query);
+      
+      // Check if response is a job queue response (handles queued, processing, accepted)
+      const jobStatuses = ["queued", "processing", "accepted"];
+      if (response.job_id && response.status && jobStatuses.includes(response.status.toLowerCase())) {
+        // Poll for job completion
+        const maxAttempts = 60; // Poll for up to 60 seconds
+        const pollInterval = 1000; // Poll every 1 second
+        const maxTransientErrors = 3; // Allow 3 transient errors before failing
+        let transientErrorCount = 0;
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          
+          try {
+            const statusResponse = await fetch(`/api/jobs/${response.job_id}/status`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (!statusResponse.ok) {
+              // Treat as transient error and retry
+              transientErrorCount++;
+              if (transientErrorCount >= maxTransientErrors) {
+                throw new Error('Failed to get job status after multiple attempts');
+              }
+              continue;
+            }
+            
+            const statusData = await statusResponse.json();
+            
+            // Reset transient error count on successful fetch
+            transientErrorCount = 0;
+            
+            // Check for completion - return result if available, otherwise return statusData
+            if (statusData.status === "completed") {
+              return statusData.result ?? statusData;
+            } else if (statusData.status === "failed") {
+              throw new Error(statusData.error || statusData.message || 'Job failed');
+            }
+            // Continue polling if status is "queued" or "processing"
+          } catch (error) {
+            // If we've already thrown an error above, re-throw it
+            if (error instanceof Error && error.message.includes('Failed to get job status')) {
+              throw error;
+            }
+            // Otherwise log and continue (transient error handling)
+            console.error('Error polling job status:', error);
+            transientErrorCount++;
+            if (transientErrorCount >= maxTransientErrors) {
+              throw new Error('Failed to poll job status after multiple errors');
+            }
+          }
+        }
+        
+        throw new Error('Job timeout - submission is taking longer than expected. Please try again.');
+      }
+      
+      // Direct response (no job queue)
+      return response;
     },
     onSuccess: (result) => {
       // Store the latest submission result for the left panel
@@ -91,6 +152,13 @@ export default function ProblemDetail() {
       });
       // Auto-open submissions tab after successful submission
       setActiveTab('submission');
+    },
+    onError: (error) => {
+      toast({
+        title: "Submission failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
     },
   });
 
