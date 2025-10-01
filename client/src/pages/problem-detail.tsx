@@ -112,9 +112,17 @@ export default function ProblemDetail() {
             // Reset transient error count on successful fetch
             transientErrorCount = 0;
             
+            // Debug logging
+            console.log('Job status:', statusData.status);
+            if (statusData.status === "completed") {
+              console.log('Job completed, result:', statusData.result);
+            }
+            
             // Check for completion - return result if available, otherwise return statusData
             if (statusData.status === "completed") {
-              return statusData.result ?? statusData;
+              const result = statusData.result ?? statusData;
+              console.log('Returning result:', result);
+              return result;
             } else if (statusData.status === "failed") {
               throw new Error(statusData.error || statusData.message || 'Job failed');
             }
