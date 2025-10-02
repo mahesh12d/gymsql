@@ -3,6 +3,9 @@
 ## Overview
 SQLGym is a gamified SQL learning platform designed to teach SQL through coding practice. It combines fitness-themed motivation with an XP system, leaderboards, and a community forum. The platform offers a comprehensive problem set with varying difficulty, submission tracking, and a badge system to provide an engaging and effective learning experience. The business vision is to create a leading interactive platform for SQL education, leveraging gamification to enhance user engagement and retention, and fostering a strong community of learners.
 
+## Recent Changes
+- **October 2, 2025**: Removed friends functionality - Completely removed the friendship system including database model, API endpoints, frontend UI components, and the friends leaderboard feature to simplify the application.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -35,6 +38,7 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 -   The application uses PostgreSQL for all data persistence, complemented by Redis for caching and leaderboards.
 -   All SQL query processing is handled synchronously through a secure executor.
 -   The architecture has been simplified by removing chat functionality and associated WebSocket connections to reduce complexity and overhead.
+-   Friends functionality has been removed to streamline the application and focus on core learning features.
 
 ## External Dependencies
 ### Database Services
