@@ -104,6 +104,19 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ## Recent Changes
 
+### October 2, 2025 - Discussion Comments Visibility Fix
+- **Auto-Expand Comments**: Comments now automatically expand when a discussion has existing comments (instead of being hidden by default)
+- **Improved Button Labels**: Changed from unlabeled icon+count to clear "View X comments"/"Hide X comments" text with chevron indicators
+- **Better Discoverability**: Users can immediately see existing comments without having to guess the toggle button functionality
+- **UX Enhancement**: Addresses issue where users couldn't find comments even though count showed "2"
+- **Files Modified**: `client/src/components/ProblemTabsContent.tsx`
+
+### October 2, 2025 - Rich Text Editor Formatting Improvements
+- **No Placeholder Text**: Removed confusing placeholder text ("bold text", "italic text") when clicking formatting buttons
+- **Smart Cursor Positioning**: Cursor now positioned between formatting markers (e.g., between `**` and `**`) for immediate typing
+- **Streamlined UX**: Users can click Bold/Italic and start typing immediately without clearing placeholder text
+- **Files Modified**: `client/src/components/RichTextEditor.tsx`
+
 ### October 2, 2025 - Rich Text Editor for Problem Discussions
 - **Inline Discussion Editor**: Replaced dialog-based "New Discussion" button with inline RichTextEditor in problem detail page
 - **Consistent UX**: Discussion tab now matches community page design with inline editor at the top

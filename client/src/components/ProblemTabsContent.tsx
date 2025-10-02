@@ -314,7 +314,7 @@ const DiscussionCard = memo(function DiscussionCard({
   onLike: (id: string, isLiked: boolean) => void;
   onComment: (id: string) => void;
 }) {
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(discussion.comments > 0);
   const [replyContent, setReplyContent] = useState('');
   const { toast } = useToast();
 
@@ -396,7 +396,8 @@ const DiscussionCard = memo(function DiscussionCard({
                 data-testid={`button-comments-${discussion.id}`}
               >
                 <MessageSquare className="w-4 h-4 mr-1" />
-                {discussion.comments}
+                {showComments ? 'Hide' : 'View'} {discussion.comments} {discussion.comments === 1 ? 'comment' : 'comments'}
+                {showComments ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
               </Button>
             </div>
             
