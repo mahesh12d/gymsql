@@ -147,7 +147,6 @@ class Problem(Base):
     # Relationships
     submissions = relationship("Submission", back_populates="problem")
     test_cases = relationship("TestCase", back_populates="problem")
-    schemas = relationship("ProblemSchema", back_populates="problem")
     community_posts = relationship("CommunityPost", back_populates="problem")
     solutions = relationship("Solution", back_populates="problem")
     topic = relationship("Topic", back_populates="problems")
@@ -283,26 +282,6 @@ class TestCase(Base):
     
     # Unique constraint: unique name per problem
     __table_args__ = (UniqueConstraint('problem_id', 'name', name='uq_test_cases_problem_name'),)
-
-class ProblemSchema(Base):
-    """Define table structures that problems will use"""
-    __tablename__ = "problem_schemas"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
-    table_name = Column(String(100), nullable=False)
-    schema_definition = Column(JSONB, nullable=False)  # Table structure with columns, types, constraints
-    sample_data = Column(JSONB, default=list)  # Sample rows for the table
-    indexes = Column(JSON, default=list)  # Index definitions
-    constraints = Column(JSON, default=list)  # FK, CHECK constraints etc
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    
-    # Relationships
-    problem = relationship("Problem", back_populates="schemas")
-    
-    # Unique constraint: unique table_name per problem
-    __table_args__ = (UniqueConstraint('problem_id', 'table_name', name='uq_problem_schemas_problem_table'),)
 
 class ExecutionResult(Base):
     """Track detailed query execution results"""

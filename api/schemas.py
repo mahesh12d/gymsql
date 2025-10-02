@@ -280,23 +280,6 @@ class TestCaseResponse(TestCaseBase):
     created_at: datetime
     updated_at: datetime
 
-# Problem schema schemas
-class ProblemSchemaBase(CamelCaseModel):
-    problem_id: str
-    table_name: str
-    schema_definition: Dict[str, Any]
-    sample_data: List[Dict[str, Any]] = []
-    indexes: List[Dict[str, Any]] = []
-    constraints: List[Dict[str, Any]] = []
-
-class ProblemSchemaCreate(ProblemSchemaBase):
-    pass
-
-class ProblemSchemaResponse(ProblemSchemaBase):
-    id: str
-    created_at: datetime
-    updated_at: datetime
-
 # Execution result schemas
 class ExecutionResultBase(CamelCaseModel):
     submission_id: str
@@ -384,9 +367,8 @@ class EnhancedUserResponse(UserResponse):
     total_xp: Optional[int] = 0
 
 class EnhancedProblemResponse(ProblemResponse):
-    """Enhanced problem response with test cases and schema"""
+    """Enhanced problem response with test cases"""
     test_cases: Optional[List[TestCaseResponse]] = []
-    schemas: Optional[List[ProblemSchemaResponse]] = []
     topic: Optional[TopicResponse] = None
 
 class DetailedSubmissionResponse(SubmissionResponse):
