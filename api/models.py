@@ -498,3 +498,23 @@ class ProblemSubmissionQueue(Base):
         Index('idx_problem_submissions_completed_at', 'completed_at'),
     )
 
+
+class HelpfulLink(Base):
+    """Helpful links shared by premium users for the community"""
+    __tablename__ = "helpful_links"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(200), nullable=False)
+    url = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="helpful_links")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_helpful_links_created_at', 'created_at'),
+        Index('idx_helpful_links_user_id', 'user_id'),
+    )
+
