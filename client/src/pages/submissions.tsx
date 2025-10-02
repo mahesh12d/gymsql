@@ -303,54 +303,6 @@ export default function Submissions() {
             ))}
           </div>
         )}
-
-        {/* Performance Insights */}
-        {submissions && submissions.length > 0 && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-primary" />
-                <span>Performance Insights</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div>
-                  <h4 className="font-semibold text-foreground mb-3">Recent Progress</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">This week</span>
-                      <span className="font-medium">{submissions.filter(s => {
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return new Date(s.submittedAt) > weekAgo;
-                      }).length} submissions</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Best streak</span>
-                      <span className="font-medium">5 correct in a row</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Fastest solution</span>
-                      <span className="font-medium">
-                        {Math.min(...submissions.map(s => s.executionTime || Infinity))}ms
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-semibold text-foreground mb-3">Areas to Improve</h4>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>• Focus on Medium difficulty problems to build confidence</p>
-                    <p>• Practice window functions and CTEs</p>
-                    <p>• Review query optimization techniques</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
