@@ -32,15 +32,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { communityApi } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
-import SyntaxHighlighter from "react-syntax-highlighter";
-import atomOneDark from "react-syntax-highlighter/dist/styles/atom-one-dark";
+import { RichTextEditor } from "@/components/RichTextEditor";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
 type PostFilter = "all" | "general" | "problems";
 
 export default function Community() {
   const [newPostContent, setNewPostContent] = useState("");
-  const [newPostCodeSnippet, setNewPostCodeSnippet] = useState("");
-  const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [selectedPostComments, setSelectedPostComments] = useState<
     string | null
   >(null);
@@ -89,8 +87,6 @@ export default function Community() {
       communityApi.createPost(postData),
     onSuccess: () => {
       setNewPostContent("");
-      setNewPostCodeSnippet("");
-      setShowCodeSnippet(false);
       queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
       toast({
         title: "Success!",
@@ -203,7 +199,6 @@ export default function Community() {
 
     createPostMutation.mutate({
       content: newPostContent,
-      codeSnippet: newPostCodeSnippet || undefined,
     });
   };
 
@@ -321,42 +316,15 @@ export default function Community() {
               <Card className="border-2 border-primary/20 hover:border-primary/40 transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-br from-background via-background to-primary/5">
                 <CardContent className="p-6">
                   <div className="w-full">
-                    <Textarea
-                      placeholder="Ask your SQL questions, share solutions or just chat with the community!"
+                    <RichTextEditor
                       value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      rows={3}
-                      className="resize-none mb-3 border-2 focus:border-primary/50 transition-colors"
-                      data-testid="textarea-new-post"
+                      onChange={setNewPostContent}
+                      placeholder="Ask your SQL questions, share solutions or just chat with the community!"
+                      minHeight="150px"
+                      testId="textarea-new-post"
                     />
 
-                    {/* Code Snippet Input */}
-                    {showCodeSnippet && (
-                      <Textarea
-                        placeholder="-- Add your SQL code here
-SELECT column1, column2
-FROM table_name
-WHERE condition;"
-                        value={newPostCodeSnippet}
-                        onChange={(e) => setNewPostCodeSnippet(e.target.value)}
-                        rows={4}
-                        className="mb-3 font-mono text-sm resize-none border-2 focus:border-primary/50 transition-colors"
-                        data-testid="textarea-code-snippet"
-                      />
-                    )}
-
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`${showCodeSnippet ? "text-primary bg-primary/10" : "text-muted-foreground"} hover:text-primary`}
-                          onClick={() => setShowCodeSnippet(!showCodeSnippet)}
-                          data-testid="button-code"
-                        >
-                          <Code className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <div className="flex justify-end mt-3">
                       <Button
                         onClick={handleCreatePost}
                         disabled={
@@ -506,32 +474,12 @@ WHERE condition;"
                             </div>
                           )}
 
-                          <p
-                            className="text-foreground mb-4 leading-relaxed"
+                          <div
+                            className="mb-4"
                             data-testid={`text-post-content-${post.id}`}
                           >
-                            {post.content}
-                          </p>
-
-                          {/* Code Snippet */}
-                          {post.codeSnippet && (
-                            <div
-                              className="rounded-xl mb-4 overflow-hidden border-l-4 border-primary/50 shadow-inner hover:shadow-md transition-shadow duration-200"
-                              data-testid={`code-snippet-${post.id}`}
-                            >
-                              <SyntaxHighlighter
-                                language="sql"
-                                style={atomOneDark}
-                                customStyle={{
-                                  margin: 0,
-                                  borderRadius: "0.75rem",
-                                  fontSize: "0.875rem",
-                                }}
-                              >
-                                {post.codeSnippet}
-                              </SyntaxHighlighter>
-                            </div>
-                          )}
+                            <MarkdownRenderer content={post.content} />
+                          </div>
 
                           {/* Actions */}
                           <div className="flex items-center justify-between">
@@ -624,9 +572,11 @@ WHERE condition;"
                                                   )}
                                                 </span>
                                               </div>
-                                              <p className="text-sm text-foreground">
-                                                {comment.content}
-                                              </p>
+                                              <div className="text-sm">
+                                                <MarkdownRenderer
+                                                  content={comment.content}
+                                                />
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
@@ -654,13 +604,12 @@ WHERE condition;"
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="flex-1 space-y-2">
-                                        <Textarea
-                                          placeholder="Write a comment..."
+                                        <RichTextEditor
                                           value={newComment}
-                                          onChange={(e) =>
-                                            setNewComment(e.target.value)
-                                          }
-                                          className="min-h-[80px] resize-none"
+                                          onChange={setNewComment}
+                                          placeholder="Write a comment..."
+                                          minHeight="100px"
+                                          testId="textarea-new-comment"
                                         />
                                         <div className="flex justify-end">
                                           <Button
