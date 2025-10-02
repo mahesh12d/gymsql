@@ -137,6 +137,8 @@ class FollowerResponse(BaseModel):
     username: str
     firstName: Optional[str] = None
     lastName: Optional[str] = None
+    companyName: Optional[str] = None
+    linkedinUrl: Optional[str] = None
     profileImageUrl: Optional[str] = None
     problemsSolved: int = 0
 
@@ -266,6 +268,8 @@ def get_followers(
             username=user.username,
             firstName=user.first_name,
             lastName=user.last_name,
+            companyName=user.company_name,
+            linkedinUrl=user.linkedin_url,
             profileImageUrl=user.profile_image_url,
             problemsSolved=user.problems_solved
         )
@@ -293,6 +297,8 @@ def get_following(
             username=user.username,
             firstName=user.first_name,
             lastName=user.last_name,
+            companyName=user.company_name,
+            linkedinUrl=user.linkedin_url,
             profileImageUrl=user.profile_image_url,
             problemsSolved=user.problems_solved
         )
