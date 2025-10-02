@@ -197,12 +197,37 @@ function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: Bas
 }
 
 // 🏆 Competitive Overview Section
-function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
-  // Mock data for comparison with top 10% users
-  const top10PercentAverage = 85;
-  const leaderSolved = 150;
+function CompetitiveOverview({ stats, recentActivity, allUsersStats }: { 
+  stats: PerformanceStats;
+  recentActivity: RecentActivity[];
+  allUsersStats?: { avgAccuracy: number; avgSolved: number };
+}) {
   const userSolved = stats.correct_submissions;
-  const progressToLeader = Math.min(100, (userSolved / leaderSolved) * 100);
+  
+  // Calculate averages from backend data or use defaults
+  const globalAvgAccuracy = allUsersStats?.avgAccuracy || 73;
+  const top10PercentAverage = allUsersStats?.avgSolved || Math.ceil(userSolved * 1.5);
+  
+  // Calculate fastest solve time from recent activity
+  const executionTimes = recentActivity
+    .filter(a => a.execution_time !== null && a.execution_time > 0)
+    .map(a => a.execution_time as number);
+  
+  const fastestTime = executionTimes.length > 0 
+    ? Math.min(...executionTimes)
+    : null;
+  
+  // Format time in seconds or ms
+  const formatTime = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`;
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    return `${seconds}s`;
+  };
 
   return (
     <Card data-testid="card-competitive-overview" className="border-2 border-yellow-200 dark:border-yellow-800">
@@ -214,7 +239,7 @@ function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
         <CardDescription>How you stack up against other SQL racers</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Total Questions Solved vs Top 10% */}
           <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg" data-testid="stat-solved-comparison">
             <div className="flex items-center justify-center space-x-2 mb-2">
@@ -238,10 +263,10 @@ function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
             </div>
             <div className="text-3xl font-bold text-green-600">{stats.accuracy_rate}%</div>
             <div className="text-sm text-muted-foreground mb-2">
-              vs Global avg: 73%
+              vs Global avg: {globalAvgAccuracy}%
             </div>
-            <Badge variant={stats.accuracy_rate > 73 ? "default" : "secondary"}>
-              {stats.accuracy_rate > 90 ? "Elite Precision 🎯" : stats.accuracy_rate > 73 ? "Above Average ⬆️" : "Keep Practicing 💪"}
+            <Badge variant={stats.accuracy_rate > globalAvgAccuracy ? "default" : "secondary"}>
+              {stats.accuracy_rate > 90 ? "Elite Precision 🎯" : stats.accuracy_rate > globalAvgAccuracy ? "Above Average ⬆️" : "Keep Practicing 💪"}
             </Badge>
           </div>
 
@@ -251,28 +276,27 @@ function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
               <Zap className="h-5 w-5 text-purple-600" />
               <span className="text-sm font-medium">Fastest Solve</span>
             </div>
-            <div className="text-3xl font-bold text-purple-600">2:43</div>
-            <div className="text-sm text-muted-foreground mb-2">
-              Personal best 🏁
-            </div>
-            <Badge variant="outline" className="border-purple-600 text-purple-600">
-              Lightning Fast ⚡
-            </Badge>
-          </div>
-
-          {/* Head-to-Head Wins */}
-          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900 dark:to-orange-800 rounded-lg" data-testid="stat-head-to-head">
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <Users className="h-5 w-5 text-orange-600" />
-              <span className="text-sm font-medium">Head-to-Head</span>
-            </div>
-            <div className="text-3xl font-bold text-orange-600">12</div>
-            <div className="text-sm text-muted-foreground mb-2">
-              Wins this month
-            </div>
-            <Badge variant="outline" className="border-orange-600 text-orange-600">
-              Champion Fighter 🥊
-            </Badge>
+            {fastestTime !== null ? (
+              <>
+                <div className="text-3xl font-bold text-purple-600">{formatTime(fastestTime)}</div>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Personal best 🏁
+                </div>
+                <Badge variant="outline" className="border-purple-600 text-purple-600">
+                  {fastestTime < 1000 ? "Lightning Fast ⚡" : fastestTime < 5000 ? "Quick Solver 🚀" : "Steady Pace 💪"}
+                </Badge>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-purple-600">N/A</div>
+                <div className="text-sm text-muted-foreground mb-2">
+                  No timed solves yet
+                </div>
+                <Badge variant="outline" className="border-purple-600 text-purple-600">
+                  Start Racing! 🏁
+                </Badge>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
@@ -281,42 +305,48 @@ function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
 }
 
 
-// 📊 Leaderboard Comparison Section
-function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
-  const topicLeaderboards = [
-    { topic: "Joins", userRank: 5, totalUsers: 1000 },
-    { topic: "Window Functions", userRank: 12, totalUsers: 800 },
-    { topic: "Subqueries", userRank: 8, totalUsers: 1200 },
-    { topic: "Aggregations", userRank: 3, totalUsers: 900 }
-  ];
+// 📊 Topic Progress Section
+function TopicProgressSection({ topicBreakdown }: { topicBreakdown: Record<string, number> }) {
+  // Get top topics by problems solved, sorted descending
+  const topTopics = Object.entries(topicBreakdown)
+    .map(([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6); // Show top 6 topics
+
+  if (topTopics.length === 0) {
+    return null;
+  }
 
   return (
-    <Card data-testid="card-leaderboard-comparison" className="border-2 border-green-200 dark:border-green-800">
+    <Card data-testid="card-topic-progress" className="border-2 border-green-200 dark:border-green-800">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Users className="h-6 w-6 text-green-500" />
-          <span>📊 Topic Leaderboards</span>
+          <BookOpen className="h-6 w-6 text-green-500" />
+          <span>📊 Topic Progress</span>
         </CardTitle>
-        <CardDescription>How you rank by topic</CardDescription>
+        <CardDescription>Your strongest topics by problems solved</CardDescription>
       </CardHeader>
       <CardContent>
-        <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {topicLeaderboards.map((topic, index) => (
-              <div key={index} className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-lg" data-testid={`topic-rank-${index}`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {topTopics.map((item, index) => {
+            const maxCount = topTopics[0].count;
+            const progressPercentage = (item.count / maxCount) * 100;
+            
+            return (
+              <div key={index} className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-lg" data-testid={`topic-progress-${index}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{topic.topic}</span>
-                  <Badge variant="outline" className={topic.userRank <= 5 ? 'border-green-500 text-green-600' : topic.userRank <= 20 ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-600'}>
-                    #{topic.userRank}
+                  <span className="font-medium">{item.topic}</span>
+                  <Badge variant="outline" className={item.count >= 5 ? 'border-green-500 text-green-600' : item.count >= 3 ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-600'}>
+                    {item.count} solved
                   </Badge>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  You're #{topic.userRank} out of {topic.totalUsers.toLocaleString()} users
+                <div className="text-sm text-muted-foreground mb-2">
+                  {item.count >= 5 ? 'Strong proficiency ⭐' : item.count >= 3 ? 'Good progress 📈' : 'Keep practicing 💪'}
                 </div>
-                <Progress value={(1 - topic.userRank / topic.totalUsers) * 100} className="mt-2" />
+                <Progress value={progressPercentage} className="mt-2" />
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -1107,10 +1137,13 @@ export default function Profile() {
       />
 
       {/* 🏆 Competitive Overview */}
-      <CompetitiveOverview stats={profile.performance_stats} />
+      <CompetitiveOverview 
+        stats={profile.performance_stats} 
+        recentActivity={profile.recent_activity}
+      />
 
-      {/* 📊 Leaderboard Comparison */}
-      <LeaderboardComparison stats={profile.performance_stats} />
+      {/* 📊 Topic Progress */}
+      <TopicProgressSection topicBreakdown={profile.topic_breakdown} />
 
       {/* 👥 Follow Users */}
       <FollowUsersSection userId={profile.basic_info.user_id} />
