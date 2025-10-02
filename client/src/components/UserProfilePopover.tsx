@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export function UserProfilePopover({
 }: UserProfilePopoverProps) {
   const { user: currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Don't show popover for current user
   if (user.id === currentUser?.id) {
@@ -55,6 +56,35 @@ export function UserProfilePopover({
     return <span className="text-xs text-muted-foreground">#{user.rank}</span>;
   };
 
+  const handleMouseEnter = () => {
+    if (trigger === 'hover') {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+      setIsOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (trigger === 'hover') {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+      closeTimeoutRef.current = setTimeout(() => {
+        setIsOpen(false);
+      }, 200);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -71,8 +101,8 @@ export function UserProfilePopover({
                 setIsOpen(true);
               }
             }}
-            onMouseEnter={() => trigger === 'hover' && setIsOpen(true)}
-            onMouseLeave={() => trigger === 'hover' && setIsOpen(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             data-testid={`user-profile-trigger-${user.id}`}
           >
             {children}
@@ -84,6 +114,8 @@ export function UserProfilePopover({
           side="top" 
           align="center"
           data-testid={`user-profile-popover-${user.id}`}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <div className="relative">
             {/* Close button */}
@@ -174,22 +206,6 @@ export function UserProfilePopover({
                   )}
                 </div>
               )}
-
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => {
-                    // TODO: Add view profile functionality
-                    console.log('View profile for:', user.id);
-                  }}
-                  title="View Profile"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  View Profile
-                </Button>
-              </div>
 
               {/* Status or additional info */}
               <div className="text-center">
