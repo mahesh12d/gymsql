@@ -209,7 +209,7 @@ function CompetitiveOverview({ stats, recentActivity, allUsersStats }: {
   const top10PercentAverage = allUsersStats?.avgSolved || Math.ceil(userSolved * 1.5);
   
   // Calculate fastest solve time from recent activity
-  const executionTimes = recentActivity
+  const executionTimes = (recentActivity || [])
     .filter(a => a.execution_time !== null && a.execution_time > 0)
     .map(a => a.execution_time as number);
   
