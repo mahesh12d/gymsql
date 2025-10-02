@@ -23,10 +23,11 @@ JWT tokens, stored in localStorage on the client, handle authentication. The ser
 - **Gamification**: XP system with levels (SQL Beginner to Powerlifter) and badge rewards.
 - **Problem Management**: Categorized SQL problems with hints and expected outputs.
 - **Code Execution**: SQL query submission and validation system.
-- **Social Features**: Community posts with likes and comments.
+- **Social Features**: Community posts with likes and comments, featuring rich text editing with markdown formatting and syntax-highlighted code blocks.
 - **Progress Tracking**: User submission history and leaderboards.
 - **Responsive Design**: Mobile-friendly interface.
 - **Anti-Hardcode Detection**: Three-layer system (static analysis, execution plan analysis, data dependency testing) to prevent hardcoded solutions.
+- **Rich Text Editor**: Markdown-based formatting toolbar with syntax-highlighted code blocks for multiple programming languages.
 
 ### State Management
 Client-side state uses TanStack Query for server state and React's built-in state for UI. A custom AuthContext provider manages authentication state, persisting user sessions in localStorage.
@@ -52,6 +53,12 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 ### Authentication & Security
 - **jsonwebtoken**: For token-based authentication.
 - **bcrypt**: For password hashing.
+
+### Content Rendering & Editing
+- **react-markdown**: Render Markdown content in posts and comments.
+- **react-syntax-highlighter**: Syntax highlighting for code blocks.
+- **remark-gfm**: GitHub Flavored Markdown support (tables, strikethrough, task lists).
+- **CodeMirror**: In-editor syntax highlighting for code blocks with language-specific extensions.
 
 ### Other
 - **Wouter**: Lightweight client-side routing.
@@ -96,6 +103,19 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 - `scripts/dev_backend.cjs`: Development backend startup script
 
 ## Recent Changes
+
+### October 2, 2025 - Rich Text Editor for Community Posts and Comments
+- **RichTextEditor Component**: Created markdown-based rich text editor with formatting toolbar
+- **Toolbar Features**: Bold, Italic, Strikethrough, Inline Code, Code Block, Unordered/Ordered Lists, Blockquotes
+- **Code Block Support**: Multi-language syntax highlighting with CodeMirror editor integration
+- **Supported Languages**: PostgreSQL, MySQL, JavaScript, Python, Java, C++, and Plain Text
+- **Language Mapping**: Each language has unique value (postgres, mysql, javascript, python, java, cpp, text) mapped to correct CodeMirror extensions and SyntaxHighlighter identifiers
+- **MarkdownRenderer Component**: Displays formatted markdown content with react-markdown and syntax-highlighted code blocks
+- **Integration**: Replaced plain textareas in community posts and comments with rich text editor
+- **Storage Format**: Content stored as Markdown for lightweight, backward-compatible storage
+- **Dependencies Installed**: `@codemirror/lang-javascript`, `@codemirror/lang-python`, `@codemirror/lang-java`, `@codemirror/lang-cpp`
+- **Files Created**: `client/src/components/RichTextEditor.tsx`, `client/src/components/MarkdownRenderer.tsx`, `client/src/components/ui/select.tsx`
+- **Files Modified**: `client/src/pages/community.tsx`
 
 ### October 1, 2025 - Admin Panel Table Preview: Sample Data Auto-Population with Manual Schema Definition
 - **Data Source Workflow Change**: When applying validated datasets to the problem draft, sample data is now auto-populated from the uploaded file while column types are left empty for manual specification
