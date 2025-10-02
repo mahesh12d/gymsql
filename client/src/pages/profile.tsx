@@ -407,17 +407,7 @@ function FollowUsersSection({ userId }: { userId: string }) {
     }
 
     try {
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to search users');
-      }
-      
-      const data = await response.json();
+      const data = await apiRequest(`/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
       setSearchResults(data);
     } catch (error: any) {
       toast({
