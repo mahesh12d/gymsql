@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import atomOneDark from "react-syntax-highlighter/dist/styles/atom-one-dark";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface MarkdownRendererProps {
   content: string;
