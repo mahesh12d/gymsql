@@ -539,9 +539,9 @@ function FollowUsersSection({ userId }: { userId: string }) {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/followers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/followers", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/following", userId] });
       toast({
         title: "Success",
         description: "Successfully followed user",
@@ -563,9 +563,9 @@ function FollowUsersSection({ userId }: { userId: string }) {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/followers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/followers", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/following", userId] });
       toast({
         title: "Success",
         description: "Successfully unfollowed user",
