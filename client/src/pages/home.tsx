@@ -1,5 +1,5 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Play, TrendingUp, Users, Target, Building, ExternalLink, Plus, Trash2, Link2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Play, TrendingUp, Users, Target, Building, ExternalLink, Link2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { problemsApi } from '@/lib/auth';
 import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { CompanyLogo } from '@/components/CompanyLogo';
-import { useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
+import { useMemo } from 'react';
 
 function getDynamicMessage(problemsSolved: number): { message: string; emoji: string } {
   if (problemsSolved === 0) {
@@ -76,139 +73,19 @@ interface HelpfulLink {
 }
 
 function HelpfulLinksSection() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-
   const { data: links, isLoading } = useQuery<HelpfulLink[]>({
     queryKey: ['/api/helpful-links'],
   });
 
-  const createLinkMutation = useMutation({
-    mutationFn: async (data: { title: string; url: string }) => {
-      return apiRequest('/api/helpful-links', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
-      setNewTitle('');
-      setNewUrl('');
-      setShowForm(false);
-      toast({
-        title: 'Success',
-        description: 'Link shared successfully!',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to share link',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const deleteLinkMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      return apiRequest(`/api/helpful-links/${linkId}`, {
-        method: 'DELETE',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
-      toast({
-        title: 'Success',
-        description: 'Link removed successfully!',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to remove link',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newUrl.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-    createLinkMutation.mutate({ title: newTitle, url: newUrl });
-  };
-
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center space-x-2">
-            <Link2 className="w-5 h-5 text-primary" />
-            <span>Helpful Resources</span>
-          </CardTitle>
-          {user?.premium && !showForm && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setShowForm(true)}
-              data-testid="button-add-link"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+        <CardTitle className="flex items-center space-x-2">
+          <Link2 className="w-5 h-5 text-primary" />
+          <span>Helpful Resources</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {showForm && user?.premium && (
-          <form onSubmit={handleSubmit} className="space-y-3 pb-4 border-b">
-            <Input
-              placeholder="Resource title"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              data-testid="input-link-title"
-            />
-            <Input
-              placeholder="https://..."
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              type="url"
-              data-testid="input-link-url"
-            />
-            <div className="flex space-x-2">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={createLinkMutation.isPending}
-                data-testid="button-submit-link"
-              >
-                {createLinkMutation.isPending ? 'Sharing...' : 'Share'}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setShowForm(false);
-                  setNewTitle('');
-                  setNewUrl('');
-                }}
-                data-testid="button-cancel-link"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
-
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
@@ -223,37 +100,21 @@ function HelpfulLinksSection() {
                 className="p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                 data-testid={`link-item-${link.id}`}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
-                      data-testid={`link-url-${link.id}`}
-                    >
-                      <span className="truncate">{link.title}</span>
-                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                    </a>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      by {link.user.firstName && link.user.lastName 
-                        ? `${link.user.firstName} ${link.user.lastName}` 
-                        : link.user.username}
-                    </p>
-                  </div>
-                  {(user?.id === link.userId || user?.isAdmin) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteLinkMutation.mutate(link.id)}
-                      disabled={deleteLinkMutation.isPending}
-                      className="ml-2 h-8 w-8 p-0"
-                      data-testid={`button-delete-link-${link.id}`}
-                    >
-                      <Trash2 className="w-3 h-3 text-destructive" />
-                    </Button>
-                  )}
-                </div>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
+                  data-testid={`link-url-${link.id}`}
+                >
+                  <span className="truncate">{link.title}</span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+                <p className="text-xs text-muted-foreground mt-1">
+                  by {link.user.firstName && link.user.lastName 
+                    ? `${link.user.firstName} ${link.user.lastName}` 
+                    : link.user.username}
+                </p>
               </div>
             ))}
           </div>
@@ -261,9 +122,6 @@ function HelpfulLinksSection() {
           <div className="text-center py-8 text-muted-foreground">
             <Link2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="text-sm">No helpful links yet</p>
-            {user?.premium && (
-              <p className="text-xs mt-1">Be the first to share a resource!</p>
-            )}
           </div>
         )}
       </CardContent>
