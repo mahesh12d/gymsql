@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building, ExternalLink, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -841,6 +841,215 @@ function FollowUsersSection({ userId }: { userId: string }) {
   );
 }
 
+// 📚 Helpful Links Management Component (Premium only)
+interface HelpfulLink {
+  id: string;
+  userId: string;
+  title: string;
+  url: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+function HelpfulLinksManagementSection({ isPremium }: { isPremium: boolean }) {
+  const { toast } = useToast();
+  const [newTitle, setNewTitle] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+
+  const { data: links, isLoading } = useQuery<HelpfulLink[]>({
+    queryKey: ['/api/helpful-links'],
+  });
+
+  const createLinkMutation = useMutation({
+    mutationFn: async (data: { title: string; url: string }) => {
+      const response = await apiRequest('POST', '/api/helpful-links', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
+      setNewTitle('');
+      setNewUrl('');
+      toast({
+        title: 'Success',
+        description: 'Link shared successfully!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to share link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      const response = await apiRequest('DELETE', `/api/helpful-links/${linkId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
+      toast({
+        title: 'Success',
+        description: 'Link removed successfully!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newUrl.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+    createLinkMutation.mutate({ title: newTitle, url: newUrl });
+  };
+
+  if (!isPremium) {
+    return (
+      <Card className="border-2 border-yellow-200 dark:border-yellow-800">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <BookOpen className="h-6 w-6 text-yellow-500" />
+            <span>📚 Share Resources</span>
+            <Badge variant="outline" className="ml-2">Premium</Badge>
+          </CardTitle>
+          <CardDescription>
+            Upgrade to premium to share helpful links with the community
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <Crown className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+          <p className="text-muted-foreground">
+            Premium users can share helpful SQL resources, tutorials, and articles with the community.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-2 border-blue-200 dark:border-blue-800" data-testid="card-helpful-links">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <BookOpen className="h-6 w-6 text-blue-500" />
+          <span>📚 Share Helpful Resources</span>
+        </CardTitle>
+        <CardDescription>
+          Share helpful links, tutorials, and articles with the community
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Add New Link Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-muted/30">
+          <div className="space-y-2">
+            <Label htmlFor="link-title">Resource Title</Label>
+            <Input
+              id="link-title"
+              placeholder="e.g., SQL Join Tutorial"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              data-testid="input-link-title"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="link-url">URL</Label>
+            <Input
+              id="link-url"
+              placeholder="https://..."
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              type="url"
+              data-testid="input-link-url"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={createLinkMutation.isPending}
+            data-testid="button-submit-link"
+          >
+            {createLinkMutation.isPending ? 'Sharing...' : 'Share Resource'}
+          </Button>
+        </form>
+
+        <Separator />
+
+        {/* User's Shared Links */}
+        <div className="space-y-3">
+          <h3 className="font-medium text-sm text-muted-foreground">Your Shared Links</h3>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : links && links.length > 0 ? (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {links.map((link) => (
+                <div
+                  key={link.id}
+                  className="p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                  data-testid={`link-item-${link.id}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
+                        data-testid={`link-url-${link.id}`}
+                      >
+                        <span className="truncate">{link.title}</span>
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Shared on {format(new Date(link.createdAt), "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteLinkMutation.mutate(link.id)}
+                      disabled={deleteLinkMutation.isPending}
+                      className="ml-2 h-8 w-8 p-0"
+                      data-testid={`button-delete-link-${link.id}`}
+                    >
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">You haven't shared any links yet</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // 📈 Progress Charts with ECharts
 function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBreakdown }: { 
@@ -1343,6 +1552,9 @@ export default function Profile() {
 
       {/* 👥 Follow Users */}
       <FollowUsersSection userId={profile.basic_info.user_id} />
+
+      {/* 📚 Helpful Links Management */}
+      <HelpfulLinksManagementSection isPremium={profile.basic_info.premium} />
 
       {/* 📈 Progress Charts with ECharts */}
       <ProgressChartsSection 
