@@ -272,11 +272,13 @@ function AddFriendsDialog() {
   const { toast } = useToast();
 
   // Search users
-  const { data: searchResults = [], isLoading: isSearching } = useQuery({
+  const { data: searchResults, isLoading: isSearching } = useQuery({
     queryKey: ['/api/users/search', searchQuery],
     queryFn: () => apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery)}`),
     enabled: searchQuery.length >= 2,
   });
+  
+  const users = Array.isArray(searchResults) ? searchResults : [];
 
   // Add friend mutation
   const addFriendMutation = useMutation({
@@ -331,10 +333,10 @@ function AddFriendsDialog() {
               </p>
             ) : isSearching ? (
               <p className="text-sm text-muted-foreground text-center py-4">Searching...</p>
-            ) : searchResults.length === 0 ? (
+            ) : users.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No users found</p>
             ) : (
-              searchResults.map((user: any) => (
+              users.map((user: any) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
