@@ -57,6 +57,8 @@ class User(Base):
     password_hash = Column(Text, name="password_hash")
     first_name = Column(String(50), name="first_name")
     last_name = Column(String(50), name="last_name")
+    company_name = Column(String(100), name="company_name")
+    linkedin_url = Column(Text, name="linkedin_url")
     profile_image_url = Column(Text, name="profile_image_url")
     google_id = Column(String(255), unique=True, name="google_id")
     github_id = Column(String(255), unique=True, name="github_id")
