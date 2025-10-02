@@ -637,57 +637,6 @@ function RecentActivityCard({ recentActivity }: { recentActivity: RecentActivity
   );
 }
 
-function BadgesCard({ badges }: { badges: UserBadge[] }) {
-  return (
-    <Card data-testid="card-badges">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Award className="h-5 w-5" />
-          <span>Achievements</span>
-        </CardTitle>
-        <CardDescription>Badges and milestones unlocked</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {badges.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground" data-testid="text-no-badges">
-            No badges earned yet. Keep solving problems to unlock achievements!
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {badges.map((badge) => (
-              <div key={badge.id} className="flex items-center space-x-3 p-3 rounded-lg border" data-testid={`badge-${badge.id}`}>
-                <div className="flex-shrink-0">
-                  {badge.icon_url ? (
-                    <img src={badge.icon_url} alt={badge.name} className="w-8 h-8" />
-                  ) : (
-                    <Star className="h-8 w-8 text-yellow-500" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium">{badge.name}</div>
-                  <div className="text-sm text-muted-foreground">{badge.description}</div>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Badge 
-                      style={{ 
-                        backgroundColor: RARITY_COLORS[badge.rarity as keyof typeof RARITY_COLORS] || RARITY_COLORS.common,
-                        color: "white"
-                      }}
-                    >
-                      {badge.rarity}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(badge.earned_at), "MMM yyyy")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function RecommendationsCard({ recommendations }: { recommendations: Recommendations | undefined }) {
   if (!recommendations) return null;
@@ -851,11 +800,8 @@ export default function Profile() {
         difficultyBreakdown={profile.difficulty_breakdown}
       />
 
-      {/* 📜 Recent Activity and Badges */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CompetitiveRecentActivity recentActivity={profile.recent_activity} />
-        <BadgesCard badges={profile.badges} />
-      </div>
+      {/* 📜 Recent Activity */}
+      <CompetitiveRecentActivity recentActivity={profile.recent_activity} />
 
       {/* Recommendations */}
       <RecommendationsCard recommendations={recommendations} />
