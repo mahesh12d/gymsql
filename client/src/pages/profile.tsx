@@ -407,7 +407,8 @@ function FollowUsersSection({ userId }: { userId: string }) {
     }
 
     try {
-      const data = await apiRequest(`/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
+      const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
+      const data = await response.json();
       setSearchResults(data);
     } catch (error: any) {
       toast({
