@@ -350,9 +350,7 @@ function FollowUsersSection({ userId }: { userId: string }) {
   // Follow user mutation
   const followMutation = useMutation({
     mutationFn: async (targetUserId: string) => {
-      const response = await apiRequest(`/api/users/follow/${targetUserId}`, {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", `/api/users/follow/${targetUserId}`);
       return response;
     },
     onSuccess: () => {
@@ -376,9 +374,7 @@ function FollowUsersSection({ userId }: { userId: string }) {
   // Unfollow user mutation
   const unfollowMutation = useMutation({
     mutationFn: async (targetUserId: string) => {
-      const response = await apiRequest(`/api/users/unfollow/${targetUserId}`, {
-        method: "DELETE",
-      });
+      const response = await apiRequest("DELETE", `/api/users/unfollow/${targetUserId}`);
       return response;
     },
     onSuccess: () => {
