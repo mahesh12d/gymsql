@@ -104,6 +104,14 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ## Recent Changes
 
+### October 2, 2025 - Rich Text Editor for Problem Discussions
+- **Inline Discussion Editor**: Replaced dialog-based "New Discussion" button with inline RichTextEditor in problem detail page
+- **Consistent UX**: Discussion tab now matches community page design with inline editor at the top
+- **Markdown Rendering**: Discussion content now displays with full markdown formatting and syntax highlighting
+- **User Experience**: Streamlined workflow - users can start typing discussions immediately without opening a dialog
+- **Files Modified**: `client/src/components/ProblemTabsContent.tsx`
+- **Components Used**: RichTextEditor and MarkdownRenderer for consistent formatting across the app
+
 ### October 2, 2025 - Rich Text Editor for Community Posts and Comments
 - **RichTextEditor Component**: Created markdown-based rich text editor with formatting toolbar
 - **Toolbar Features**: Bold, Italic, Strikethrough, Inline Code, Code Block, Unordered/Ordered Lists, Blockquotes
