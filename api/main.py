@@ -21,9 +21,7 @@ from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, DetailedSubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
-                      PostCommentResponse, SolutionResponse, QuestionData,
-                      FriendshipCreate, FriendshipResponse, FriendWithStats,
-                      FriendsLeaderboardResponse)
+                      PostCommentResponse, SolutionResponse, QuestionData)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
