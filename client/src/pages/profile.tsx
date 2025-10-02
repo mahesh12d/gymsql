@@ -17,6 +17,7 @@ import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbu
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
 
 interface BasicInfo {
   user_id: string;
@@ -107,6 +108,8 @@ interface FollowerUser {
   username: string;
   firstName: string | null;
   lastName: string | null;
+  companyName: string | null;
+  linkedinUrl: string | null;
   profileImageUrl: string | null;
   problemsSolved: number;
 }
@@ -717,23 +720,37 @@ function FollowUsersSection({ userId }: { userId: string }) {
                   className="flex items-center justify-between p-3 rounded-lg border"
                   data-testid={`follower-${user.id}`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.profileImageUrl || undefined} />
-                      <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{user.username}</div>
-                      {(user.firstName || user.lastName) && (
-                        <div className="text-sm text-muted-foreground">
-                          {user.firstName} {user.lastName}
+                  <UserProfilePopover
+                    user={{
+                      id: user.id,
+                      username: user.username,
+                      first_name: user.firstName || undefined,
+                      last_name: user.lastName || undefined,
+                      companyName: user.companyName || undefined,
+                      linkedinUrl: user.linkedinUrl || undefined,
+                      profileImageUrl: user.profileImageUrl || undefined,
+                      problemsSolved: user.problemsSolved,
+                    }}
+                    trigger="hover"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.profileImageUrl || undefined} />
+                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.username}</div>
+                        {(user.firstName || user.lastName) && (
+                          <div className="text-sm text-muted-foreground">
+                            {user.firstName} {user.lastName}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {user.problemsSolved} problems solved
                         </div>
-                      )}
-                      <div className="text-xs text-muted-foreground">
-                        {user.problemsSolved} problems solved
                       </div>
                     </div>
-                  </div>
+                  </UserProfilePopover>
                   <Button
                     size="sm"
                     variant={isFollowingUser(user.id) ? "outline" : "default"}
@@ -773,23 +790,37 @@ function FollowUsersSection({ userId }: { userId: string }) {
                   className="flex items-center justify-between p-3 rounded-lg border"
                   data-testid={`following-${user.id}`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.profileImageUrl || undefined} />
-                      <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{user.username}</div>
-                      {(user.firstName || user.lastName) && (
-                        <div className="text-sm text-muted-foreground">
-                          {user.firstName} {user.lastName}
+                  <UserProfilePopover
+                    user={{
+                      id: user.id,
+                      username: user.username,
+                      first_name: user.firstName || undefined,
+                      last_name: user.lastName || undefined,
+                      companyName: user.companyName || undefined,
+                      linkedinUrl: user.linkedinUrl || undefined,
+                      profileImageUrl: user.profileImageUrl || undefined,
+                      problemsSolved: user.problemsSolved,
+                    }}
+                    trigger="hover"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.profileImageUrl || undefined} />
+                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.username}</div>
+                        {(user.firstName || user.lastName) && (
+                          <div className="text-sm text-muted-foreground">
+                            {user.firstName} {user.lastName}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {user.problemsSolved} problems solved
                         </div>
-                      )}
-                      <div className="text-xs text-muted-foreground">
-                        {user.problemsSolved} problems solved
                       </div>
                     </div>
-                  </div>
+                  </UserProfilePopover>
                   <Button
                     size="sm"
                     variant="outline"
