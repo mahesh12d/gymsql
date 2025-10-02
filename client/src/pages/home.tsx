@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Play, TrendingUp, Users, Target } from 'lucide-react';
+import { Play, TrendingUp, Users, Target, Building } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,17 +73,30 @@ export default function Home() {
     return { message, emoji };
   }, [user?.problemsSolved]);
 
+  const displayName = useMemo(() => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user?.username || 'there';
+  }, [user?.firstName, user?.lastName, user?.username]);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">
-            Welcome back, <span className="text-primary">{user?.username}</span>! {bannerContent.emoji}
+            Welcome back, <span className="text-primary">{displayName}</span>! {bannerContent.emoji}
           </h1>
           <p className="text-xl text-muted-foreground">
             {bannerContent.message}
           </p>
+          {user?.companyName && (
+            <div className="flex items-center mt-2 text-muted-foreground">
+              <Building className="h-4 w-4 mr-2" />
+              <span className="text-sm">{user.companyName}</span>
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
