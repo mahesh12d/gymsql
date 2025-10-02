@@ -7,6 +7,63 @@ import { useAuth } from '@/hooks/use-auth';
 import { problemsApi } from '@/lib/auth';
 import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { CompanyLogo } from '@/components/CompanyLogo';
+import { useMemo } from 'react';
+
+function getTimeBasedGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getDynamicMessage(problemsSolved: number): { message: string; emoji: string } {
+  if (problemsSolved === 0) {
+    return {
+      message: "Let's start your SQL training journey!",
+      emoji: '🚀'
+    };
+  }
+  
+  if (problemsSolved < 5) {
+    return {
+      message: "You're off to a great start!",
+      emoji: '🌱'
+    };
+  }
+  
+  if (problemsSolved < 10) {
+    return {
+      message: "Keep up the momentum!",
+      emoji: '💪'
+    };
+  }
+  
+  if (problemsSolved < 25) {
+    return {
+      message: "You're making excellent progress!",
+      emoji: '⭐'
+    };
+  }
+  
+  if (problemsSolved < 50) {
+    return {
+      message: "You're becoming a SQL athlete!",
+      emoji: '🏃'
+    };
+  }
+  
+  if (problemsSolved < 100) {
+    return {
+      message: "Impressive dedication to SQL mastery!",
+      emoji: '🔥'
+    };
+  }
+  
+  return {
+    message: "You're a SQL champion!",
+    emoji: '🏆'
+  };
+}
 
 export default function Home() {
   const { user } = useAuth();
@@ -18,16 +75,22 @@ export default function Home() {
 
   const recentProblems = problems?.slice(0, 3) || [];
 
+  const bannerContent = useMemo(() => {
+    const greeting = getTimeBasedGreeting();
+    const { message, emoji } = getDynamicMessage(user?.problemsSolved || 0);
+    return { greeting, message, emoji };
+  }, [user?.problemsSolved]);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">
-            Welcome back, <span className="text-primary">{user?.username}</span>! 💪
+            {bannerContent.greeting}, <span className="text-primary">{user?.username}</span>! {bannerContent.emoji}
           </h1>
           <p className="text-xl text-muted-foreground">
-            Ready to continue your SQL training journey?
+            {bannerContent.message}
           </p>
         </div>
 
