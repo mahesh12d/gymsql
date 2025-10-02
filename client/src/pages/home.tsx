@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
-import { problemsApi, leaderboardApi } from '@/lib/auth';
+import { problemsApi } from '@/lib/auth';
 import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { CompanyLogo } from '@/components/CompanyLogo';
 
@@ -16,15 +16,7 @@ export default function Home() {
     queryFn: () => problemsApi.getAll(),
   });
 
-  const { data: leaderboard, isLoading: leaderboardLoading } = useQuery({
-    queryKey: ['/api/leaderboard'],
-    queryFn: () => leaderboardApi.get(5),
-  });
-
-
-
   const recentProblems = problems?.slice(0, 3) || [];
-  const topUsers = leaderboard?.slice(0, 3) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,49 +163,6 @@ export default function Home() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-
-            {/* Leaderboard Preview */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Top Athletes</CardTitle>
-                  <Link href="/leaderboard">
-                    <Button variant="ghost" size="sm" data-testid="link-view-leaderboard">
-                      View All
-                    </Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {leaderboardLoading ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-muted rounded-full" />
-                        <div className="flex-1 space-y-1">
-                          <div className="h-4 bg-muted rounded w-3/4" />
-                          <div className="h-3 bg-muted rounded w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {topUsers.map((topUser, index) => (
-                      <div key={topUser.id} className="flex items-center space-x-3" data-testid={`user-rank-${index + 1}`}>
-                        <div className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-foreground">{topUser.username}</div>
-                          <div className="text-sm text-muted-foreground">{topUser.problemsSolved} problems solved</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
           </div>
         </div>
