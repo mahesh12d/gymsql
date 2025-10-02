@@ -1811,8 +1811,10 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
         'Hard': 0
     }
     for stat in difficulty_stats:
-        if stat.difficulty in difficulty_breakdown:
-            difficulty_breakdown[stat.difficulty] = stat.solved_count
+        # Normalize difficulty to title case to match the expected format
+        normalized_difficulty = stat.difficulty.capitalize() if stat.difficulty else None
+        if normalized_difficulty in difficulty_breakdown:
+            difficulty_breakdown[normalized_difficulty] = stat.solved_count
     
     # Topic breakdown - Get all solved problems and process tags manually
     solved_problems_with_tags = db.query(Problem.tags).join(
