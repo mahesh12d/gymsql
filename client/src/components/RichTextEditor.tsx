@@ -72,7 +72,8 @@ export function RichTextEditor({
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const selectedText = value.substring(start, end);
-      const textToInsert = selectedText || placeholder;
+      
+      const textToInsert = selectedText || "";
 
       const newValue =
         value.substring(0, start) +
@@ -85,7 +86,7 @@ export function RichTextEditor({
 
       setTimeout(() => {
         textarea.focus();
-        const newCursorPos = start + before.length + textToInsert.length;
+        const newCursorPos = start + before.length;
         textarea.setSelectionRange(newCursorPos, newCursorPos);
       }, 0);
     },
