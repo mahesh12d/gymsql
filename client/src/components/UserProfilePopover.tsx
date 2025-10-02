@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { User, Trophy, Clock, X } from "lucide-react";
+import { User, Trophy, Clock, X, Linkedin, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserData {
@@ -12,6 +12,8 @@ interface UserData {
   username: string;
   first_name?: string;
   last_name?: string;
+  companyName?: string;
+  linkedinUrl?: string;
   profileImageUrl?: string;
   problemsSolved?: number;
   rank?: number;
@@ -148,6 +150,30 @@ export function UserProfilePopover({
                   </div>
                 </div>
               </div>
+
+              {/* Company and LinkedIn Info */}
+              {(user.companyName || user.linkedinUrl) && (
+                <div className="space-y-2 pt-2 border-t">
+                  {user.companyName && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Building className="h-4 w-4 mr-2" />
+                      <span>{user.companyName}</span>
+                    </div>
+                  )}
+                  {user.linkedinUrl && (
+                    <a
+                      href={user.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Linkedin className="h-4 w-4 mr-2" />
+                      <span>View LinkedIn Profile</span>
+                    </a>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex space-x-2">
