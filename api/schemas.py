@@ -413,3 +413,37 @@ class SolutionResponse(SolutionBase):
     created_at: datetime
     updated_at: datetime
     creator: UserResponse
+
+# Friendship schemas
+class FriendshipBase(CamelCaseModel):
+    """Base schema for friendship"""
+    pass
+
+class FriendshipCreate(FriendshipBase):
+    """Schema for creating a friend request"""
+    friend_id: str  # User ID of the person to befriend
+
+class FriendshipResponse(FriendshipBase):
+    """Schema for friendship response"""
+    id: str
+    user_id: str
+    friend_id: str
+    status: str  # pending, accepted, blocked
+    created_at: datetime
+
+class FriendWithStats(CamelCaseModel):
+    """Friend information with their statistics"""
+    id: str
+    username: str
+    profile_image_url: Optional[str] = None
+    problems_solved: int
+    friendship_status: str  # accepted, pending, blocked
+
+class FriendsLeaderboardResponse(CamelCaseModel):
+    """Friends leaderboard with rankings"""
+    rank: int
+    user_id: str
+    username: str
+    profile_image_url: Optional[str] = None
+    problems_solved: int
+    is_current_user: bool = False
