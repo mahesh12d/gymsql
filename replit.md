@@ -36,9 +36,14 @@ Client-side state uses TanStack Query for server state and React's built-in stat
 
 ### System Design Choices
 -   The application uses PostgreSQL for all data persistence, complemented by Redis for caching and leaderboards.
--   All SQL query processing is handled synchronously through a secure executor.
+-   SQL query processing uses a Redis-based job queue with a background worker for asynchronous execution, protecting the API from burst traffic.
 -   The architecture has been simplified by removing chat functionality and associated WebSocket connections to reduce complexity and overhead.
 -   Friends functionality has been removed to streamline the application and focus on core learning features.
+
+### Required Workflows
+Two workflows must run simultaneously for the application to function:
+1. **SQLGym Dev Server**: Main application server (API + Frontend)
+2. **Redis Worker**: Background worker that processes SQL submission jobs from the Redis queue
 
 ## External Dependencies
 ### Database Services
