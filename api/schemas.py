@@ -79,6 +79,8 @@ class UserBase(CamelCaseModel):
     email: EmailStr
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    company_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
     profile_image_url: Optional[str] = None
 
 class UserCreate(UserBase):

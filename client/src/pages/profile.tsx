@@ -13,8 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building } from "lucide-react";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface BasicInfo {
   user_id: string;
@@ -22,6 +24,8 @@ interface BasicInfo {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  company_name: string | null;
+  linkedin_url: string | null;
   profile_image_url: string | null;
   problems_solved: number;
   premium: boolean;
@@ -126,6 +130,134 @@ const RARITY_COLORS = {
   legendary: "#f59e0b"
 };
 
+// ✏️ Edit Profile Dialog
+function EditProfileDialog({ basicInfo }: { basicInfo: BasicInfo }) {
+  const [open, setOpen] = useState(false);
+  const [firstName, setFirstName] = useState(basicInfo.first_name || "");
+  const [lastName, setLastName] = useState(basicInfo.last_name || "");
+  const [companyName, setCompanyName] = useState(basicInfo.company_name || "");
+  const [linkedinUrl, setLinkedinUrl] = useState(basicInfo.linkedin_url || "");
+  const { toast } = useToast();
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { firstName: string; lastName: string; companyName: string; linkedinUrl: string }) => {
+      const response = await apiRequest("PUT", "/api/users/profile", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+      setOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate({
+      firstName,
+      lastName,
+      companyName,
+      linkedinUrl,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" data-testid="button-edit-profile">
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Profile
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]" data-testid="dialog-edit-profile">
+        <DialogHeader>
+          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogDescription>
+            Update your personal information
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First Name</Label>
+            <Input
+              id="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Enter first name"
+              data-testid="input-first-name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Enter last name"
+              data-testid="input-last-name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="companyName">
+              <Building className="h-4 w-4 inline mr-1" />
+              Company Name
+            </Label>
+            <Input
+              id="companyName"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Enter company name"
+              data-testid="input-company-name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="linkedinUrl">
+              <Linkedin className="h-4 w-4 inline mr-1" />
+              LinkedIn URL
+            </Label>
+            <Input
+              id="linkedinUrl"
+              type="url"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/username"
+              data-testid="input-linkedin-url"
+            />
+          </div>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateProfileMutation.isPending}
+              data-testid="button-save-profile"
+            >
+              {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // 👤 Competitive User Information Header
 function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: BasicInfo; performanceStats: PerformanceStats }) {
   const displayName = basicInfo.first_name && basicInfo.last_name 
@@ -169,7 +301,7 @@ function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: Bas
                 <span className="text-sm text-muted-foreground">Global Rank</span>
               </div>
               
-              <div className="flex items-center space-x-6 text-sm">
+              <div className="flex items-center space-x-6 text-sm flex-wrap">
                 <div className="flex items-center space-x-1" data-testid="text-joined">
                   <User className="h-4 w-4" />
                   <span className="text-muted-foreground">
@@ -180,13 +312,32 @@ function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: Bas
                   <Clock className="h-4 w-4" />
                   <span className="text-muted-foreground">Last active today</span>
                 </div>
+                {basicInfo.company_name && (
+                  <div className="flex items-center space-x-1" data-testid="text-company">
+                    <Building className="h-4 w-4" />
+                    <span className="text-muted-foreground">{basicInfo.company_name}</span>
+                  </div>
+                )}
+                {basicInfo.linkedin_url && (
+                  <a 
+                    href={basicInfo.linkedin_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    data-testid="link-linkedin"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                    <span>LinkedIn</span>
+                  </a>
+                )}
               </div>
             </div>
           </div>
           
           {/* Quick Stats Badge */}
-          <div className="text-right">
-            <Badge variant={basicInfo.premium ? "default" : "secondary"} data-testid="badge-premium" className="mb-2">
+          <div className="text-right space-y-2">
+            <EditProfileDialog basicInfo={basicInfo} />
+            <Badge variant={basicInfo.premium ? "default" : "secondary"} data-testid="badge-premium" className="block">
               {basicInfo.premium ? "Premium Racer 🏎️" : "Free Rider 🚗"}
             </Badge>
             <div className="text-sm text-muted-foreground" data-testid="text-email">{basicInfo.email}</div>
