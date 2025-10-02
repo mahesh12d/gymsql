@@ -94,7 +94,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  <span>Your Progress</span>
+                  <span>problems_solved in use</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
