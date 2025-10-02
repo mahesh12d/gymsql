@@ -8,12 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, UserPlus, Search, X } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon } from "lucide-react";
 import { format } from "date-fns";
 
 interface BasicInfo {
