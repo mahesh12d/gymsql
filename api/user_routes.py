@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from .database import get_db
-from .models import User
+from .models import User, Follower
 from .auth import get_current_user
 
 # Response models
@@ -79,3 +79,172 @@ def get_user_profile(
         profileImageUrl=user.profile_image_url,
         isOnline=False
     )
+
+# Follower endpoints
+
+class FollowerResponse(BaseModel):
+    id: str
+    username: str
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    profileImageUrl: Optional[str] = None
+    problemsSolved: int = 0
+
+class FollowStatusResponse(BaseModel):
+    isFollowing: bool
+    followersCount: int
+    followingCount: int
+
+@user_router.post("/follow/{user_id}")
+def follow_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Follow a user"""
+    
+    # Check if user exists
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Cannot follow yourself
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot follow yourself"
+        )
+    
+    # Check if already following
+    existing_follow = db.query(Follower).filter(
+        Follower.follower_id == current_user.id,
+        Follower.following_id == user_id
+    ).first()
+    
+    if existing_follow:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Already following this user"
+        )
+    
+    # Create follow relationship
+    new_follow = Follower(
+        follower_id=current_user.id,
+        following_id=user_id
+    )
+    db.add(new_follow)
+    db.commit()
+    
+    return {"success": True, "message": "Successfully followed user"}
+
+@user_router.delete("/unfollow/{user_id}")
+def unfollow_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Unfollow a user"""
+    
+    # Find follow relationship
+    follow = db.query(Follower).filter(
+        Follower.follower_id == current_user.id,
+        Follower.following_id == user_id
+    ).first()
+    
+    if not follow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not following this user"
+        )
+    
+    db.delete(follow)
+    db.commit()
+    
+    return {"success": True, "message": "Successfully unfollowed user"}
+
+@user_router.get("/follow-status/{user_id}", response_model=FollowStatusResponse)
+def get_follow_status(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get follow status for a user"""
+    
+    # Check if current user is following the target user
+    is_following = db.query(Follower).filter(
+        Follower.follower_id == current_user.id,
+        Follower.following_id == user_id
+    ).first() is not None
+    
+    # Get followers count (people following the target user)
+    followers_count = db.query(Follower).filter(
+        Follower.following_id == user_id
+    ).count()
+    
+    # Get following count (people the target user follows)
+    following_count = db.query(Follower).filter(
+        Follower.follower_id == user_id
+    ).count()
+    
+    return FollowStatusResponse(
+        isFollowing=is_following,
+        followersCount=followers_count,
+        followingCount=following_count
+    )
+
+@user_router.get("/followers/{user_id}", response_model=List[FollowerResponse])
+def get_followers(
+    user_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get list of followers for a user"""
+    
+    followers = db.query(User).join(
+        Follower, Follower.follower_id == User.id
+    ).filter(
+        Follower.following_id == user_id
+    ).limit(limit).all()
+    
+    return [
+        FollowerResponse(
+            id=user.id,
+            username=user.username,
+            firstName=user.first_name,
+            lastName=user.last_name,
+            profileImageUrl=user.profile_image_url,
+            problemsSolved=user.problems_solved
+        )
+        for user in followers
+    ]
+
+@user_router.get("/following/{user_id}", response_model=List[FollowerResponse])
+def get_following(
+    user_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get list of users that a user is following"""
+    
+    following = db.query(User).join(
+        Follower, Follower.following_id == User.id
+    ).filter(
+        Follower.follower_id == user_id
+    ).limit(limit).all()
+    
+    return [
+        FollowerResponse(
+            id=user.id,
+            username=user.username,
+            firstName=user.first_name,
+            lastName=user.last_name,
+            profileImageUrl=user.profile_image_url,
+            problemsSolved=user.problems_solved
+        )
+        for user in following
+    ]

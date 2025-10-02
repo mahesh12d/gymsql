@@ -75,6 +75,42 @@ class User(Base):
     progress = relationship("UserProgress", back_populates="user")
     user_badges = relationship("UserBadge", back_populates="user")
     
+    # Follower relationships
+    following = relationship(
+        "Follower",
+        foreign_keys="Follower.follower_id",
+        back_populates="follower_user",
+        cascade="all, delete-orphan"
+    )
+    followers = relationship(
+        "Follower",
+        foreign_keys="Follower.following_id",
+        back_populates="following_user",
+        cascade="all, delete-orphan"
+    )
+    
+
+class Follower(Base):
+    """Track user follower relationships"""
+    __tablename__ = "followers"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    follower_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    following_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Relationships
+    follower_user = relationship("User", foreign_keys=[follower_id], back_populates="following")
+    following_user = relationship("User", foreign_keys=[following_id], back_populates="followers")
+    
+    # Unique constraint: one follow relationship per user pair
+    # Indexes for performance
+    __table_args__ = (
+        UniqueConstraint('follower_id', 'following_id', name='uq_follower_following'),
+        Index('idx_followers_follower_id', 'follower_id'),
+        Index('idx_followers_following_id', 'following_id'),
+    )
+
 
 class Problem(Base):
     __tablename__ = "problems"
