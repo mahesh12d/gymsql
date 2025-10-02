@@ -265,118 +265,9 @@ function CompetitiveOverview({ stats }: { stats: PerformanceStats }) {
   );
 }
 
-// Friend Search and Add Dialog Component
-function AddFriendsDialog() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const { toast } = useToast();
-
-  // Search users
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ['/api/users/search', searchQuery],
-    queryFn: () => apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery)}`),
-    enabled: searchQuery.length >= 2,
-  });
-  
-  const users = Array.isArray(searchResults) ? searchResults : [];
-
-  // Add friend mutation
-  const addFriendMutation = useMutation({
-    mutationFn: async (friendId: string) => {
-      return apiRequest('POST', '/api/friends', { friendId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/friends/leaderboard'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/friends'] });
-      toast({ title: "Friend added successfully!" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to add friend", 
-        description: error.message || "An error occurred",
-        variant: "destructive" 
-      });
-    },
-  });
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" data-testid="button-add-friends">
-          <UserPlus className="h-4 w-4" />
-          Add Friends
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Friends</DialogTitle>
-          <DialogDescription>
-            Search for users by username and add them as friends
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-users"
-            />
-          </div>
-          
-          <div className="max-h-64 overflow-y-auto space-y-2">
-            {searchQuery.length < 2 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Type at least 2 characters to search
-              </p>
-            ) : isSearching ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Searching...</p>
-            ) : users.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No users found</p>
-            ) : (
-              users.map((user: any) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
-                  data-testid={`user-result-${user.id}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profileImageUrl} />
-                      <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{user.username}</p>
-                      <p className="text-xs text-muted-foreground">{user.problemsSolved} solved</p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => addFriendMutation.mutate(user.id)}
-                    disabled={addFriendMutation.isPending}
-                    data-testid={`button-add-friend-${user.id}`}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // 📊 Leaderboard Comparison Section
 function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
-  // Fetch real friends leaderboard from API
-  const { data: friendsLeaderboard = [], isLoading } = useQuery({
-    queryKey: ['/api/friends/leaderboard'],
-  });
-
   const topicLeaderboards = [
     { topic: "Joins", userRank: 5, totalUsers: 1000 },
     { topic: "Window Functions", userRank: 12, totalUsers: 800 },
@@ -384,81 +275,17 @@ function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
     { topic: "Aggregations", userRank: 3, totalUsers: 900 }
   ];
 
-  // Find current user's rank
-  const currentUserRank = friendsLeaderboard.find((f: any) => f.isCurrentUser)?.rank || 0;
-  const totalFriends = friendsLeaderboard.length;
-
   return (
     <Card data-testid="card-leaderboard-comparison" className="border-2 border-green-200 dark:border-green-800">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center space-x-2">
-              <Users className="h-6 w-6 text-green-500" />
-              <span>📊 Leaderboard Comparison</span>
-            </CardTitle>
-            <CardDescription>How you rank against friends and by topic</CardDescription>
-          </div>
-          <AddFriendsDialog />
-        </div>
+        <CardTitle className="flex items-center space-x-2">
+          <Users className="h-6 w-6 text-green-500" />
+          <span>📊 Topic Leaderboards</span>
+        </CardTitle>
+        <CardDescription>How you rank by topic</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Friends Leaderboard */}
+      <CardContent>
         <div>
-          <h4 className="font-medium mb-3 flex items-center space-x-2">
-            <Medal className="h-5 w-5 text-yellow-500" />
-            <span>Friends Leaderboard {currentUserRank > 0 && totalFriends > 1 ? `- You're #${currentUserRank} among your friends! 🎉` : ''}</span>
-          </h4>
-          {isLoading ? (
-            <div className="text-center py-4 text-muted-foreground">Loading friends...</div>
-          ) : friendsLeaderboard.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="mb-2">You haven't added any friends yet!</p>
-              <p className="text-sm">Search for users and add them as friends to see how you compare.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {friendsLeaderboard.map((friend: any, index: number) => (
-                <div 
-                  key={friend.userId} 
-                  className={`flex items-center justify-between p-3 rounded-lg ${
-                    friend.isCurrentUser ? 'bg-yellow-50 dark:bg-yellow-900 border-2 border-yellow-300' : 'bg-gray-50 dark:bg-gray-800'
-                  }`}
-                  data-testid={`friend-rank-${index}`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      friend.rank === 1 ? 'bg-yellow-500 text-white' :
-                      friend.rank === 2 ? 'bg-gray-400 text-white' :
-                      friend.rank === 3 ? 'bg-orange-500 text-white' :
-                      'bg-blue-500 text-white'
-                    }`}>
-                      {friend.rank}
-                    </div>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={friend.profileImageUrl} />
-                      <AvatarFallback className={friend.isCurrentUser ? 'bg-yellow-500 text-white' : 'bg-blue-500 text-white'}>
-                        {friend.username?.charAt(0).toUpperCase() || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className={`font-medium ${friend.isCurrentUser ? 'text-yellow-700 dark:text-yellow-300' : ''}`}>
-                      {friend.isCurrentUser ? 'You' : friend.username}
-                    </span>
-                  </div>
-                  <Badge variant={friend.isCurrentUser ? "default" : "secondary"}>
-                    {friend.problemsSolved} solved
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Topic Leaderboards */}
-        <div>
-          <h4 className="font-medium mb-3">Topic Leaderboards</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {topicLeaderboards.map((topic, index) => (
               <div key={index} className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-lg" data-testid={`topic-rank-${index}`}>
