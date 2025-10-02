@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import SyntaxHighlighter from "react-syntax-highlighter";
-import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface MarkdownRendererProps {
   content: string;
@@ -25,7 +25,7 @@ export function MarkdownRenderer({
             return (
               <div className="rounded-md my-2 overflow-hidden">
                 <SyntaxHighlighter
-                  style={atomOneDark}
+                  style={atomDark}
                   language={language}
                   PreTag="div"
                 >

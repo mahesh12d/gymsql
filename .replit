@@ -16,7 +16,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35545
+localPort = 36785
 externalPort = 6800
 
 [[ports]]
@@ -88,14 +88,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "SQLGym Dev Server"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Redis Worker"
+args = "Start application"
 
 [[workflows.workflow]]
-name = "SQLGym Dev Server"
+name = "Start application"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -105,17 +101,6 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
-
-[[workflows.workflow]]
-name = "Redis Worker"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3.11 -m api.redis_worker"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [agent]
 integrations = [
