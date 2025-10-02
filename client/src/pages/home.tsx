@@ -9,13 +9,6 @@ import { DifficultyBadge } from '@/components/DifficultyBadge';
 import { CompanyLogo } from '@/components/CompanyLogo';
 import { useMemo } from 'react';
 
-function getTimeBasedGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
 function getDynamicMessage(problemsSolved: number): { message: string; emoji: string } {
   if (problemsSolved === 0) {
     return {
@@ -76,9 +69,8 @@ export default function Home() {
   const recentProblems = problems?.slice(0, 3) || [];
 
   const bannerContent = useMemo(() => {
-    const greeting = getTimeBasedGreeting();
     const { message, emoji } = getDynamicMessage(user?.problemsSolved || 0);
-    return { greeting, message, emoji };
+    return { message, emoji };
   }, [user?.problemsSolved]);
 
   return (
@@ -87,7 +79,7 @@ export default function Home() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">
-            {bannerContent.greeting}, <span className="text-primary">{user?.username}</span>! {bannerContent.emoji}
+            Welcome back, <span className="text-primary">{user?.username}</span>! {bannerContent.emoji}
           </h1>
           <p className="text-xl text-muted-foreground">
             {bannerContent.message}
