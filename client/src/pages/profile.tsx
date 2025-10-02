@@ -35,6 +35,7 @@ interface PerformanceStats {
   current_streak: number;
   longest_streak: number;
   rank: number;
+  total_users: number;
 }
 
 interface DifficultyBreakdown {
@@ -163,7 +164,7 @@ function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: Bas
               <div className="flex items-center space-x-2 mb-3">
                 <Crown className="h-5 w-5 text-yellow-500" />
                 <span className="text-xl font-bold text-yellow-600" data-testid="text-global-rank">
-                  #{performanceStats.rank} / 10,000
+                  #{performanceStats.rank} / {performanceStats.total_users.toLocaleString()}
                 </span>
                 <span className="text-sm text-muted-foreground">Global Rank</span>
               </div>
