@@ -1908,6 +1908,9 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
     ).count()
     rank = users_above + 1
     
+    # Get total user count for rank display
+    total_users = db.query(User).count()
+    
     return {
         'success': True,
         'basic_info': basic_stats,
@@ -1917,7 +1920,8 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
             'accuracy_rate': round(accuracy, 1),
             'current_streak': current_streak,
             'longest_streak': longest_streak,
-            'rank': rank
+            'rank': rank,
+            'total_users': total_users
         },
         'difficulty_breakdown': difficulty_breakdown,
         'topic_breakdown': topic_breakdown,
