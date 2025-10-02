@@ -775,14 +775,16 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
     animationDelay: (idx: number) => idx * 100
   };
 
-  // Prepare difficulty distribution pie chart
-  const difficultyData = Object.entries(difficultyBreakdown).map(([name, value]) => ({
-    name,
-    value,
-    itemStyle: {
-      color: DIFFICULTY_COLORS[name as keyof typeof DIFFICULTY_COLORS]
-    }
-  }));
+  // Prepare difficulty distribution pie chart - filter out zero values
+  const difficultyData = Object.entries(difficultyBreakdown)
+    .filter(([_, value]) => value > 0)  // Only show difficulties with solved problems
+    .map(([name, value]) => ({
+      name,
+      value,
+      itemStyle: {
+        color: DIFFICULTY_COLORS[name as keyof typeof DIFFICULTY_COLORS]
+      }
+    }));
 
   const difficultyChartOption = {
     title: {
@@ -845,11 +847,22 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
         
         <Card data-testid="card-difficulty-breakdown">
           <CardContent className="p-4">
-            <ReactECharts 
-              option={difficultyChartOption} 
-              style={{ height: '300px' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {difficultyData.length > 0 ? (
+              <ReactECharts 
+                option={difficultyChartOption} 
+                style={{ height: '300px' }}
+                opts={{ renderer: 'canvas' }}
+                notMerge={true}
+                lazyUpdate={false}
+              />
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <p className="text-lg">No problems solved yet</p>
+                  <p className="text-sm">Start solving to see your difficulty breakdown</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
