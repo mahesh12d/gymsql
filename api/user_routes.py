@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 from .database import get_db
 from .models import User, Follower
@@ -16,6 +16,18 @@ class UserSearchResponse(BaseModel):
     lastName: Optional[str] = None
     profileImageUrl: Optional[str] = None
     isOnline: Optional[bool] = False
+
+# Profile update model
+class UpdateProfileRequest(BaseModel):
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    companyName: Optional[str] = None
+    linkedinUrl: Optional[str] = None
+
+class UpdateProfileResponse(BaseModel):
+    success: bool
+    message: str
+    user: UserSearchResponse
 
 # Create router
 user_router = APIRouter(prefix="/api/users", tags=["users"])
@@ -78,6 +90,44 @@ def get_user_profile(
         lastName=user.last_name,
         profileImageUrl=user.profile_image_url,
         isOnline=False
+    )
+
+@user_router.put("/profile", response_model=UpdateProfileResponse)
+def update_profile(
+    profile_data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update the current user's profile information"""
+    
+    # Update user fields
+    if profile_data.firstName is not None:
+        current_user.first_name = profile_data.firstName.strip() if profile_data.firstName else None
+    
+    if profile_data.lastName is not None:
+        current_user.last_name = profile_data.lastName.strip() if profile_data.lastName else None
+    
+    if profile_data.companyName is not None:
+        current_user.company_name = profile_data.companyName.strip() if profile_data.companyName else None
+    
+    if profile_data.linkedinUrl is not None:
+        current_user.linkedin_url = profile_data.linkedinUrl.strip() if profile_data.linkedinUrl else None
+    
+    # Commit changes
+    db.commit()
+    db.refresh(current_user)
+    
+    return UpdateProfileResponse(
+        success=True,
+        message="Profile updated successfully",
+        user=UserSearchResponse(
+            id=current_user.id,
+            username=current_user.username,
+            firstName=current_user.first_name,
+            lastName=current_user.last_name,
+            profileImageUrl=current_user.profile_image_url,
+            isOnline=False
+        )
     )
 
 # Follower endpoints
