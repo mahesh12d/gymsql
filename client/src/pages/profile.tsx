@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,10 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus } from "lucide-react";
 import { format } from "date-fns";
 
 interface BasicInfo {
@@ -93,6 +95,21 @@ interface Recommendations {
   recommended_difficulty: string;
   recommended_problems: RecommendedProblem[];
   learning_path: string;
+}
+
+interface FollowerUser {
+  id: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+  problemsSolved: number;
+}
+
+interface FollowStatus {
+  isFollowing: boolean;
+  followersCount: number;
+  followingCount: number;
 }
 
 const DIFFICULTY_COLORS = {
@@ -306,6 +323,323 @@ function LeaderboardComparison({ stats }: { stats: PerformanceStats }) {
   );
 }
 
+// 👥 Follow Users Component
+function FollowUsersSection({ userId }: { userId: string }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
+  const { toast } = useToast();
+
+  // Get follow status for current user
+  const { data: followStatus, refetch: refetchFollowStatus } = useQuery<FollowStatus>({
+    queryKey: ["/api/users/follow-status", userId],
+    enabled: !!userId,
+  });
+
+  // Get followers list
+  const { data: followers = [] } = useQuery<FollowerUser[]>({
+    queryKey: ["/api/users/followers", userId],
+    enabled: !!userId,
+  });
+
+  // Get following list
+  const { data: following = [] } = useQuery<FollowerUser[]>({
+    queryKey: ["/api/users/following", userId],
+    enabled: !!userId,
+  });
+
+  // Follow user mutation
+  const followMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      const response = await apiRequest(`/api/users/follow/${targetUserId}`, {
+        method: "POST",
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/followers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/following"] });
+      toast({
+        title: "Success",
+        description: "Successfully followed user",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to follow user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Unfollow user mutation
+  const unfollowMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      const response = await apiRequest(`/api/users/unfollow/${targetUserId}`, {
+        method: "DELETE",
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/followers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/following"] });
+      toast({
+        title: "Success",
+        description: "Successfully unfollowed user",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unfollow user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Search users
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to search users');
+      }
+      
+      const data = await response.json();
+      setSearchResults(data);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to search users",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFollow = (targetUserId: string) => {
+    followMutation.mutate(targetUserId);
+  };
+
+  const handleUnfollow = (targetUserId: string) => {
+    unfollowMutation.mutate(targetUserId);
+  };
+
+  const isFollowingUser = (targetUserId: string) => {
+    return following.some(user => user.id === targetUserId);
+  };
+
+  return (
+    <Card data-testid="card-follow-users" className="border-2 border-purple-200 dark:border-purple-800">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Users className="h-6 w-6 text-purple-500" />
+          <span>👥 Follow Users</span>
+        </CardTitle>
+        <CardDescription>
+          Search and follow other users • {followStatus?.followersCount || 0} Followers • {followStatus?.followingCount || 0} Following
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="search" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="search" data-testid="tab-search">Search</TabsTrigger>
+            <TabsTrigger value="followers" data-testid="tab-followers">
+              Followers ({followStatus?.followersCount || 0})
+            </TabsTrigger>
+            <TabsTrigger value="following" data-testid="tab-following">
+              Following ({followStatus?.followingCount || 0})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Search Tab */}
+          <TabsContent value="search" className="space-y-4">
+            <div className="flex space-x-2">
+              <Input
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                data-testid="input-search-users"
+              />
+              <Button onClick={handleSearch} data-testid="button-search">
+                <Search className="h-4 w-4 mr-2" />
+                Search
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {searchResults.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground" data-testid="text-no-search-results">
+                  {searchQuery ? "No users found" : "Search for users to follow"}
+                </div>
+              ) : (
+                searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent"
+                    data-testid={`user-search-result-${user.id}`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.profileImageUrl || undefined} />
+                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.username}</div>
+                        {(user.firstName || user.lastName) && (
+                          <div className="text-sm text-muted-foreground">
+                            {user.firstName} {user.lastName}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {user.problemsSolved} problems solved
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isFollowingUser(user.id) ? "outline" : "default"}
+                      onClick={() =>
+                        isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
+                      }
+                      disabled={followMutation.isPending || unfollowMutation.isPending}
+                      data-testid={`button-follow-${user.id}`}
+                    >
+                      {isFollowingUser(user.id) ? (
+                        <>
+                          <UserMinus className="h-4 w-4 mr-1" />
+                          Unfollow
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Follow
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Followers Tab */}
+          <TabsContent value="followers" className="space-y-2 max-h-96 overflow-y-auto">
+            {followers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground" data-testid="text-no-followers">
+                No followers yet
+              </div>
+            ) : (
+              followers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                  data-testid={`follower-${user.id}`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.profileImageUrl || undefined} />
+                      <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{user.username}</div>
+                      {(user.firstName || user.lastName) && (
+                        <div className="text-sm text-muted-foreground">
+                          {user.firstName} {user.lastName}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {user.problemsSolved} problems solved
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={isFollowingUser(user.id) ? "outline" : "default"}
+                    onClick={() =>
+                      isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
+                    }
+                    disabled={followMutation.isPending || unfollowMutation.isPending}
+                    data-testid={`button-follow-back-${user.id}`}
+                  >
+                    {isFollowingUser(user.id) ? (
+                      <>
+                        <UserMinus className="h-4 w-4 mr-1" />
+                        Unfollow
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Follow Back
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Following Tab */}
+          <TabsContent value="following" className="space-y-2 max-h-96 overflow-y-auto">
+            {following.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground" data-testid="text-not-following-anyone">
+                Not following anyone yet
+              </div>
+            ) : (
+              following.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                  data-testid={`following-${user.id}`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.profileImageUrl || undefined} />
+                      <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{user.username}</div>
+                      {(user.firstName || user.lastName) && (
+                        <div className="text-sm text-muted-foreground">
+                          {user.firstName} {user.lastName}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {user.problemsSolved} problems solved
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleUnfollow(user.id)}
+                    disabled={unfollowMutation.isPending}
+                    data-testid={`button-unfollow-${user.id}`}
+                  >
+                    <UserMinus className="h-4 w-4 mr-1" />
+                    Unfollow
+                  </Button>
+                </div>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
 
 
 // 📈 Progress Charts with ECharts
@@ -791,7 +1125,8 @@ export default function Profile() {
       {/* 📊 Leaderboard Comparison */}
       <LeaderboardComparison stats={profile.performance_stats} />
 
-
+      {/* 👥 Follow Users */}
+      <FollowUsersSection userId={profile.basic_info.user_id} />
 
       {/* 📈 Progress Charts with ECharts */}
       <ProgressChartsSection 
