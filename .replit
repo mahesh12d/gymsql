@@ -16,10 +16,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 36785
-externalPort = 6800
-
-[[ports]]
 localPort = 36867
 externalPort = 3003
 
@@ -101,6 +97,15 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "Redis"
+mode = "sequential"
+author = 48238828
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3.11 -m api.redis_worker"
 
 [agent]
 integrations = [
