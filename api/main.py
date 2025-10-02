@@ -1498,6 +1498,88 @@ def get_user_leaderboard_rank(user_id: str, db: Session = Depends(get_db)):
     }
 
 
+# Helpful Links endpoints
+@app.get("/api/helpful-links",
+         response_model=List,
+         response_model_by_alias=True)
+def get_helpful_links(db: Session = Depends(get_db)):
+    """Get all helpful links - visible to all users"""
+    from .models import HelpfulLink
+    from .schemas import HelpfulLinkResponse
+    
+    links = db.query(HelpfulLink).options(
+        joinedload(HelpfulLink.user)
+    ).order_by(desc(HelpfulLink.created_at)).limit(10).all()
+    
+    return [HelpfulLinkResponse.from_orm(link) for link in links]
+
+
+@app.post("/api/helpful-links",
+          response_model=dict,
+          response_model_by_alias=True)
+def create_helpful_link(
+    link_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new helpful link - premium users only"""
+    from .models import HelpfulLink
+    from .schemas import HelpfulLinkCreate
+    
+    # Check if user is premium
+    if not current_user.premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only premium users can post helpful links"
+        )
+    
+    # Validate input
+    link_create = HelpfulLinkCreate(**link_data)
+    
+    # Create the link
+    new_link = HelpfulLink(
+        user_id=current_user.id,
+        title=link_create.title,
+        url=link_create.url
+    )
+    
+    db.add(new_link)
+    db.commit()
+    db.refresh(new_link)
+    
+    return {"success": True, "id": new_link.id}
+
+
+@app.delete("/api/helpful-links/{link_id}")
+def delete_helpful_link(
+    link_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a helpful link - only the creator or admin can delete"""
+    from .models import HelpfulLink
+    
+    link = db.query(HelpfulLink).filter(HelpfulLink.id == link_id).first()
+    
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found"
+        )
+    
+    # Check if user is the creator or an admin
+    if link.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own links"
+        )
+    
+    db.delete(link)
+    db.commit()
+    
+    return {"success": True}
+
+
 # Community endpoints
 @app.get("/api/community/posts",
          response_model=List[CommunityPostResponse],

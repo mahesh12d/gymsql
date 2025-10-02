@@ -398,3 +398,19 @@ class SolutionResponse(SolutionBase):
     updated_at: datetime
     creator: UserResponse
 
+
+class HelpfulLinkBase(CamelCaseModel):
+    title: str
+    url: str
+
+
+class HelpfulLinkCreate(HelpfulLinkBase):
+    pass
+
+
+class HelpfulLinkResponse(HelpfulLinkBase):
+    id: str
+    user_id: str
+    created_at: datetime
+    user: UserResponse
+
