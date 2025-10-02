@@ -449,28 +449,6 @@ class Solution(Base):
         Index('idx_solutions_created_at', 'created_at'),
     )
 
-# Friendship Model
-class Friendship(Base):
-    """User friendships - bidirectional relationship"""
-    __tablename__ = "friendships"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    friend_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, blocked
-    created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
-    
-    # Relationships
-    user = relationship("User", foreign_keys=[user_id])
-    friend = relationship("User", foreign_keys=[friend_id])
-    
-    # Ensure unique friendships (prevent duplicates)
-    __table_args__ = (
-        UniqueConstraint('user_id', 'friend_id', name='unique_friendship'),
-        Index('idx_friendships_user_id', 'user_id'),
-        Index('idx_friendships_friend_id', 'friend_id'),
-        Index('idx_friendships_status', 'status'),
-    )
 
 # Redis-backed Models for Problem Queue
 
