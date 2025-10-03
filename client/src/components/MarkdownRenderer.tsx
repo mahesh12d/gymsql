@@ -6,7 +6,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import { cpp } from "@codemirror/lang-cpp";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { materialDark } from "@uiw/codemirror-theme-material";
 
 interface MarkdownRendererProps {
   content: string;
@@ -52,10 +52,10 @@ export function MarkdownRenderer({
             };
 
             return (
-              <div className="rounded-md my-2 overflow-hidden border border-border/50">
+              <div className="rounded-md my-2 overflow-hidden">
                 <CodeMirror
                   value={String(children).replace(/\n$/, "")}
-                  theme={oneDark}
+                  theme={materialDark}
                   extensions={getLanguageExtension()}
                   editable={false}
                   basicSetup={{
