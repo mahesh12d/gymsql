@@ -21,12 +21,12 @@ export function MarkdownRenderer({
           const match = /language-(\w+)/.exec(className || "");
           const language = match ? match[1] : "";
 
-          if (!inline && language) {
+          if (!inline) {
             return (
-              <div className="rounded-md my-2 overflow-hidden">
+              <div className="rounded-md my-2 overflow-hidden border-2 border-blue-500 dark:border-blue-400">
                 <SyntaxHighlighter
                   style={atomDark}
-                  language={language}
+                  language={language || "text"}
                   PreTag="div"
                 >
                   {String(children).replace(/\n$/, "")}

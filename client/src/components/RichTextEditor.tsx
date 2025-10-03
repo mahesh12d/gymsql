@@ -19,19 +19,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import CodeMirror from "@uiw/react-codemirror";
-import { sql } from "@codemirror/lang-sql";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
-import { java } from "@codemirror/lang-java";
-import { cpp } from "@codemirror/lang-cpp";
 import { oneDark } from "@codemirror/theme-one-dark";
 
 interface RichTextEditorProps {
@@ -42,16 +30,6 @@ interface RichTextEditorProps {
   testId?: string;
 }
 
-const LANGUAGES = [
-  { value: "postgres", label: "PostgreSQL", extension: sql(), syntaxLang: "sql" },
-  { value: "mysql", label: "MySQL", extension: sql(), syntaxLang: "sql" },
-  { value: "javascript", label: "JavaScript", extension: javascript(), syntaxLang: "javascript" },
-  { value: "python", label: "Python", extension: python(), syntaxLang: "python" },
-  { value: "java", label: "Java", extension: java(), syntaxLang: "java" },
-  { value: "cpp", label: "C++", extension: cpp(), syntaxLang: "cpp" },
-  { value: "text", label: "Plain Text", extension: null, syntaxLang: "text" },
-];
-
 export function RichTextEditor({
   value,
   onChange,
@@ -61,7 +39,6 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
-  const [codeLanguage, setCodeLanguage] = useState("postgres");
   const [codeContent, setCodeContent] = useState("");
 
   const insertAtCursor = useCallback(
@@ -136,9 +113,7 @@ export function RichTextEditor({
   const handleInsertCodeBlock = () => {
     if (!codeContent.trim()) return;
 
-    const lang = LANGUAGES.find((l) => l.value === codeLanguage);
-    const syntaxLang = lang?.syntaxLang || codeLanguage;
-    const codeBlock = `\n\`\`\`${syntaxLang}\n${codeContent}\n\`\`\`\n`;
+    const codeBlock = `\n\`\`\`\n${codeContent}\n\`\`\`\n`;
     const textarea = textareaRef.current;
     if (!textarea) {
       onChange(value + codeBlock);
@@ -218,42 +193,21 @@ export function RichTextEditor({
             <DialogHeader>
               <DialogTitle>Insert Code Block</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <Select value={codeLanguage} onValueChange={setCodeLanguage}>
-                <SelectTrigger data-testid="select-code-language">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((lang) => (
-                    <SelectItem key={lang.value} value={lang.value}>
-                      {lang.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="border border-border rounded-md overflow-hidden">
-                <CodeMirror
-                  value={codeContent}
-                  onChange={setCodeContent}
-                  theme={oneDark}
-                  extensions={
-                    LANGUAGES.find((l) => l.value === codeLanguage)?.extension
-                      ? [
-                          LANGUAGES.find((l) => l.value === codeLanguage)!
-                            .extension!,
-                        ]
-                      : []
-                  }
-                  minHeight="200px"
-                  maxHeight="400px"
-                  basicSetup={{
-                    lineNumbers: true,
-                    highlightActiveLineGutter: true,
-                    highlightActiveLine: true,
-                    foldGutter: true,
-                  }}
-                />
-              </div>
+            <div className="border border-border rounded-md overflow-hidden">
+              <CodeMirror
+                value={codeContent}
+                onChange={setCodeContent}
+                theme={oneDark}
+                extensions={[]}
+                minHeight="200px"
+                maxHeight="400px"
+                basicSetup={{
+                  lineNumbers: true,
+                  highlightActiveLineGutter: true,
+                  highlightActiveLine: true,
+                  foldGutter: true,
+                }}
+              />
             </div>
             <DialogFooter>
               <Button
