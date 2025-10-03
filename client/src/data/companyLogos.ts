@@ -4,6 +4,7 @@
  * Run 'npm run generate:logos' to regenerate
  */
 
+import teslaLogo from '@assets/logos/Tesla.svg';
 import airbnbLogo from '@assets/logos/airbnb.svg';
 import amazonLogo from '@assets/logos/amazon.svg';
 import appleLogo from '@assets/logos/apple.svg';
@@ -14,7 +15,6 @@ import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
 import snapchatLogo from '@assets/logos/snapchat.svg';
 import stripeLogo from '@assets/logos/stripe.svg';
-import teslaLogo from '@assets/logos/tesla.svg';
 
 export interface CompanyInfo {
   id: string;
@@ -27,6 +27,7 @@ export interface CompanyInfo {
 
 // Auto-generated logo registry
 const LOGO_REGISTRY: Record<string, string> = {
+  tesla: teslaLogo,
   airbnb: airbnbLogo,
   amazon: amazonLogo,
   apple: appleLogo,
@@ -37,7 +38,6 @@ const LOGO_REGISTRY: Record<string, string> = {
   netflix: netflixLogo,
   snapchat: snapchatLogo,
   stripe: stripeLogo,
-  tesla: teslaLogo,
 };
 
 // Default color configurations for known companies
