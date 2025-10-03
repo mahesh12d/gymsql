@@ -23,11 +23,15 @@ export function MarkdownRenderer({
 
           if (!inline) {
             return (
-              <div className="rounded-md my-2 overflow-hidden border-2 border-blue-500 dark:border-blue-400">
+              <div className="rounded-md my-2 overflow-hidden border border-border/50">
                 <SyntaxHighlighter
                   style={atomDark}
                   language={language || "text"}
                   PreTag="div"
+                  customStyle={{
+                    fontSize: '16px',
+                    margin: 0,
+                  }}
                 >
                   {String(children).replace(/\n$/, "")}
                 </SyntaxHighlighter>
