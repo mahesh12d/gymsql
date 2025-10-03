@@ -34,23 +34,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       // Development bypass - automatically log in as a fake user
       if (import.meta.env.DEV) {
-        const fakeUser: User = {
-          id: 'dev-user-1',
-          username: 'developer',
-          email: 'dev@sqlgym.dev',
-          firstName: 'Dev',
-          lastName: 'User',
-          xp: 1000,
-          level: 'Advanced',
-          problemsSolved: 25,
-          premium: true
-        };
         const fakeToken = 'dev-token-123';
         
-        setUser(fakeUser);
-        setToken(fakeToken);
-        localStorage.setItem('auth_token', fakeToken);
-        localStorage.setItem('auth_user', JSON.stringify(fakeUser));
+        try {
+          // Fetch real user data from API even in dev mode
+          const userData = await authApi.getCurrentUser();
+          setUser(userData);
+          setToken(fakeToken);
+          localStorage.setItem('auth_token', fakeToken);
+          localStorage.setItem('auth_user', JSON.stringify(userData));
+        } catch (error) {
+          // Fallback to fake user if API fails
+          const fakeUser: User = {
+            id: 'dev-user-1',
+            username: 'developer',
+            email: 'dev@sqlgym.dev',
+            firstName: 'Dev',
+            lastName: 'User',
+            xp: 1000,
+            level: 'Advanced',
+            problemsSolved: 2,
+            premium: true
+          };
+          setUser(fakeUser);
+          setToken(fakeToken);
+          localStorage.setItem('auth_token', fakeToken);
+          localStorage.setItem('auth_user', JSON.stringify(fakeUser));
+        }
         setIsLoading(false);
         return;
       }
