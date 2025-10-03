@@ -1,7 +1,12 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import CodeMirror from "@uiw/react-codemirror";
+import { sql } from "@codemirror/lang-sql";
+import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
+import { java } from "@codemirror/lang-java";
+import { cpp } from "@codemirror/lang-cpp";
+import { oneDark } from "@codemirror/theme-one-dark";
 
 interface MarkdownRendererProps {
   content: string;
@@ -22,19 +27,47 @@ export function MarkdownRenderer({
           const language = match ? match[1] : "";
 
           if (!inline) {
+            const getLanguageExtension = () => {
+              switch (language.toLowerCase()) {
+                case 'sql':
+                case 'postgres':
+                case 'postgresql':
+                case 'mysql':
+                  return [sql()];
+                case 'javascript':
+                case 'js':
+                case 'jsx':
+                  return [javascript()];
+                case 'python':
+                case 'py':
+                  return [python()];
+                case 'java':
+                  return [java()];
+                case 'cpp':
+                case 'c++':
+                  return [cpp()];
+                default:
+                  return [];
+              }
+            };
+
             return (
               <div className="rounded-md my-2 overflow-hidden border border-border/50">
-                <SyntaxHighlighter
-                  style={atomDark}
-                  language={language || "text"}
-                  PreTag="div"
-                  customStyle={{
-                    fontSize: '16px',
-                    margin: 0,
+                <CodeMirror
+                  value={String(children).replace(/\n$/, "")}
+                  theme={oneDark}
+                  extensions={getLanguageExtension()}
+                  editable={false}
+                  basicSetup={{
+                    lineNumbers: false,
+                    foldGutter: false,
+                    highlightActiveLineGutter: false,
+                    highlightActiveLine: false,
                   }}
-                >
-                  {String(children).replace(/\n$/, "")}
-                </SyntaxHighlighter>
+                  style={{
+                    fontSize: '16px',
+                  }}
+                />
               </div>
             );
           }
