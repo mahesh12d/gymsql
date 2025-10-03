@@ -14,6 +14,7 @@ import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
 import snapchatLogo from '@assets/logos/snapchat.svg';
 import stripeLogo from '@assets/logos/stripe.svg';
+import teslaLogo from '@assets/logos/tesla.svg';
 
 export interface CompanyInfo {
   id: string;
@@ -36,154 +37,122 @@ const LOGO_REGISTRY: Record<string, string> = {
   netflix: netflixLogo,
   snapchat: snapchatLogo,
   stripe: stripeLogo,
+  tesla: teslaLogo,
 };
 
 // Default color configurations for known companies
 const COMPANY_COLORS: Record<string, Pick<CompanyInfo, 'primaryColor' | 'secondaryColor'>> = {
   microsoft: {
-    primaryColor: '#00BCF2',
-    secondaryColor: '#0078D4',
+    primaryColor: "#00BCF2",
+    secondaryColor: "#0078D4"
   },
   google: {
-    primaryColor: '#4285F4',
-    secondaryColor: '#DB4437',
+    primaryColor: "#4285F4",
+    secondaryColor: "#DB4437"
   },
   apple: {
-    primaryColor: '#000000',
-    secondaryColor: '#A8A8A8',
+    primaryColor: "#000000",
+    secondaryColor: "#A8A8A8"
   },
   amazon: {
-    primaryColor: '#FF9900',
-    secondaryColor: '#232F3E',
+    primaryColor: "#FF9900",
+    secondaryColor: "#232F3E"
   },
   meta: {
-    primaryColor: '#1877F2',
-    secondaryColor: '#42B883',
+    primaryColor: "#1877F2",
+    secondaryColor: "#42B883"
   },
   netflix: {
-    primaryColor: '#E50914',
-    secondaryColor: '#221F1F',
+    primaryColor: "#E50914",
+    secondaryColor: "#221F1F"
   },
   stripe: {
-    primaryColor: '#635BFF',
-    secondaryColor: '#0A2540',
+    primaryColor: "#635BFF",
+    secondaryColor: "#0A2540"
   },
   airbnb: {
-    primaryColor: '#FF5A5F',
-    secondaryColor: '#FF385C',
+    primaryColor: "#FF5A5F",
+    secondaryColor: "#FF385C"
   },
   tesla: {
-    primaryColor: '#CC0000',
-    secondaryColor: '#000000',
+    primaryColor: "#CC0000",
+    secondaryColor: "#000000"
   },
   uber: {
-    primaryColor: '#000000',
-    secondaryColor: '#1FBAD6',
+    primaryColor: "#000000",
+    secondaryColor: "#1FBAD6"
   },
   shopify: {
-    primaryColor: '#7AB55C',
-    secondaryColor: '#95BF47',
+    primaryColor: "#7AB55C",
+    secondaryColor: "#95BF47"
   },
   discord: {
-    primaryColor: '#5865F2',
-    secondaryColor: '#7289DA',
+    primaryColor: "#5865F2",
+    secondaryColor: "#7289DA"
   },
   slack: {
-    primaryColor: '#4A154B',
-    secondaryColor: '#36C5F0',
+    primaryColor: "#4A154B",
+    secondaryColor: "#36C5F0"
   },
+  snapchat: {
+    primaryColor: "#FFFC00",
+    secondaryColor: "#000000"
+  },
+  mcdonald: {
+    primaryColor: "#FFC72C",
+    secondaryColor: "#DA291C"
+  }
 };
 
 /**
  * Normalizes company name to match expected filename format
  */
-function normalizeCompanyName(companyName: string): string {
-  return companyName.toLowerCase()
-    .trim()
+function normalizeCompanyName(name: string): string {
+  return name
+    .replace(/[,_-]/g, '')
     .replace(/\s+/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    .toLowerCase();
 }
 
 /**
- * Gets company info by name using auto-generated logo registry
+ * Retrieves company logo information by name
  */
-export function getCompanyInfo(companyName: string): CompanyInfo | null {
-  if (!companyName) return null;
+export function getCompanyLogo(companyName: string): CompanyInfo | null {
+  const normalized = normalizeCompanyName(companyName);
+  const logoPath = LOGO_REGISTRY[normalized];
   
-  const normalizedName = normalizeCompanyName(companyName);
-  const logoPath = LOGO_REGISTRY[normalizedName];
-  
-  // If no logo found, return null
-  if (!logoPath) return null;
-  
-  // Get colors from config or use defaults
-  const colors = COMPANY_COLORS[normalizedName] || {
-    primaryColor: '#6366F1', // Default indigo
-    secondaryColor: '#4F46E5',
-  };
-  
-  // Create display name (capitalize first letter of each word)
-  const displayName = companyName
-    .toLowerCase()
-    .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-  
-  return {
-    id: normalizedName,
-    name: displayName,
-    displayName: displayName,
-    logoPath: logoPath,
-    primaryColor: colors.primaryColor,
-    secondaryColor: colors.secondaryColor,
-  };
-}
-
-/**
- * Gets company info by ID
- */
-export function getCompanyById(id: string): CompanyInfo | null {
-  return getCompanyInfo(id);
-}
-
-/**
- * Generates a company ID from a company name
- */
-export function generateCompanyId(companyName: string): string {
-  return normalizeCompanyName(companyName);
-}
-
-/**
- * Gets all available companies (those in the logo registry)
- */
-export function getAllCompanies(): CompanyInfo[] {
-  const companies: CompanyInfo[] = [];
-  
-  for (const [normalizedName, logoPath] of Object.entries(LOGO_REGISTRY)) {
-    const colors = COMPANY_COLORS[normalizedName] || {
-      primaryColor: '#6366F1',
-      secondaryColor: '#4F46E5',
-    };
-    
-    const displayName = normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
-    
-    companies.push({
-      id: normalizedName,
-      name: displayName,
-      displayName: displayName,
-      logoPath: logoPath,
-      primaryColor: colors.primaryColor,
-      secondaryColor: colors.secondaryColor,
-    });
+  if (!logoPath) {
+    return null;
   }
-  
-  return companies;
+
+  const colors = COMPANY_COLORS[normalized] || {
+    primaryColor: '#000000',
+    secondaryColor: '#666666',
+  };
+
+  return {
+    id: normalized,
+    name: normalized,
+    displayName: companyName,
+    logoPath,
+    ...colors,
+  };
 }
 
 /**
- * Checks if a company logo exists
+ * Returns all available company logos
  */
-export function hasCompanyLogo(companyName: string): boolean {
-  const info = getCompanyInfo(companyName);
-  return info !== null;
+export function getAllCompanyLogos(): CompanyInfo[] {
+  return Object.keys(LOGO_REGISTRY).map(key => ({
+    id: key,
+    name: key,
+    displayName: key.charAt(0).toUpperCase() + key.slice(1),
+    logoPath: LOGO_REGISTRY[key],
+    ...(COMPANY_COLORS[key] || {
+      primaryColor: '#000000',
+      secondaryColor: '#666666',
+    }),
+  }));
 }
+
+export { LOGO_REGISTRY, COMPANY_COLORS };

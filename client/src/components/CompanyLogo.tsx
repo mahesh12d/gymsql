@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getCompanyInfo, CompanyInfo } from "@/data/companyLogos";
+import { getCompanyLogo, CompanyInfo } from "@/data/companyLogos";
 
 interface CompanyLogoProps {
   companyName: string | null | undefined;
@@ -44,7 +44,7 @@ export function CompanyLogo({
     setLogoError(false);
     
     try {
-      const info = getCompanyInfo(companyName);
+      const info = getCompanyLogo(companyName);
       setCompanyInfo(info);
 
       if (info) {
