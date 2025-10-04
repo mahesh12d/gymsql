@@ -81,27 +81,6 @@ interface UserProfile {
   badges: UserBadge[];
 }
 
-interface WeakTopic {
-  topic: string;
-  solved_count: number;
-  recommendation: string;
-}
-
-interface RecommendedProblem {
-  id: string;
-  title: string;
-  difficulty: string;
-  tags: string[];
-  company: string | null;
-}
-
-interface Recommendations {
-  success: boolean;
-  weak_topics: WeakTopic[];
-  recommended_difficulty: string;
-  recommended_problems: RecommendedProblem[];
-  learning_path: string;
-}
 
 interface FollowerUser {
   id: string;
@@ -459,54 +438,6 @@ function CompetitiveOverview({ stats, recentActivity, allUsersStats }: {
   );
 }
 
-
-// 📊 Topic Progress Section
-function TopicProgressSection({ topicBreakdown }: { topicBreakdown: Record<string, number> }) {
-  // Get top topics by problems solved, sorted descending
-  const topTopics = Object.entries(topicBreakdown)
-    .map(([topic, count]) => ({ topic, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6); // Show top 6 topics
-
-  if (topTopics.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card data-testid="card-topic-progress" className="border-2 border-green-200 dark:border-green-800">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <BookOpen className="h-6 w-6 text-green-500" />
-          <span>📊 Topic Progress</span>
-        </CardTitle>
-        <CardDescription>Your strongest topics by problems solved</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {topTopics.map((item, index) => {
-            const maxCount = topTopics[0].count;
-            const progressPercentage = (item.count / maxCount) * 100;
-            
-            return (
-              <div key={index} className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 rounded-lg" data-testid={`topic-progress-${index}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{item.topic}</span>
-                  <Badge variant="outline" className={item.count >= 5 ? 'border-green-500 text-green-600' : item.count >= 3 ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-600'}>
-                    {item.count} solved
-                  </Badge>
-                </div>
-                <div className="text-sm text-muted-foreground mb-2">
-                  {item.count >= 5 ? 'Strong proficiency ⭐' : item.count >= 3 ? 'Good progress 📈' : 'Keep practicing 💪'}
-                </div>
-                <Progress value={progressPercentage} className="mt-2" />
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 // 📚 Helpful Link Interface
 interface HelpfulLink {
@@ -1051,58 +982,58 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
   topicBreakdown: Record<string, number>;
   difficultyBreakdown: DifficultyBreakdown;
 }) {
-  // Prepare data for solved questions over time (race speed)
-  const solvedOverTimeOption = {
+  // Prepare data for calendar heatmap
+  const currentYear = new Date().getFullYear();
+  const heatmapData = progressOverTime.map(p => [
+    format(new Date(p.date), 'yyyy-MM-dd'),
+    p.solved_count
+  ]);
+
+  // Find max value for color scaling
+  const maxSolved = Math.max(...progressOverTime.map(p => p.solved_count), 1);
+
+  const calendarHeatmapOption = {
     title: {
-      text: 'Your Speed 🏁',
-      subtext: 'Solved Questions Over Time',
-      left: 'center'
+      text: 'Activity Calendar 📅',
+      subtext: 'Problems Solved Per Day',
+      left: 'center',
+      top: 10
     },
     tooltip: {
-      trigger: 'axis',
+      position: 'top',
       formatter: (params: any) => {
-        const data = params[0];
-        return `${data.name}<br/>Problems Solved: ${data.value}`;
+        return `${params.value[0]}<br/>Problems: ${params.value[1]}`;
       }
     },
-    xAxis: {
-      type: 'category',
-      data: progressOverTime.map(p => format(new Date(p.date), "MMM dd")),
-      axisLabel: {
-        rotate: 45
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: 'Problems Solved'
-    },
-    series: [{
-      name: 'Solved',
-      type: 'line',
-      data: progressOverTime.map(p => p.solved_count),
-      smooth: true,
-      lineStyle: {
-        color: '#10b981',
-        width: 3
+    visualMap: {
+      min: 0,
+      max: maxSolved,
+      type: 'continuous',
+      orient: 'horizontal',
+      left: 'center',
+      top: 40,
+      inRange: {
+        color: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
       },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
-            { offset: 1, color: 'rgba(16, 185, 129, 0.1)' }
-          ]
-        }
-      },
-      symbol: 'circle',
-      symbolSize: 8,
+      text: ['High', 'Low'],
+      calculable: true
+    },
+    calendar: {
+      top: 100,
+      left: 30,
+      right: 30,
+      cellSize: ['auto', 13],
+      range: currentYear,
       itemStyle: {
-        color: '#10b981'
-      }
-    }],
-    animation: true,
-    animationDuration: 2000
+        borderWidth: 0.5
+      },
+      yearLabel: { show: false }
+    },
+    series: {
+      type: 'heatmap',
+      coordinateSystem: 'calendar',
+      data: heatmapData
+    }
   };
 
   // Prepare topic data for animated bar chart
@@ -1210,10 +1141,10 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
         <span>📈 Progress Charts</span>
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        <Card data-testid="card-progress-over-time">
+        <Card data-testid="card-calendar-heatmap">
           <CardContent className="p-4">
             <ReactECharts 
-              option={solvedOverTimeOption} 
+              option={calendarHeatmapOption} 
               style={{ height: '300px' }}
               opts={{ renderer: 'canvas' }}
             />
@@ -1388,84 +1319,6 @@ function RecentActivityCard({ recentActivity }: { recentActivity: RecentActivity
 }
 
 
-function RecommendationsCard({ recommendations }: { recommendations: Recommendations | undefined }) {
-  if (!recommendations) return null;
-
-  return (
-    <Card data-testid="card-recommendations">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Lightbulb className="h-5 w-5" />
-          <span>Recommendations</span>
-        </CardTitle>
-        <CardDescription>Personalized suggestions for improvement</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Learning Path */}
-        <div data-testid="learning-path">
-          <h4 className="font-medium mb-2">🎯 Your Learning Path</h4>
-          <p className="text-sm text-muted-foreground">{recommendations.learning_path}</p>
-        </div>
-
-        <Separator />
-
-        {/* Weak Topics */}
-        {recommendations.weak_topics.length > 0 && (
-          <div data-testid="weak-topics">
-            <h4 className="font-medium mb-3">📚 Areas for Improvement</h4>
-            <div className="space-y-2">
-              {recommendations.weak_topics.map((topic, index) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded border" data-testid={`weak-topic-${index}`}>
-                  <div>
-                    <span className="font-medium">{topic.topic}</span>
-                    <div className="text-sm text-muted-foreground">{topic.recommendation}</div>
-                  </div>
-                  <Badge variant="outline">{topic.solved_count} solved</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Recommended Problems */}
-        {recommendations.recommended_problems.length > 0 && (
-          <div data-testid="recommended-problems">
-            <h4 className="font-medium mb-3">💡 Recommended Problems</h4>
-            <div className="space-y-2">
-              {recommendations.recommended_problems.map((problem) => (
-                <div key={problem.id} className="flex items-center justify-between p-2 rounded border" data-testid={`recommended-problem-${problem.id}`}>
-                  <div className="flex-1">
-                    <div className="font-medium">{problem.title}</div>
-                    {problem.company && (
-                      <div className="text-sm text-muted-foreground">{problem.company}</div>
-                    )}
-                    {problem.tags && problem.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {problem.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Badge 
-                    variant={problem.difficulty === "Easy" ? "secondary" : 
-                             problem.difficulty === "Medium" ? "default" : "destructive"}
-                  >
-                    {problem.difficulty}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function ProfileSkeleton() {
   return (
@@ -1504,10 +1357,6 @@ export default function Profile() {
     queryKey: ["/api/user/profile"],
   });
 
-  const { data: recommendations } = useQuery<Recommendations>({
-    queryKey: ["/api/user/profile/recommendations"],
-  });
-
   if (profileLoading) {
     return <ProfileSkeleton />;
   }
@@ -1541,9 +1390,6 @@ export default function Profile() {
         recentActivity={profile.recent_activity}
       />
 
-      {/* 📊 Topic Progress */}
-      <TopicProgressSection topicBreakdown={profile.topic_breakdown} />
-
       {/* 👥 Friends & Resources */}
       <FriendsAndResourcesSection userId={profile.basic_info.user_id} isPremium={profile.basic_info.premium} />
 
@@ -1556,9 +1402,6 @@ export default function Profile() {
 
       {/* 📜 Recent Activity */}
       <CompetitiveRecentActivity recentActivity={profile.recent_activity} />
-
-      {/* Recommendations */}
-      <RecommendationsCard recommendations={recommendations} />
     </div>
   );
 }
