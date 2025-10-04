@@ -508,14 +508,31 @@ function TopicProgressSection({ topicBreakdown }: { topicBreakdown: Record<strin
   );
 }
 
-// 👥 Follow Users Component
-function FollowUsersSection({ userId }: { userId: string }) {
+// 📚 Helpful Link Interface
+interface HelpfulLink {
+  id: string;
+  userId: string;
+  title: string;
+  url: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+// 👥 Combined Friends & Resources Component
+function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isPremium: boolean }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [newUrl, setNewUrl] = useState('');
   const { toast } = useToast();
 
   // Get follow status for current user
-  const { data: followStatus, refetch: refetchFollowStatus } = useQuery<FollowStatus>({
+  const { data: followStatus } = useQuery<FollowStatus>({
     queryKey: ["/api/users/follow-status", userId],
     enabled: !!userId,
   });
@@ -530,6 +547,11 @@ function FollowUsersSection({ userId }: { userId: string }) {
   const { data: following = [] } = useQuery<FollowerUser[]>({
     queryKey: ["/api/users/following", userId],
     enabled: !!userId,
+  });
+
+  // Get helpful links
+  const { data: links, isLoading: linksLoading } = useQuery<HelpfulLink[]>({
+    queryKey: ['/api/helpful-links'],
   });
 
   // Follow user mutation
@@ -580,6 +602,52 @@ function FollowUsersSection({ userId }: { userId: string }) {
     },
   });
 
+  // Create link mutation
+  const createLinkMutation = useMutation({
+    mutationFn: async (data: { title: string; url: string }) => {
+      const response = await apiRequest('POST', '/api/helpful-links', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
+      setNewTitle('');
+      setNewUrl('');
+      toast({
+        title: 'Success',
+        description: 'Link shared successfully!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to share link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete link mutation
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      const response = await apiRequest('DELETE', `/api/helpful-links/${linkId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
+      toast({
+        title: 'Success',
+        description: 'Link removed successfully!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove link',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Search users
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -612,304 +680,7 @@ function FollowUsersSection({ userId }: { userId: string }) {
     return following.some(user => user.id === targetUserId);
   };
 
-  return (
-    <Card data-testid="card-follow-users" className="border-2 border-purple-200 dark:border-purple-800">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Users className="h-6 w-6 text-purple-500" />
-          <span>👥 Follow Users</span>
-        </CardTitle>
-        <CardDescription>
-          Search and follow other users • {followStatus?.followersCount || 0} Followers • {followStatus?.followingCount || 0} Following
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="search" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="search" data-testid="tab-search">Search</TabsTrigger>
-            <TabsTrigger value="followers" data-testid="tab-followers">
-              Followers ({followStatus?.followersCount || 0})
-            </TabsTrigger>
-            <TabsTrigger value="following" data-testid="tab-following">
-              Following ({followStatus?.followingCount || 0})
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Search Tab */}
-          <TabsContent value="search" className="space-y-4">
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                data-testid="input-search-users"
-              />
-              <Button onClick={handleSearch} data-testid="button-search">
-                <Search className="h-4 w-4 mr-2" />
-                Search
-              </Button>
-            </div>
-
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {searchResults.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground" data-testid="text-no-search-results">
-                  {searchQuery ? "No users found" : "Search for users to follow"}
-                </div>
-              ) : (
-                searchResults.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent"
-                    data-testid={`user-search-result-${user.id}`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.profileImageUrl || undefined} />
-                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.username}</div>
-                        {(user.firstName || user.lastName) && (
-                          <div className="text-sm text-muted-foreground">
-                            {user.firstName} {user.lastName}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {user.problemsSolved} problems solved
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={isFollowingUser(user.id) ? "outline" : "default"}
-                      onClick={() =>
-                        isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
-                      }
-                      disabled={followMutation.isPending || unfollowMutation.isPending}
-                      data-testid={`button-follow-${user.id}`}
-                    >
-                      {isFollowingUser(user.id) ? (
-                        <>
-                          <UserMinus className="h-4 w-4 mr-1" />
-                          Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          Follow
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Followers Tab */}
-          <TabsContent value="followers" className="space-y-2 max-h-96 overflow-y-auto">
-            {followers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground" data-testid="text-no-followers">
-                No followers yet
-              </div>
-            ) : (
-              followers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                  data-testid={`follower-${user.id}`}
-                >
-                  <UserProfilePopover
-                    user={{
-                      id: user.id,
-                      username: user.username,
-                      first_name: user.firstName || undefined,
-                      last_name: user.lastName || undefined,
-                      companyName: user.companyName || undefined,
-                      linkedinUrl: user.linkedinUrl || undefined,
-                      profileImageUrl: user.profileImageUrl || undefined,
-                      problemsSolved: user.problemsSolved,
-                    }}
-                    trigger="hover"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.profileImageUrl || undefined} />
-                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.username}</div>
-                        {(user.firstName || user.lastName) && (
-                          <div className="text-sm text-muted-foreground">
-                            {user.firstName} {user.lastName}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {user.problemsSolved} problems solved
-                        </div>
-                      </div>
-                    </div>
-                  </UserProfilePopover>
-                  <Button
-                    size="sm"
-                    variant={isFollowingUser(user.id) ? "outline" : "default"}
-                    onClick={() =>
-                      isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
-                    }
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                    data-testid={`button-follow-back-${user.id}`}
-                  >
-                    {isFollowingUser(user.id) ? (
-                      <>
-                        <UserMinus className="h-4 w-4 mr-1" />
-                        Unfollow
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Follow Back
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Following Tab */}
-          <TabsContent value="following" className="space-y-2 max-h-96 overflow-y-auto">
-            {following.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground" data-testid="text-not-following-anyone">
-                Not following anyone yet
-              </div>
-            ) : (
-              following.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                  data-testid={`following-${user.id}`}
-                >
-                  <UserProfilePopover
-                    user={{
-                      id: user.id,
-                      username: user.username,
-                      first_name: user.firstName || undefined,
-                      last_name: user.lastName || undefined,
-                      companyName: user.companyName || undefined,
-                      linkedinUrl: user.linkedinUrl || undefined,
-                      profileImageUrl: user.profileImageUrl || undefined,
-                      problemsSolved: user.problemsSolved,
-                    }}
-                    trigger="hover"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.profileImageUrl || undefined} />
-                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.username}</div>
-                        {(user.firstName || user.lastName) && (
-                          <div className="text-sm text-muted-foreground">
-                            {user.firstName} {user.lastName}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {user.problemsSolved} problems solved
-                        </div>
-                      </div>
-                    </div>
-                  </UserProfilePopover>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleUnfollow(user.id)}
-                    disabled={unfollowMutation.isPending}
-                    data-testid={`button-unfollow-${user.id}`}
-                  >
-                    <UserMinus className="h-4 w-4 mr-1" />
-                    Unfollow
-                  </Button>
-                </div>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
-}
-
-// 📚 Helpful Links Management Component (Premium only)
-interface HelpfulLink {
-  id: string;
-  userId: string;
-  title: string;
-  url: string;
-  createdAt: string;
-  user: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-  };
-}
-
-function HelpfulLinksManagementSection({ isPremium }: { isPremium: boolean }) {
-  const { toast } = useToast();
-  const [newTitle, setNewTitle] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-
-  const { data: links, isLoading } = useQuery<HelpfulLink[]>({
-    queryKey: ['/api/helpful-links'],
-  });
-
-  const createLinkMutation = useMutation({
-    mutationFn: async (data: { title: string; url: string }) => {
-      const response = await apiRequest('POST', '/api/helpful-links', data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
-      setNewTitle('');
-      setNewUrl('');
-      toast({
-        title: 'Success',
-        description: 'Link shared successfully!',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to share link',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const deleteLinkMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      const response = await apiRequest('DELETE', `/api/helpful-links/${linkId}`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
-      toast({
-        title: 'Success',
-        description: 'Link removed successfully!',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to remove link',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmitLink = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newUrl.trim()) {
       toast({
@@ -922,130 +693,353 @@ function HelpfulLinksManagementSection({ isPremium }: { isPremium: boolean }) {
     createLinkMutation.mutate({ title: newTitle, url: newUrl });
   };
 
-  if (!isPremium) {
-    return (
-      <Card className="border-2 border-yellow-200 dark:border-yellow-800">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-yellow-500" />
-            <span>📚 Share Resources</span>
-            <Badge variant="outline" className="ml-2">Premium</Badge>
-          </CardTitle>
-          <CardDescription>
-            Upgrade to premium to share helpful links with the community
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <Crown className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
-          <p className="text-muted-foreground">
-            Premium users can share helpful SQL resources, tutorials, and articles with the community.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="border-2 border-blue-200 dark:border-blue-800" data-testid="card-helpful-links">
+    <Card data-testid="card-friends-resources" className="border-2 border-purple-200 dark:border-purple-800">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <BookOpen className="h-6 w-6 text-blue-500" />
-          <span>📚 Share Helpful Resources</span>
+          <Users className="h-6 w-6 text-purple-500" />
+          <span>👥 Friends & Resources</span>
         </CardTitle>
         <CardDescription>
-          Share helpful links, tutorials, and articles with the community
+          Connect with users and share helpful resources
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Add New Link Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-muted/30">
-          <div className="space-y-2">
-            <Label htmlFor="link-title">Resource Title</Label>
-            <Input
-              id="link-title"
-              placeholder="e.g., SQL Join Tutorial"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              data-testid="input-link-title"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="link-url">URL</Label>
-            <Input
-              id="link-url"
-              placeholder="https://..."
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              type="url"
-              data-testid="input-link-url"
-            />
-          </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={createLinkMutation.isPending}
-            data-testid="button-submit-link"
-          >
-            {createLinkMutation.isPending ? 'Sharing...' : 'Share Resource'}
-          </Button>
-        </form>
+      <CardContent>
+        <Tabs defaultValue="friends" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="friends" data-testid="tab-friends">
+              <Users className="h-4 w-4 mr-2" />
+              Friends
+            </TabsTrigger>
+            <TabsTrigger value="resources" data-testid="tab-resources">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Resources
+            </TabsTrigger>
+          </TabsList>
 
-        <Separator />
-
-        {/* User's Shared Links */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm text-muted-foreground">Your Shared Links</h3>
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-              ))}
+          {/* Friends Tab */}
+          <TabsContent value="friends" className="space-y-4">
+            <div className="text-sm text-muted-foreground mb-2">
+              {followStatus?.followersCount || 0} Followers • {followStatus?.followingCount || 0} Following
             </div>
-          ) : links && links.length > 0 ? (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {links.map((link) => (
-                <div
-                  key={link.id}
-                  className="p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                  data-testid={`link-item-${link.id}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
-                        data-testid={`link-url-${link.id}`}
-                      >
-                        <span className="truncate">{link.title}</span>
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      </a>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Shared on {format(new Date(link.createdAt), "MMM dd, yyyy")}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteLinkMutation.mutate(link.id)}
-                      disabled={deleteLinkMutation.isPending}
-                      className="ml-2 h-8 w-8 p-0"
-                      data-testid={`button-delete-link-${link.id}`}
-                    >
-                      <Trash2 className="w-3 h-3 text-destructive" />
-                    </Button>
-                  </div>
+            
+            <Tabs defaultValue="search" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="search" data-testid="tab-search">Search</TabsTrigger>
+                <TabsTrigger value="followers" data-testid="tab-followers">
+                  Followers ({followStatus?.followersCount || 0})
+                </TabsTrigger>
+                <TabsTrigger value="following" data-testid="tab-following">
+                  Following ({followStatus?.followingCount || 0})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Search Tab */}
+              <TabsContent value="search" className="space-y-4">
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    data-testid="input-search-users"
+                  />
+                  <Button onClick={handleSearch} data-testid="button-search">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </Button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">You haven't shared any links yet</p>
-            </div>
-          )}
-        </div>
+
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {searchResults.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground" data-testid="text-no-search-results">
+                      {searchQuery ? "No users found" : "Search for users to follow"}
+                    </div>
+                  ) : (
+                    searchResults.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent"
+                        data-testid={`user-search-result-${user.id}`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.profileImageUrl || undefined} />
+                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.username}</div>
+                            {(user.firstName || user.lastName) && (
+                              <div className="text-sm text-muted-foreground">
+                                {user.firstName} {user.lastName}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {user.problemsSolved} problems solved
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isFollowingUser(user.id) ? "outline" : "default"}
+                          onClick={() =>
+                            isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
+                          }
+                          disabled={followMutation.isPending || unfollowMutation.isPending}
+                          data-testid={`button-follow-${user.id}`}
+                        >
+                          {isFollowingUser(user.id) ? (
+                            <>
+                              <UserMinus className="h-4 w-4 mr-1" />
+                              Unfollow
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="h-4 w-4 mr-1" />
+                              Follow
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Followers Tab */}
+              <TabsContent value="followers" className="space-y-2 max-h-96 overflow-y-auto">
+                {followers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground" data-testid="text-no-followers">
+                    No followers yet
+                  </div>
+                ) : (
+                  followers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      data-testid={`follower-${user.id}`}
+                    >
+                      <UserProfilePopover
+                        user={{
+                          id: user.id,
+                          username: user.username,
+                          first_name: user.firstName || undefined,
+                          last_name: user.lastName || undefined,
+                          companyName: user.companyName || undefined,
+                          linkedinUrl: user.linkedinUrl || undefined,
+                          profileImageUrl: user.profileImageUrl || undefined,
+                          problemsSolved: user.problemsSolved,
+                        }}
+                        trigger="hover"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.profileImageUrl || undefined} />
+                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.username}</div>
+                            {(user.firstName || user.lastName) && (
+                              <div className="text-sm text-muted-foreground">
+                                {user.firstName} {user.lastName}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {user.problemsSolved} problems solved
+                            </div>
+                          </div>
+                        </div>
+                      </UserProfilePopover>
+                      <Button
+                        size="sm"
+                        variant={isFollowingUser(user.id) ? "outline" : "default"}
+                        onClick={() =>
+                          isFollowingUser(user.id) ? handleUnfollow(user.id) : handleFollow(user.id)
+                        }
+                        disabled={followMutation.isPending || unfollowMutation.isPending}
+                        data-testid={`button-follow-back-${user.id}`}
+                      >
+                        {isFollowingUser(user.id) ? (
+                          <>
+                            <UserMinus className="h-4 w-4 mr-1" />
+                            Unfollow
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            Follow Back
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
+              {/* Following Tab */}
+              <TabsContent value="following" className="space-y-2 max-h-96 overflow-y-auto">
+                {following.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground" data-testid="text-not-following-anyone">
+                    Not following anyone yet
+                  </div>
+                ) : (
+                  following.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      data-testid={`following-${user.id}`}
+                    >
+                      <UserProfilePopover
+                        user={{
+                          id: user.id,
+                          username: user.username,
+                          first_name: user.firstName || undefined,
+                          last_name: user.lastName || undefined,
+                          companyName: user.companyName || undefined,
+                          linkedinUrl: user.linkedinUrl || undefined,
+                          profileImageUrl: user.profileImageUrl || undefined,
+                          problemsSolved: user.problemsSolved,
+                        }}
+                        trigger="hover"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.profileImageUrl || undefined} />
+                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.username}</div>
+                            {(user.firstName || user.lastName) && (
+                              <div className="text-sm text-muted-foreground">
+                                {user.firstName} {user.lastName}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {user.problemsSolved} problems solved
+                            </div>
+                          </div>
+                        </div>
+                      </UserProfilePopover>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUnfollow(user.id)}
+                        disabled={unfollowMutation.isPending}
+                        data-testid={`button-unfollow-${user.id}`}
+                      >
+                        <UserMinus className="h-4 w-4 mr-1" />
+                        Unfollow
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          {/* Resources Tab */}
+          <TabsContent value="resources" className="space-y-6">
+            {!isPremium ? (
+              <div className="text-center py-8">
+                <Crown className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+                <Badge variant="outline" className="mb-4">Premium</Badge>
+                <p className="text-muted-foreground">
+                  Premium users can share helpful SQL resources, tutorials, and articles with the community.
+                </p>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={handleSubmitLink} className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="space-y-2">
+                    <Label htmlFor="link-title">Resource Title</Label>
+                    <Input
+                      id="link-title"
+                      placeholder="e.g., SQL Join Tutorial"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      data-testid="input-link-title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="link-url">URL</Label>
+                    <Input
+                      id="link-url"
+                      placeholder="https://..."
+                      value={newUrl}
+                      onChange={(e) => setNewUrl(e.target.value)}
+                      type="url"
+                      data-testid="input-link-url"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={createLinkMutation.isPending}
+                    data-testid="button-submit-link"
+                  >
+                    {createLinkMutation.isPending ? 'Sharing...' : 'Share Resource'}
+                  </Button>
+                </form>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h3 className="font-medium text-sm text-muted-foreground">Your Shared Links</h3>
+                  {linksLoading ? (
+                    <div className="space-y-3">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                  ) : links && links.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {links.map((link) => (
+                        <div
+                          key={link.id}
+                          className="p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                          data-testid={`link-item-${link.id}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
+                                data-testid={`link-url-${link.id}`}
+                              >
+                                <span className="truncate">{link.title}</span>
+                                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                              </a>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Shared on {format(new Date(link.createdAt), "MMM dd, yyyy")}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteLinkMutation.mutate(link.id)}
+                              disabled={deleteLinkMutation.isPending}
+                              className="ml-2 h-8 w-8 p-0"
+                              data-testid={`button-delete-link-${link.id}`}
+                            >
+                              <Trash2 className="w-3 h-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">You haven't shared any links yet</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -1550,11 +1544,8 @@ export default function Profile() {
       {/* 📊 Topic Progress */}
       <TopicProgressSection topicBreakdown={profile.topic_breakdown} />
 
-      {/* 👥 Follow Users */}
-      <FollowUsersSection userId={profile.basic_info.user_id} />
-
-      {/* 📚 Helpful Links Management */}
-      <HelpfulLinksManagementSection isPremium={profile.basic_info.premium} />
+      {/* 👥 Friends & Resources */}
+      <FriendsAndResourcesSection userId={profile.basic_info.user_id} isPremium={profile.basic_info.premium} />
 
       {/* 📈 Progress Charts with ECharts */}
       <ProgressChartsSection 
