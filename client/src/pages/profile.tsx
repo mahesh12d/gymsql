@@ -14,10 +14,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
 import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building, ExternalLink, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
+import CalendarHeatmap from 'react-calendar-heatmap';
+import 'react-calendar-heatmap/dist/styles.css';
+import { Tooltip as ReactTooltip } from 'react-tooltip';
 
 interface BasicInfo {
   user_id: string;
@@ -982,59 +985,15 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
   topicBreakdown: Record<string, number>;
   difficultyBreakdown: DifficultyBreakdown;
 }) {
-  // Prepare data for calendar heatmap
-  const currentYear = new Date().getFullYear();
-  const heatmapData = progressOverTime.map(p => [
-    format(new Date(p.date), 'yyyy-MM-dd'),
-    p.solved_count
-  ]);
-
-  // Find max value for color scaling
-  const maxSolved = Math.max(...progressOverTime.map(p => p.solved_count), 1);
-
-  const calendarHeatmapOption = {
-    title: {
-      text: 'Activity Calendar 📅',
-      subtext: 'Problems Solved Per Day',
-      left: 'center',
-      top: 10
-    },
-    tooltip: {
-      position: 'top',
-      formatter: (params: any) => {
-        return `${params.value[0]}<br/>Problems: ${params.value[1]}`;
-      }
-    },
-    visualMap: {
-      min: 0,
-      max: maxSolved,
-      type: 'continuous',
-      orient: 'horizontal',
-      left: 'center',
-      top: 40,
-      inRange: {
-        color: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
-      },
-      text: ['High', 'Low'],
-      calculable: true
-    },
-    calendar: {
-      top: 100,
-      left: 30,
-      right: 30,
-      cellSize: ['auto', 13],
-      range: currentYear,
-      itemStyle: {
-        borderWidth: 0.5
-      },
-      yearLabel: { show: false }
-    },
-    series: {
-      type: 'heatmap',
-      coordinateSystem: 'calendar',
-      data: heatmapData
-    }
-  };
+  // Prepare data for GitHub-style heatmap (last 365 days)
+  const today = new Date();
+  const startDate = subDays(today, 365);
+  
+  // Transform progress data for react-calendar-heatmap
+  const heatmapValues = progressOverTime.map(p => ({
+    date: p.date,
+    count: p.solved_count
+  }));
 
   // Prepare topic data for animated bar chart
   const topicData = Object.entries(topicBreakdown)
@@ -1141,13 +1100,40 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
         <span>📈 Progress Charts</span>
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        <Card data-testid="card-calendar-heatmap">
-          <CardContent className="p-4">
-            <ReactECharts 
-              option={calendarHeatmapOption} 
-              style={{ height: '300px' }}
-              opts={{ renderer: 'canvas' }}
+        <Card data-testid="card-calendar-heatmap" className="col-span-1 lg:col-span-2 xl:col-span-3">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Flame className="h-5 w-5 text-orange-500" />
+              <span>Questions Solved</span>
+            </CardTitle>
+            <CardDescription>Daily activity for the past year</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <CalendarHeatmap
+              startDate={startDate}
+              endDate={today}
+              values={heatmapValues}
+              classForValue={(value) => {
+                if (!value || value.count === 0) {
+                  return 'color-empty';
+                }
+                if (value.count <= 2) return 'color-scale-1';
+                if (value.count <= 4) return 'color-scale-2';
+                if (value.count <= 6) return 'color-scale-3';
+                return 'color-scale-4';
+              }}
+              tooltipDataAttrs={(value: any) => {
+                if (!value || !value.date) {
+                  return {};
+                }
+                return {
+                  'data-tooltip-id': 'heatmap-tooltip',
+                  'data-tooltip-content': `${format(new Date(value.date), 'MMM dd, yyyy')}: ${value.count || 0} problems solved`,
+                };
+              }}
+              showWeekdayLabels={true}
             />
+            <ReactTooltip id="heatmap-tooltip" />
           </CardContent>
         </Card>
         
