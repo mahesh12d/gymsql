@@ -30,7 +30,11 @@ async def google_login(request: Request):
         base_url = f"https://{replit_domain}"
     else:
         base_url = str(request.base_url).rstrip('/')
+        # Ensure HTTPS for Replit (HTTP is used internally but HTTPS externally)
+        base_url = base_url.replace('http://', 'https://')
+    
     redirect_uri = f"{base_url}/api/auth/google/callback"
+    print(f"🔗 OAuth redirect URI: {redirect_uri}")  # Debug logging
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -134,7 +138,11 @@ async def github_login(request: Request):
         base_url = f"https://{replit_domain}"
     else:
         base_url = str(request.base_url).rstrip('/')
+        # Ensure HTTPS for Replit (HTTP is used internally but HTTPS externally)
+        base_url = base_url.replace('http://', 'https://')
+    
     redirect_uri = f"{base_url}/api/auth/github/callback"
+    print(f"🔗 GitHub OAuth redirect URI: {redirect_uri}")  # Debug logging
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
 
