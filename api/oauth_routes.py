@@ -24,8 +24,12 @@ async def logout(response: Response):
 @router.get('/google/login')
 async def google_login(request: Request):
     """Redirect user to Google login page"""
-    # Get the base URL dynamically
-    base_url = str(request.base_url).rstrip('/')
+    # Get the base URL - use Replit domain if available, otherwise use request base
+    replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv('REPLIT_DOMAINS', '').split(',')[0]
+    if replit_domain:
+        base_url = f"https://{replit_domain}"
+    else:
+        base_url = str(request.base_url).rstrip('/')
     redirect_uri = f"{base_url}/api/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -124,8 +128,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 @router.get('/github/login')
 async def github_login(request: Request):
     """Redirect user to GitHub login page"""
-    # Get the base URL dynamically
-    base_url = str(request.base_url).rstrip('/')
+    # Get the base URL - use Replit domain if available, otherwise use request base
+    replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv('REPLIT_DOMAINS', '').split(',')[0]
+    if replit_domain:
+        base_url = f"https://{replit_domain}"
+    else:
+        base_url = str(request.base_url).rstrip('/')
     redirect_uri = f"{base_url}/api/auth/github/callback"
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
