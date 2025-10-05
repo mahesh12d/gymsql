@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -81,12 +81,27 @@ def verify_token(token: str) -> TokenData:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+async def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get the current authenticated user"""
-    token = credentials.credentials
+    """Get the current authenticated user from Bearer token or cookie"""
+    
+    # Try to get token from Authorization header first
+    token = credentials.credentials if credentials else None
+    
+    # If no Authorization header, try to get from cookie
+    if not token and request:
+        token = request.cookies.get("auth_token")
+    
+    # If still no token, raise unauthorized
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     # TEMPORARY: Development token bypass - only in explicit dev mode
     if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
@@ -111,16 +126,24 @@ def get_current_user(
     
     return user
 
-def get_current_user_optional(
+async def get_current_user_optional(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
     """Get the current user if authenticated, otherwise return None"""
-    if not credentials:
+    # Try to get token from Authorization header first
+    token = credentials.credentials if credentials else None
+    
+    # If no Authorization header, try to get from cookie
+    if not token and request:
+        token = request.cookies.get("auth_token")
+    
+    # If still no token, return None
+    if not token:
         return None
     
     try:
-        token = credentials.credentials
         
         # TEMPORARY: Development token bypass - only in explicit dev mode
         if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':

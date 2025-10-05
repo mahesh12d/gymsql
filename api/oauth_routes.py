@@ -1,7 +1,7 @@
 """
 OAuth routes for Google and GitHub authentication
 """
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from .oauth_config import oauth
@@ -11,6 +11,13 @@ from .models import User
 import os
 
 router = APIRouter(prefix="/api/auth", tags=["oauth"])
+
+# Logout endpoint to clear the auth cookie
+@router.post('/logout')
+async def logout(response: Response):
+    """Clear the authentication cookie"""
+    response.delete_cookie(key="auth_token")
+    return {"success": True, "message": "Logged out successfully"}
 
 # ========== GOOGLE OAuth ==========
 
@@ -94,11 +101,18 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             "isAdmin": user.is_admin
         })
         
-        # Redirect to frontend with token
+        # Redirect to frontend with secure HttpOnly cookie
         frontend_url = os.getenv('FRONTEND_URL', '/')
-        return RedirectResponse(
-            url=f"{frontend_url}?token={access_token}&auth=success"
+        response = RedirectResponse(url=f"{frontend_url}?auth=success")
+        response.set_cookie(
+            key="auth_token",
+            value=access_token,
+            httponly=True,
+            secure=True,  # Only send over HTTPS
+            samesite="lax",  # CSRF protection
+            max_age=86400  # 24 hours (matches JWT expiration)
         )
+        return response
         
     except Exception as e:
         print(f"Google OAuth error: {str(e)}")
@@ -210,11 +224,18 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
             "isAdmin": user.is_admin
         })
         
-        # Redirect to frontend with token
+        # Redirect to frontend with secure HttpOnly cookie
         frontend_url = os.getenv('FRONTEND_URL', '/')
-        return RedirectResponse(
-            url=f"{frontend_url}?token={access_token}&auth=success"
+        response = RedirectResponse(url=f"{frontend_url}?auth=success")
+        response.set_cookie(
+            key="auth_token",
+            value=access_token,
+            httponly=True,
+            secure=True,  # Only send over HTTPS
+            samesite="lax",  # CSRF protection
+            max_age=86400  # 24 hours (matches JWT expiration)
         )
+        return response
         
     except Exception as e:
         print(f"GitHub OAuth error: {str(e)}")
