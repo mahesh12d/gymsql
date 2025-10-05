@@ -233,7 +233,7 @@ export default function Landing() {
                           variant="outline"
                           className="w-full"
                           onClick={() =>
-                            (window.location.href = "/api/auth/google")
+                            (window.location.href = "/api/auth/google/login")
                           }
                           data-testid="button-google-login"
                         >
@@ -245,7 +245,7 @@ export default function Landing() {
                           variant="outline"
                           className="w-full"
                           onClick={() =>
-                            (window.location.href = "/api/auth/github")
+                            (window.location.href = "/api/auth/github/login")
                           }
                           data-testid="button-github-login"
                         >
@@ -384,7 +384,7 @@ export default function Landing() {
                           variant="outline"
                           className="w-full"
                           onClick={() =>
-                            (window.location.href = "/api/auth/google")
+                            (window.location.href = "/api/auth/google/login")
                           }
                           data-testid="button-google-register"
                         >
@@ -396,7 +396,7 @@ export default function Landing() {
                           variant="outline"
                           className="w-full"
                           onClick={() =>
-                            (window.location.href = "/api/auth/github")
+                            (window.location.href = "/api/auth/github/login")
                           }
                           data-testid="button-github-register"
                         >
