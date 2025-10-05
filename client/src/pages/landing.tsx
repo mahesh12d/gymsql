@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Play, Users, Code, CheckCircle } from "lucide-react";
-import { FaGoogle, FaGithub } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -227,32 +227,18 @@ export default function Landing() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/google/login")
-                          }
-                          data-testid="button-google-login"
-                        >
-                          <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
-                          Google
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/github/login")
-                          }
-                          data-testid="button-github-login"
-                        >
-                          <FaGithub className="mr-2 h-4 w-4" />
-                          GitHub
-                        </Button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          (window.location.href = "/api/auth/google/login")
+                        }
+                        data-testid="button-google-login"
+                      >
+                        <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
+                        Google
+                      </Button>
                     </form>
                   </Form>
                 </DialogContent>
@@ -378,32 +364,18 @@ export default function Landing() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/google/login")
-                          }
-                          data-testid="button-google-register"
-                        >
-                          <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
-                          Google
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/github/login")
-                          }
-                          data-testid="button-github-register"
-                        >
-                          <FaGithub className="mr-2 h-4 w-4" />
-                          GitHub
-                        </Button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          (window.location.href = "/api/auth/google/login")
+                        }
+                        data-testid="button-google-register"
+                      >
+                        <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
+                        Google
+                      </Button>
                     </form>
                   </Form>
                 </DialogContent>
