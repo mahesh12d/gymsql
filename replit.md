@@ -4,6 +4,7 @@
 SQLGym is a gamified SQL learning platform designed to teach SQL through coding practice. It combines fitness-themed motivation with an XP system, leaderboards, and a community forum. The platform offers a comprehensive problem set with varying difficulty, submission tracking, and a badge system to provide an engaging and effective learning experience. The business vision is to create a leading interactive platform for SQL education, leveraging gamification to enhance user engagement and retention, and fostering a strong community of learners.
 
 ## Recent Changes
+- **October 5, 2025**: Implemented Google and GitHub OAuth authentication - (1) Added OAuth routes using Authlib library for secure third-party authentication, (2) Implemented login flows for both Google and GitHub with `/api/auth/google/login`, `/api/auth/google/callback`, `/api/auth/github/login`, `/api/auth/github/callback` endpoints, (3) Enhanced security by using HttpOnly secure cookies for JWT tokens instead of query parameters to prevent token exposure, (4) Updated authentication middleware to support both Bearer tokens (for API clients) and cookies (for OAuth flows), (5) Added `/api/auth/logout` endpoint to properly clear authentication cookies, (6) OAuth credentials (Client IDs and Secrets) are securely managed via Replit Secrets integration. The User model's existing `google_id`, `github_id`, and `auth_provider` fields support OAuth user management with automatic account creation/merging.
 - **October 4, 2025**: Profile page visualization updates - (1) Removed "Your Speed" line chart from Progress Charts section, (2) Replaced ECharts calendar with GitHub-style contribution heatmap using `react-calendar-heatmap` and `react-tooltip` libraries to visualize daily problem-solving activity over the past year with color-coded intensity (5 color scales from empty to high activity), (3) Removed Topic Progress section to streamline the profile page, (4) Removed Recommendations section including learning path suggestions and recommended problems to simplify the user experience, (5) Added GitHub-style heatmap CSS with light/dark mode support.
 - **October 2, 2025**: Added helpful resources feature - (1) Created `helpful_links` database table with HelpfulLink model for storing user-shared resources, (2) Implemented API endpoints: GET /api/helpful-links (view all links), POST /api/helpful-links (create link - premium only), DELETE /api/helpful-links/:id (delete link - creator or admin only), (3) Added read-only "Helpful Resources" sidebar to home page displaying recent community-shared links, (4) Added "Share Helpful Resources" management section to profile page where premium users can create and manage their shared links, (5) Non-premium users see a premium feature promotion in the profile section.
 - **October 2, 2025**: Enhanced user profiles with professional information - (1) Added LinkedIn URL and company name fields to user profile editing, (2) Updated `/api/user/profile` endpoint to return company_name and linkedin_url, (3) Enhanced UserProfilePopover to display company and LinkedIn information when hovering over followed users, (4) Updated home page to display user's full name (first + last) and company instead of just username, (5) Extended FollowerResponse schema to include company and LinkedIn data for follower/following lists.
@@ -27,7 +28,7 @@ The backend is a RESTful API developed with FastAPI and Python. It uses SQLAlche
 PostgreSQL is the primary database, managed via SQLAlchemy ORM. The schema supports users, problems, submissions, community posts, comments, likes, user badges, and follower relationships. Redis is used for performance optimization, including result caching (10 min TTL) and high-performance sorted-set leaderboards. The database connection pool is configured with `pool_size=20` and `max_overflow=10`.
 
 ### Authentication System
-Authentication uses JWT tokens stored in localStorage. The server validates tokens through middleware. User registration includes bcrypt password hashing and checks for unique usernames and emails.
+Authentication supports multiple methods: traditional email/password login with JWT tokens stored in localStorage, and OAuth flows (Google and GitHub) using secure HttpOnly cookies. The server validates tokens from both Authorization headers (Bearer tokens) and cookies through unified middleware. OAuth credentials are managed via Replit Secrets. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts based on provider IDs.
 
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards.
@@ -74,6 +75,9 @@ Two workflows must run simultaneously for the application to function:
 ### Authentication & Security
 -   **jsonwebtoken**: For token-based authentication.
 -   **bcrypt**: For password hashing.
+-   **Authlib**: OAuth 2.0 client library for Google and GitHub authentication.
+-   **httpx**: Async HTTP client for OAuth requests.
+-   **itsdangerous**: Session data signing and validation.
 
 ### Content Rendering & Editing
 -   **react-markdown**: Renders Markdown content.
