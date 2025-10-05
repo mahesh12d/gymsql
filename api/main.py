@@ -355,7 +355,6 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 last_name=user_data.last_name,
                 profile_image_url=user_data.profile_image_url,
                 google_id=user_data.google_id,
-                github_id=user_data.github_id,
                 auth_provider=user_data.auth_provider)
 
     db.add(user)

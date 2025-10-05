@@ -86,7 +86,6 @@ class UserBase(CamelCaseModel):
 class UserCreate(UserBase):
     password: Optional[str] = None
     google_id: Optional[str] = None
-    github_id: Optional[str] = None
     auth_provider: str = "email"
 
 class UserResponse(UserBase):

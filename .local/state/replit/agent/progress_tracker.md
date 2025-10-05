@@ -5,3 +5,4 @@
 [x] 5. Fixed Google Sign-in authentication - updated frontend to call correct OAuth endpoints (/api/auth/google/login)
 [x] 6. Fixed CSRF state mismatch error by adding persistent JWT_SECRET for session management
 [x] 7. Fixed redirect_uri_mismatch error by using Replit domain instead of localhost for OAuth callbacks
+[x] 8. Removed GitHub authentication - deleted github_id column references from User model, schemas, and routes

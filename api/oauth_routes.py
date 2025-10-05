@@ -16,7 +16,14 @@ router = APIRouter(prefix="/api/auth", tags=["oauth"])
 @router.post('/logout')
 async def logout(response: Response):
     """Clear the authentication cookie"""
-    response.delete_cookie(key="auth_token")
+    response.delete_cookie(
+        key="auth_token",
+        path="/",
+        domain=None,
+        secure=os.getenv('ENVIRONMENT') == 'production',
+        httponly=True,
+        samesite="lax"
+    )
     return {"success": True, "message": "Logged out successfully"}
 
 # ========== GOOGLE OAuth ==========
@@ -24,45 +31,70 @@ async def logout(response: Response):
 @router.get('/google/login')
 async def google_login(request: Request):
     """Redirect user to Google login page"""
-    # Get the base URL - use Replit domain if available, otherwise use request base
-    replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv('REPLIT_DOMAINS', '').split(',')[0]
-    if replit_domain:
-        base_url = f"https://{replit_domain}"
-    else:
-        base_url = str(request.base_url).rstrip('/')
-        # Ensure HTTPS for Replit (HTTP is used internally but HTTPS externally)
-        base_url = base_url.replace('http://', 'https://')
-    
-    redirect_uri = f"{base_url}/api/auth/google/callback"
-    print(f"🔗 OAuth redirect URI: {redirect_uri}")  # Debug logging
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    # Use environment variable for redirect URI (more reliable)
+    redirect_uri = os.getenv('GOOGLE_REDIRECT_URI')
+
+    if not redirect_uri:
+        # Fallback to dynamic generation
+        replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv('REPLIT_DOMAINS', '').split(',')[0]
+        if replit_domain:
+            base_url = f"https://{replit_domain}"
+        else:
+            base_url = str(request.base_url).rstrip('/')
+            # Use HTTPS in production
+            if os.getenv('ENVIRONMENT') == 'production':
+                base_url = base_url.replace('http://', 'https://')
+
+        redirect_uri = f"{base_url}/api/auth/google/callback"
+
+    print(f"🔗 OAuth redirect URI: {redirect_uri}")
+
+    # Include state parameter for CSRF protection (handled by authlib)
+    return await oauth.google.authorize_redirect(
+        request, 
+        redirect_uri,
+        # Optional: request specific scopes
+        # scope='openid email profile'
+    )
 
 
 @router.get('/google/callback')
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle Google OAuth callback"""
     try:
+        # Check for error parameter (user denied authorization)
+        if request.query_params.get('error'):
+            error_description = request.query_params.get('error_description', 'Authorization denied')
+            frontend_url = os.getenv('FRONTEND_URL', '/')
+            return RedirectResponse(url=f"{frontend_url}?auth=failed&error={error_description}")
+
+        # Exchange authorization code for access token
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get('userinfo')
-        
+
         if not user_info:
             raise HTTPException(status_code=400, detail="Failed to fetch user info from Google")
-        
+
         # Extract user data
         email = user_info.get('email')
         google_id = user_info.get('sub')
-        first_name = user_info.get('given_name')
-        last_name = user_info.get('family_name')
+        first_name = user_info.get('given_name', '')
+        last_name = user_info.get('family_name', '')
         profile_image_url = user_info.get('picture')
-        
+        email_verified = user_info.get('email_verified', False)
+
         if not email or not google_id:
             raise HTTPException(status_code=400, detail="Email or Google ID not provided")
-        
+
+        # Optional: Only allow verified emails
+        if not email_verified:
+            raise HTTPException(status_code=400, detail="Email not verified by Google")
+
         # Check if user exists by google_id or email
         user = db.query(User).filter(
             (User.google_id == google_id) | (User.email == email)
         ).first()
-        
+
         if user:
             # Update existing user with Google info if not already set
             if not user.google_id:
@@ -74,20 +106,25 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             if not user.last_name and last_name:
                 user.last_name = last_name
             user.auth_provider = "google"
+
+            # Optional: Store refresh token for later use
+            if 'refresh_token' in token:
+                user.google_refresh_token = token['refresh_token']
+
             db.commit()
             db.refresh(user)
         else:
             # Create new user
             # Generate username from email
             username = email.split('@')[0]
+
             # Check if username exists, append number if needed
-            existing_username = db.query(User).filter(User.username == username).first()
-            if existing_username:
-                counter = 1
-                while db.query(User).filter(User.username == f"{username}{counter}").first():
-                    counter += 1
-                username = f"{username}{counter}"
-            
+            base_username = username
+            counter = 1
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+
             user = User(
                 username=username,
                 email=email,
@@ -96,33 +133,46 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 last_name=last_name,
                 profile_image_url=profile_image_url,
                 auth_provider="google",
-                password_hash=None  # OAuth users don't have passwords
+                password_hash=None,  # OAuth users don't have passwords
+                # Optional: Store refresh token
+                # google_refresh_token=token.get('refresh_token')
             )
             db.add(user)
             db.commit()
             db.refresh(user)
-        
+
         # Create JWT token
         access_token = create_access_token(data={
             "userId": user.id,
             "username": user.username,
             "isAdmin": user.is_admin
         })
-        
+
         # Redirect to frontend with secure HttpOnly cookie
         frontend_url = os.getenv('FRONTEND_URL', '/')
         response = RedirectResponse(url=f"{frontend_url}?auth=success")
+
+        # Determine if we're in production (use secure cookies)
+        is_production = os.getenv('ENVIRONMENT') == 'production'
+
         response.set_cookie(
             key="auth_token",
             value=access_token,
             httponly=True,
-            secure=True,  # Only send over HTTPS
+            secure=is_production,  # Only HTTPS in production
             samesite="lax",  # CSRF protection
-            max_age=86400  # 24 hours (matches JWT expiration)
+            max_age=86400,  # 24 hours
+            path="/"  # Available across entire site
         )
         return response
-        
-    except Exception as e:
-        print(f"Google OAuth error: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Google authentication failed: {str(e)}")
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Google OAuth error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        # Redirect to frontend with error
+        frontend_url = os.getenv('FRONTEND_URL', '/')
+        return RedirectResponse(url=f"{frontend_url}?auth=failed&error=authentication_failed")

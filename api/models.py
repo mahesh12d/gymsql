@@ -61,7 +61,6 @@ class User(Base):
     linkedin_url = Column(Text, name="linkedin_url")
     profile_image_url = Column(Text, name="profile_image_url")
     google_id = Column(String(255), unique=True, name="google_id")
-    github_id = Column(String(255), unique=True, name="github_id")
     auth_provider = Column(String(20), default="email", nullable=False, name="auth_provider")
     problems_solved = Column(Integer, default=0, nullable=False, name="problems_solved")
     premium = Column(Boolean, nullable=False, default=False)  # False = free user, True = premium user
