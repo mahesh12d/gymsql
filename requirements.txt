@@ -43,3 +43,6 @@ numpy==2.1.3
 pandas==2.2.2
 pyarrow==17.0.0
 
+authlib
+httpx
+itsdangerous
