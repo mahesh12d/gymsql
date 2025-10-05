@@ -159,14 +159,23 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
     )
 
 
+# Add session middleware for OAuth (required by Authlib)
+from starlette.middleware.sessions import SessionMiddleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("JWT_SECRET", os.urandom(32).hex())
+)
+
 # Include routers
 app.include_router(sandbox_router)
 app.include_router(admin_router)
 
 # Include additional routers
 from .user_routes import user_router
+from .oauth_routes import router as oauth_router
 
 app.include_router(user_router)
+app.include_router(oauth_router)
 
 
 
