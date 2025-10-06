@@ -1,311 +1,204 @@
 import { useQuery } from '@tanstack/react-query';
-import { Play, TrendingUp, Users, Target, Building, ExternalLink, Link2 } from 'lucide-react';
+import { Play, CheckCircle, Trophy } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { problemsApi } from '@/lib/auth';
-import { DifficultyBadge } from '@/components/DifficultyBadge';
-import { CompanyLogo } from '@/components/CompanyLogo';
-import { useMemo } from 'react';
+import ProgressBar from '@/components/progress-bar';
 
-function getDynamicMessage(problemsSolved: number): { message: string; emoji: string } {
-  if (problemsSolved === 0) {
-    return {
-      message: "Let's start your SQL training journey!",
-      emoji: '🚀'
-    };
-  }
-  
-  if (problemsSolved < 5) {
-    return {
-      message: "You're off to a great start!",
-      emoji: '🌱'
-    };
-  }
-  
-  if (problemsSolved < 10) {
-    return {
-      message: "Keep up the momentum!",
-      emoji: '💪'
-    };
-  }
-  
-  if (problemsSolved < 25) {
-    return {
-      message: "You're making excellent progress!",
-      emoji: '⭐'
-    };
-  }
-  
-  if (problemsSolved < 50) {
-    return {
-      message: "You're becoming a SQL athlete!",
-      emoji: '🏃'
-    };
-  }
-  
-  if (problemsSolved < 100) {
-    return {
-      message: "Impressive dedication to SQL mastery!",
-      emoji: '🔥'
-    };
-  }
-  
-  return {
-    message: "You're a SQL champion!",
-    emoji: '🏆'
-  };
-}
-
-interface HelpfulLink {
-  id: string;
-  userId: string;
-  title: string;
-  url: string;
-  createdAt: string;
-  user: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-  };
-}
-
-function HelpfulLinksSection() {
-  const { data: links, isLoading } = useQuery<HelpfulLink[]>({
-    queryKey: ['/api/helpful-links'],
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Link2 className="w-5 h-5 text-primary" />
-          <span>Helpful Resources</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : links && links.length > 0 ? (
-          <div className="space-y-3">
-            {links.map((link) => (
-              <div
-                key={link.id}
-                className="p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                data-testid={`link-item-${link.id}`}
-              >
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-sm text-foreground hover:text-primary flex items-center space-x-1"
-                  data-testid={`link-url-${link.id}`}
-                >
-                  <span className="truncate">{link.title}</span>
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                </a>
-                <p className="text-xs text-muted-foreground mt-1">
-                  by {link.user.firstName && link.user.lastName 
-                    ? `${link.user.firstName} ${link.user.lastName}` 
-                    : link.user.username}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Link2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">No helpful links yet</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function getLevelInfo(problemsSolved: number): { level: string; color: string } {
+  if (problemsSolved >= 50) return { level: 'Senior Developer', color: 'text-purple-600' };
+  if (problemsSolved >= 25) return { level: 'Mid-Level Developer', color: 'text-blue-600' };
+  if (problemsSolved >= 10) return { level: 'Junior Developer', color: 'text-green-600' };
+  return { level: 'Beginner', color: 'text-gray-600' };
 }
 
 export default function Home() {
   const { user } = useAuth();
 
-  const { data: problems, isLoading: problemsLoading } = useQuery({
+  const { data: problems } = useQuery({
     queryKey: ['/api/problems'],
     queryFn: () => problemsApi.getAll(),
   });
 
-  const recentProblems = problems?.slice(0, 3) || [];
-
-  const bannerContent = useMemo(() => {
-    const { message, emoji } = getDynamicMessage(user?.problemsSolved || 0);
-    return { message, emoji };
-  }, [user?.problemsSolved]);
-
-  const displayName = useMemo(() => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    return user?.username || 'there';
-  }, [user?.firstName, user?.lastName, user?.username]);
+  const totalProblems = problems?.length || 100;
+  const problemsSolved = user?.problemsSolved || 0;
+  const progressPercentage = Math.round((problemsSolved / totalProblems) * 100);
+  const levelInfo = getLevelInfo(problemsSolved);
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            Welcome back, <span className="text-primary">{displayName}</span>! {bannerContent.emoji}
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            {bannerContent.message}
-          </p>
-          {user?.companyName && (
-            <div className="flex items-center mt-2 text-muted-foreground">
-              <Building className="h-4 w-4 mr-2" />
-              <span className="text-sm">{user.companyName}</span>
+      {/* Hero Section */}
+      <section className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Content */}
+            <div className="space-y-8">
+              <div>
+                <h1 className="text-5xl font-bold text-foreground leading-tight">
+                  Master <span className="text-primary">SQL Skills</span> for
+                  Interviews & Work
+                </h1>
+                <p className="text-xl text-muted-foreground mt-6 leading-relaxed">
+                  Practice SQL with real-world problems designed for interviews
+                  and professional development. Progress from Junior to Senior
+                  level with our comprehensive platform.
+                </p>
+              </div>
+
+              {/* Progress Card */}
+              <Card className="p-6 border-2">
+                <h3 className="font-semibold text-foreground mb-4 text-lg">
+                  Your Progress
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-semibold text-foreground">{progressPercentage}%</span>
+                  </div>
+                  <ProgressBar value={problemsSolved} max={totalProblems} showText={false} />
+                </div>
+              </Card>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/problems">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-primary text-primary-foreground px-8 py-6 text-lg hover:bg-primary/90"
+                    data-testid="button-start-practicing"
+                  >
+                    <Play className="mr-3 h-5 w-5" />
+                    Start Practicing
+                  </Button>
+                </Link>
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Progress Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  <span>Your Progress</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            {/* Right Column - Image with Floating Cards */}
+            <div className="relative">
+              <img
+                src="https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"
+                alt="Professional coding workspace"
+                className="rounded-xl shadow-2xl w-full"
+              />
+
+              {/* Floating achievement card - Top Right */}
+              <Card className="absolute -top-4 -right-4 p-4 shadow-lg bg-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Trophy className={`${levelInfo.color} text-xl`} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {levelInfo.level}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Level Achieved!
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Floating achievement card - Bottom Left */}
+              <Card className="absolute -bottom-4 -left-4 p-4 shadow-lg bg-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="text-green-600 text-xl" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Problem Solved!
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      +50 XP Gained
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="bg-muted/30 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <div>
+              <div className="text-4xl font-bold text-primary mb-2">{problemsSolved}</div>
+              <div className="text-muted-foreground">Problems Solved</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-primary mb-2">{user?.xp || 0}</div>
+              <div className="text-muted-foreground">Total XP</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-primary mb-2">{levelInfo.level.split(' ')[0]}</div>
+              <div className="text-muted-foreground">Current Level</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Quick Actions Section */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-foreground mb-8 text-center">
+            Continue Your Journey
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Link href="/problems">
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{user?.problemsSolved || 0}</div>
-                  <div className="text-sm text-muted-foreground">Problems Solved</div>
-                  <p className="text-sm text-muted-foreground mt-2">Keep solving problems to improve your skills!</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Target className="w-5 h-5 text-primary" />
-                  <span>Quick Actions</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Link href="/problems">
-                    <Button 
-                      className="w-full dumbbell-btn bg-primary text-primary-foreground hover:bg-primary/90 h-16"
-                      data-testid="button-browse-problems"
-                    >
-                      <Play className="mr-2 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-semibold">Browse Problems</div>
-                        <div className="text-sm opacity-90">Find your next challenge</div>
-                      </div>
-                    </Button>
-                  </Link>
-                  
-                  <Link href="/community">
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-16"
-                      data-testid="button-join-community"
-                    >
-                      <Users className="mr-2 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-semibold">Join Community</div>
-                        <div className="text-sm opacity-70">Share and learn together</div>
-                      </div>
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Problems */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Recommended Problems</CardTitle>
-                  <Link href="/problems">
-                    <Button variant="ghost" size="sm" data-testid="link-view-all-problems">
-                      View All
-                    </Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {problemsLoading ? (
-                  <div className="space-y-4">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
-                    ))}
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-8 h-8 text-primary" />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentProblems.map((problem) => (
-                      <Link key={problem.id} href={`/problems/${problem.id}`}>
-                        <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid={`card-problem-${problem.id}`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-foreground mb-2">{problem.title}</h3>
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                  {problem.description}
-                                </p>
-                              </div>
-                              <div className="ml-4">
-                                <DifficultyBadge
-                                  difficulty={problem.difficulty}
-                                  variant="badge"
-                                  size="sm"
-                                  showIcon={true}
-                                  data-testid={`difficulty-badge-home-${problem.id}`}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <div className="flex items-center space-x-4">
-                                {problem.company && (
-                                  <CompanyLogo
-                                    companyName={problem.company}
-                                    variant="minimal"
-                                    size="sm"
-                                    data-testid={`company-logo-home-${problem.id}`}
-                                  />
-                                )}
-                                <span className="text-xs text-muted-foreground">
-                                  {problem.solvedCount} solved
-                                </span>
-                              </div>
-                              <Button size="sm" variant="ghost" className="text-primary">
-                                Start Training →
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  <h3 className="font-semibold text-foreground mb-2 text-lg">
+                    Browse Problems
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Explore {totalProblems}+ SQL challenges
+                  </p>
+                </div>
+              </Card>
+            </Link>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <HelpfulLinksSection />
+            <Link href="/leaderboard">
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trophy className="w-8 h-8 text-yellow-600" />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-2 text-lg">
+                    Leaderboard
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    See where you rank globally
+                  </p>
+                </div>
+              </Card>
+            </Link>
+
+            <Link href="/community">
+              <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-2 text-lg">
+                    Join Community
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Share solutions and learn together
+                  </p>
+                </div>
+              </Card>
+            </Link>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
