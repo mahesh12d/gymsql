@@ -115,14 +115,13 @@ async def get_current_user(
                 dev_user = User(
                     id=dev_user_id,
                     username=f"dev_{dev_user_id[:8]}",
-                    email=f"{dev_user_id}@dev.local",
+                    email=f"{dev_user_id}@example.com",
                     first_name="Dev",
                     last_name="User",
-                    xp=0,
-                    level="Beginner",
                     problems_solved=0,
                     premium=True,
-                    is_admin=False
+                    is_admin=False,
+                    auth_provider="dev"
                 )
                 db.add(dev_user)
                 db.commit()
@@ -172,14 +171,13 @@ async def get_current_user_optional(
                     dev_user = User(
                         id=dev_user_id,
                         username=f"dev_{dev_user_id[:8]}",
-                        email=f"{dev_user_id}@dev.local",
+                        email=f"{dev_user_id}@example.com",
                         first_name="Dev",
                         last_name="User",
-                        xp=0,
-                        level="Beginner",
                         problems_solved=0,
                         premium=True,
-                        is_admin=False
+                        is_admin=False,
+                        auth_provider="dev"
                     )
                     db.add(dev_user)
                     db.commit()

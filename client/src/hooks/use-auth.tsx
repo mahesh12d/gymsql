@@ -43,16 +43,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const devToken = `dev-token::${devUserId}`;
         
+        // Store the token BEFORE making the API call so apiRequest can use it
+        localStorage.setItem('auth_token', devToken);
+        
         try {
           // Try to fetch user data from API with dev token
           const userData = await authApi.getCurrentUser();
           setUser(userData);
           setToken(devToken);
-          localStorage.setItem('auth_token', devToken);
           localStorage.setItem('auth_user', JSON.stringify(userData));
         } catch (error) {
           // If API fails, user will need to authenticate properly
-          console.log('Dev mode: API unavailable, please authenticate');
+          console.log('Dev mode: API unavailable, please authenticate', error);
         }
         setIsLoading(false);
         return;
