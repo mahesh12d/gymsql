@@ -11,8 +11,9 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primary: "#F59E0B",
+        background: "#FDF6EC",
+        foreground: "#2C1810",
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
@@ -20,10 +21,6 @@ export default {
         popover: {
           DEFAULT: "var(--popover)",
           foreground: "var(--popover-foreground)",
-        },
-        primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-foreground)",
         },
         secondary: {
           DEFAULT: "var(--secondary)",
@@ -66,6 +63,8 @@ export default {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+        display: ['"Playfair Display"', "serif"],
+        script: ['"Great Vibes"', "cursive"],
       },
       keyframes: {
         "accordion-down": {

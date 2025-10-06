@@ -91,7 +91,15 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    filter: contrast(0.95) saturate(0.9);
+    background-color: #FDF6EC;
   }
+}
+
+.vintage-overlay {
+  background-image: url('https://www.transparenttextures.com/patterns/noisy-grid.png');
+  opacity: 0.15;
+  mix-blend-mode: multiply;
 }
 
 /* Gym-inspired custom styles */
