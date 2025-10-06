@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Play, Users } from "lucide-react";
+import { Play, Users, Code, CheckCircle } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -173,58 +174,280 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-400 via-orange-300 to-yellow-300 relative overflow-hidden">
-      {/* Gradient decorations */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-pink-500 to-orange-400 rounded-full blur-3xl opacity-30 -mr-48 -mt-48" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-400 to-cyan-300 rounded-full blur-3xl opacity-30 -ml-48 -mb-48" />
-      <div className="absolute bottom-20 right-20 w-64 h-64 bg-gradient-to-tr from-yellow-300 to-green-400 rounded-full blur-3xl opacity-20" />
+    <div className="bg-background">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-border shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <Code className="text-primary text-2xl" />
+              <span className="text-2xl font-bold text-foreground">
+                SQL Practice Hub
+              </span>
+            </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 min-h-screen flex items-center">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 lg:p-16 relative overflow-hidden w-full">
-          {/* Content Container */}
+            <div className="flex items-center space-x-3">
+              <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" data-testid="button-login">
+                    Login
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Login to SQL Practice Hub</DialogTitle>
+                  </DialogHeader>
+                  <Form {...loginForm}>
+                    <form
+                      onSubmit={loginForm.handleSubmit(handleLogin)}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={loginForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="email"
+                                data-testid="input-email"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="password"
+                                data-testid="input-password"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full"
+                        data-testid="button-submit-login"
+                      >
+                        {isLoading ? "Logging in..." : "Login"}
+                      </Button>
+
+                      <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-muted"></div>
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">
+                            Or continue with
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          (window.location.href = "/api/auth/google/login")
+                        }
+                        data-testid="button-google-login"
+                      >
+                        <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
+                        Google
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    data-testid="button-register"
+                  >
+                    <Code className="mr-2 h-4 w-4" />
+                    Start Practicing
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Join SQL Practice Hub</DialogTitle>
+                  </DialogHeader>
+                  <Form {...registerForm}>
+                    <form
+                      onSubmit={registerForm.handleSubmit(handleRegister)}
+                      className="space-y-4"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={registerForm.control}
+                          name="firstName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>First Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  data-testid="input-firstName"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="lastName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Last Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  data-testid="input-lastName"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={registerForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-username" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="email"
+                                data-testid="input-register-email"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="password"
+                                data-testid="input-register-password"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full"
+                        data-testid="button-submit-register"
+                      >
+                        {isLoading ? "Creating account..." : "Create Account"}
+                      </Button>
+
+                      <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-muted"></div>
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">
+                            Or sign up with
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          (window.location.href = "/api/auth/google/login")
+                        }
+                        data-testid="button-google-register"
+                      >
+                        <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
+                        Google
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
             <div className="space-y-8">
               <div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-4">
-                  Master <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-500">SQL Skills</span> for
-                  <br />
+                <h1 className="text-5xl font-bold text-foreground leading-tight">
+                  Master <span className="text-primary">SQL Skills</span> for
                   Interviews & Work
                 </h1>
-                <p className="text-gray-600 text-lg leading-relaxed">
-                  Practice SQL with real-world problems designed for interviews and professional development. 
-                  Progress from Junior to Senior level with our comprehensive platform.
+                <p className="text-xl text-muted-foreground mt-6 leading-relaxed">
+                  Practice SQL with real-world problems designed for interviews
+                  and professional development. Progress from Junior to Senior
+                  level with our comprehensive platform.
                 </p>
               </div>
 
-              {/* Your Progress Card */}
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border-2 border-dashed border-gray-300">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Progress</h3>
-                <div className="mb-2 flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Week</span>
-                  <span className="text-sm font-semibold text-gray-900">10%</span>
-                </div>
+              {/* Progress Showcase */}
+              <Card className="p-6">
+                <h3 className="font-semibold text-foreground mb-4">
+                  Your Progress
+                </h3>
                 <ProgressBar value={15} max={20} />
-                <div className="mt-3 flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-gradient-to-br from-red-500 to-orange-500 rounded flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">S</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">
-                    15/20 completed
-                  </span>
-                </div>
-              </div>
+              </Card>
 
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+                <Dialog>
                   <DialogTrigger asChild>
                     <Button
                       size="lg"
-                      className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-lg font-semibold"
-                      data-testid="button-start-practicing"
+                      className="bg-primary text-primary-foreground px-8 py-4 text-lg hover:bg-primary/90"
+                      data-testid="button-start-practice"
                     >
-                      <Play className="mr-2 h-5 w-5 fill-current" />
+                      <Play className="mr-3 h-5 w-5" />
                       Start Practicing
                     </Button>
                   </DialogTrigger>
@@ -232,280 +455,259 @@ export default function Landing() {
                     <DialogHeader>
                       <DialogTitle>Join SQL Practice Hub</DialogTitle>
                     </DialogHeader>
-                    <Form {...registerForm}>
-                      <form
-                        onSubmit={registerForm.handleSubmit(handleRegister)}
-                        className="space-y-4"
-                      >
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={registerForm.control}
-                            name="firstName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>First Name</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    data-testid="input-firstName"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={registerForm.control}
-                            name="lastName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Last Name</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    data-testid="input-lastName"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <FormField
-                          control={registerForm.control}
-                          name="username"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Username</FormLabel>
-                              <FormControl>
-                                <Input {...field} data-testid="input-username" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  data-testid="input-register-email"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="password"
-                                  data-testid="input-register-password"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full"
-                          data-testid="button-submit-register"
-                        >
-                          {isLoading ? "Creating account..." : "Create Account"}
-                        </Button>
-
-                        <div className="relative my-4">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-muted"></div>
-                          </div>
-                          <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                              Or sign up with
-                            </span>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/google/login")
-                          }
-                          data-testid="button-google-register"
-                        >
-                          <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
-                          Google
-                        </Button>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-                  <DialogTrigger asChild>
+                    <p className="text-muted-foreground mb-4">
+                      Create your free account to access hundreds of
+                      interview-focused SQL problems and join our professional
+                      community.
+                    </p>
                     <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-full sm:w-auto border-2 border-gray-300 hover:border-gray-400 px-8 py-6 rounded-xl text-lg font-semibold transition-all duration-200"
-                      data-testid="button-login"
+                      onClick={() => {
+                        setIsRegisterOpen(true);
+                      }}
+                      className="w-full"
+                      data-testid="button-join-now"
                     >
-                      <Users className="mr-2 h-5 w-5" />
-                      Join Community
+                      Join Now - It's Free!
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Login to SQL Practice Hub</DialogTitle>
-                    </DialogHeader>
-                    <Form {...loginForm}>
-                      <form
-                        onSubmit={loginForm.handleSubmit(handleLogin)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={loginForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  data-testid="input-email"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={loginForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="password"
-                                  data-testid="input-password"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full"
-                          data-testid="button-submit-login"
-                        >
-                          {isLoading ? "Logging in..." : "Login"}
-                        </Button>
-
-                        <div className="relative my-4">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-muted"></div>
-                          </div>
-                          <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                              Or continue with
-                            </span>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            (window.location.href = "/api/auth/google/login")
-                          }
-                          data-testid="button-google-login"
-                        >
-                          <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
-                          Google
-                        </Button>
-                      </form>
-                    </Form>
                   </DialogContent>
                 </Dialog>
+
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="px-8 py-4 text-lg"
+                  onClick={() =>
+                    document
+                      .getElementById("community")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                  data-testid="button-join-community"
+                >
+                  <Users className="mr-3 h-5 w-5" />
+                  Join Community
+                </Button>
               </div>
             </div>
 
-            {/* Right Content - Illustration Area */}
-            <div className="relative hidden lg:block">
-              <div className="relative w-full h-[500px] flex items-center justify-center">
-                {/* Isometric Platform Illustration */}
-                <div className="relative w-full h-full">
-                  {/* Achievement Badge 1 */}
-                  <div className="absolute top-8 right-12 bg-white rounded-2xl shadow-lg p-4 border-2 border-purple-200 transform rotate-3 hover:rotate-0 transition-transform">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xl">🏆</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">Senior Developer</p>
-                        <p className="text-xs text-gray-600">Level Achieved!</p>
-                      </div>
-                    </div>
-                  </div>
+            <div className="relative">
+              <img
+                src="https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"
+                alt="Professional coding workspace"
+                className="rounded-xl shadow-2xl w-full"
+              />
 
-                  {/* Achievement Badge 2 */}
-                  <div className="absolute bottom-24 left-8 bg-white rounded-2xl shadow-lg p-4 border-2 border-green-200 transform -rotate-3 hover:rotate-0 transition-transform">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xl">✓</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">Problem Solved!</p>
-                        <p className="text-xs text-gray-600">+50 XP Gained</p>
-                      </div>
-                    </div>
+              {/* Floating achievement cards */}
+              <Card className="absolute -top-4 -right-4 p-4 shadow-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <CheckCircle className="text-primary text-xl" />
                   </div>
-
-                  {/* Central Illustration Placeholder */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-80 h-80">
-                      {/* Platform layers with gradient backgrounds */}
-                      <div className="absolute bottom-0 w-full h-48 bg-gradient-to-br from-purple-200 to-purple-300 rounded-2xl transform perspective-1000 rotate-y-12" />
-                      <div className="absolute bottom-12 left-8 w-56 h-40 bg-gradient-to-br from-cyan-200 to-cyan-300 rounded-2xl transform perspective-1000 rotate-y-12" />
-                      <div className="absolute bottom-24 right-8 w-48 h-32 bg-gradient-to-br from-pink-200 to-pink-300 rounded-2xl transform perspective-1000 rotate-y-12" />
-                      
-                      {/* Decorative elements */}
-                      <div className="absolute top-8 right-12 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-400 rounded-full shadow-lg flex items-center justify-center text-2xl">
-                        🌍
-                      </div>
-                      <div className="absolute top-20 left-8 w-12 h-12 bg-gradient-to-br from-green-300 to-green-400 rounded-lg shadow-lg flex items-center justify-center text-xl">
-                        🌳
-                      </div>
-                      <div className="absolute bottom-32 right-4 w-14 h-14 bg-gradient-to-br from-orange-300 to-orange-400 rounded-full shadow-lg flex items-center justify-center text-2xl">
-                        💰
-                      </div>
-                    </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Senior Developer
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Level Achieved!
+                    </p>
                   </div>
                 </div>
-              </div>
+              </Card>
+
+              <Card className="absolute -bottom-4 -left-4 p-4 shadow-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="text-green-600 text-xl" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Problem Solved!
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      +50 XP Gained
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Community Section */}
+      <section id="community" className="bg-muted/30 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-foreground mb-4">
+            Join the SQL Practice Community
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Connect with fellow developers, share solutions, and advance your
+            career
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Code className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">
+                Practice Together
+              </h3>
+              <p className="text-muted-foreground">
+                Solve problems with peers and share your solutions
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">
+                Learn from Experts
+              </h3>
+              <p className="text-muted-foreground">
+                Get tips and tricks from senior developers
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-yellow-600" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">
+                Track Progress
+              </h3>
+              <p className="text-muted-foreground">
+                Earn badges and climb the leaderboards
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsRegisterOpen(true)}
+            size="lg"
+            className="bg-primary text-primary-foreground px-8 py-4 text-lg hover:bg-primary/90"
+            data-testid="button-get-started"
+          >
+            <Code className="mr-3 h-5 w-5" />
+            Get Started Now
+          </Button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-foreground text-background py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Code className="text-primary text-2xl" />
+                <span className="text-2xl font-bold">SQL Practice Hub</span>
+              </div>
+              <p className="text-background/70">
+                Master SQL skills for interviews and professional development
+                with our comprehensive platform.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-4">Platform</h3>
+              <div className="space-y-2 text-background/70">
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Problems
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Leaderboard
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Community
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Submissions
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-4">Resources</h3>
+              <div className="space-y-2 text-background/70">
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Documentation
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  SQL Guide
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Video Tutorials
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Blog
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-4">Company</h3>
+              <div className="space-y-2 text-background/70">
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  About
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Contact
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Privacy
+                </a>
+                <a
+                  href="#"
+                  className="block hover:text-primary transition-colors"
+                >
+                  Terms
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-background/20 mt-8 pt-8 text-center text-background/70">
+            <p>
+              &copy; 2024 SQL Practice Hub. All rights reserved. Practice smart,
+              code professionally.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
