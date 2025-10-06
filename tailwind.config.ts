@@ -12,7 +12,7 @@ export default {
       },
       colors: {
         primary: "#F59E0B",
-        background: "#FDF6EC",
+        background: "#FFFFFF",
         foreground: "#2C1810",
         card: {
           DEFAULT: "var(--card)",

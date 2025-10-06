@@ -90,9 +90,8 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
-    filter: contrast(0.95) saturate(0.9);
-    background-color: #FFFFFF;
+    @apply font-sans antialiased text-foreground;
+    background-color: #FFFFFF !important;
   }
 }
 
