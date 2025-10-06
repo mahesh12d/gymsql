@@ -47,19 +47,17 @@ export default function Landing() {
   const { login } = useAuth();
   const { toast } = useToast();
 
-  // Handle OAuth callback tokens
+  // Handle OAuth callback
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get("auth");
     const token = urlParams.get("token");
 
+    // Handle token-based auth (if implemented)
     if (token) {
-      // Store the token and get user info
       localStorage.setItem("auth_token", token);
-
-      // Clean up URL
       window.history.replaceState({}, document.title, "/");
-
-      // Get user info and complete login
+      
       authApi
         .getCurrentUser()
         .then((user) => {
@@ -76,6 +74,37 @@ export default function Landing() {
             variant: "destructive",
           });
         });
+    }
+    // Handle cookie-based auth (Google OAuth)
+    else if (authStatus === "success") {
+      window.history.replaceState({}, document.title, "/");
+      
+      authApi
+        .getCurrentUser()
+        .then((user) => {
+          login("cookie-based", user);
+          toast({
+            title: "Welcome!",
+            description: "Successfully logged into SQL Practice Hub.",
+          });
+        })
+        .catch(() => {
+          toast({
+            title: "Authentication failed",
+            description: "Please try logging in again.",
+            variant: "destructive",
+          });
+        });
+    }
+    // Handle auth failure
+    else if (authStatus === "failed") {
+      const error = urlParams.get("error");
+      window.history.replaceState({}, document.title, "/");
+      toast({
+        title: "Authentication failed",
+        description: error || "Please try logging in again.",
+        variant: "destructive",
+      });
     }
   }, [login, toast]);
 

@@ -95,7 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_user', JSON.stringify(newUser));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem('auth_token');
@@ -107,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     login,
     logout,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated: !!user,
     isLoading,
   };
 

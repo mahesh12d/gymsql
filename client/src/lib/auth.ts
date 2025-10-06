@@ -40,19 +40,19 @@ async function apiRequest<T = any>(
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
+  if (token && token !== "cookie-based") {
     headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   const data = await response.json();
 
   if (!response.ok) {
-    // FastAPI uses 'detail' field for error messages, fallback to 'message' or generic error
     throw new ApiError(response.status, data.detail || data.message || "An error occurred");
   }
 
@@ -76,6 +76,12 @@ export const authApi = {
 
   async getCurrentUser(): Promise<any> {
     return apiRequest("/auth/user");
+  },
+
+  async logout(): Promise<ApiResponse> {
+    return apiRequest("/auth/logout", {
+      method: "POST",
+    });
   },
 };
 
