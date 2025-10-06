@@ -91,11 +91,19 @@ export default function ProblemDetail() {
           await new Promise(resolve => setTimeout(resolve, pollInterval));
           
           try {
+            const token = localStorage.getItem('auth_token');
+            const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+            };
+            
+            // Only add Authorization header for non-cookie-based auth
+            if (token && token !== 'cookie-based') {
+              headers['Authorization'] = `Bearer ${token}`;
+            }
+            
             const statusResponse = await fetch(`/api/jobs/${response.job_id}/status`, {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-                'Content-Type': 'application/json',
-              },
+              headers,
+              credentials: 'include', // Include cookies for cookie-based auth
             });
             
             if (!statusResponse.ok) {

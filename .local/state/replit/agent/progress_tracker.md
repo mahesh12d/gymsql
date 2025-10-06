@@ -8,3 +8,4 @@
 [x] 8. Removed GitHub authentication - deleted github_id column references from User model, schemas, and routes
 [x] 9. Fixed "solved" status bug - replaced shared dev user with unique per-developer user IDs to prevent data leakage
 [x] 10. Fixed Google OAuth redirect issue - updated frontend to handle cookie-based authentication and properly redirect to Home page after login
+[x] 11. Fixed submission status polling for Google OAuth users - added credentials: 'include' to job status requests to properly send authentication cookies
