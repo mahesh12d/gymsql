@@ -57,7 +57,7 @@ export default function Landing() {
     if (token) {
       localStorage.setItem("auth_token", token);
       window.history.replaceState({}, document.title, "/");
-      
+
       authApi
         .getCurrentUser()
         .then((user) => {
@@ -78,7 +78,7 @@ export default function Landing() {
     // Handle cookie-based auth (Google OAuth)
     else if (authStatus === "success") {
       window.history.replaceState({}, document.title, "/");
-      
+
       authApi
         .getCurrentUser()
         .then((user) => {
