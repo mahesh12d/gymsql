@@ -32,6 +32,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      // Development bypass - only active if VITE_DEV_AUTH_MODE is enabled
+      if (import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_MODE === 'true') {
+        // Generate or retrieve unique dev user ID for this browser
+        let devUserId = localStorage.getItem('dev_user_id');
+        if (!devUserId) {
+          devUserId = `dev-${crypto.randomUUID()}`;
+          localStorage.setItem('dev_user_id', devUserId);
+        }
+        
+        const devToken = `dev-token::${devUserId}`;
+        
+        try {
+          // Try to fetch user data from API with dev token
+          const userData = await authApi.getCurrentUser();
+          setUser(userData);
+          setToken(devToken);
+          localStorage.setItem('auth_token', devToken);
+          localStorage.setItem('auth_user', JSON.stringify(userData));
+        } catch (error) {
+          // If API fails, user will need to authenticate properly
+          console.log('Dev mode: API unavailable, please authenticate');
+        }
+        setIsLoading(false);
+        return;
+      }
+
       try {
         // Always attempt to fetch current user data from backend
         // This supports both token-based and cookie-based authentication

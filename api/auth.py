@@ -104,15 +104,30 @@ async def get_current_user(
         )
     
     # TEMPORARY: Development token bypass - only in explicit dev mode
-    if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
-        dev_user = db.query(User).filter(User.id == 'dev-user-1').first()
-        if dev_user:
+    # Format: dev-token::<unique-dev-id>
+    if os.getenv("DEV_TOKEN_BYPASS") == "true" and token.startswith('dev-token::'):
+        dev_user_id = token.split('::', 1)[1] if '::' in token else None
+        if dev_user_id:
+            # Find or create unique dev user for this browser/developer
+            dev_user = db.query(User).filter(User.id == dev_user_id).first()
+            if not dev_user:
+                # Create new isolated dev user with no submissions
+                dev_user = User(
+                    id=dev_user_id,
+                    username=f"dev_{dev_user_id[:8]}",
+                    email=f"{dev_user_id}@dev.local",
+                    first_name="Dev",
+                    last_name="User",
+                    xp=0,
+                    level="Beginner",
+                    problems_solved=0,
+                    premium=True,
+                    is_admin=False
+                )
+                db.add(dev_user)
+                db.commit()
+                db.refresh(dev_user)
             return dev_user
-        else:
-            # Fallback to any admin user for development
-            dev_user = db.query(User).filter(User.username == 'admin').first()
-            if dev_user:
-                return dev_user
     
     # Normal JWT verification for production
     token_data = verify_token(token)
@@ -146,15 +161,30 @@ async def get_current_user_optional(
     try:
         
         # TEMPORARY: Development token bypass - only in explicit dev mode
-        if os.getenv("DEV_TOKEN_BYPASS") == "true" and token == 'dev-token-123':
-            dev_user = db.query(User).filter(User.id == 'dev-user-1').first()
-            if dev_user:
+        # Format: dev-token::<unique-dev-id>
+        if os.getenv("DEV_TOKEN_BYPASS") == "true" and token.startswith('dev-token::'):
+            dev_user_id = token.split('::', 1)[1] if '::' in token else None
+            if dev_user_id:
+                # Find or create unique dev user for this browser/developer
+                dev_user = db.query(User).filter(User.id == dev_user_id).first()
+                if not dev_user:
+                    # Create new isolated dev user with no submissions
+                    dev_user = User(
+                        id=dev_user_id,
+                        username=f"dev_{dev_user_id[:8]}",
+                        email=f"{dev_user_id}@dev.local",
+                        first_name="Dev",
+                        last_name="User",
+                        xp=0,
+                        level="Beginner",
+                        problems_solved=0,
+                        premium=True,
+                        is_admin=False
+                    )
+                    db.add(dev_user)
+                    db.commit()
+                    db.refresh(dev_user)
                 return dev_user
-            else:
-                # Fallback to any admin user for development
-                dev_user = db.query(User).filter(User.username == 'admin').first()
-                if dev_user:
-                    return dev_user
         
         token_data = verify_token(token)
         user = db.query(User).filter(User.id == token_data.user_id).first()
