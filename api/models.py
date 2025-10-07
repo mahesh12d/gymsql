@@ -113,6 +113,24 @@ class Follower(Base):
     )
 
 
+class CacheEntry(Base):
+    """PostgreSQL fallback cache for when Redis is unavailable"""
+    __tablename__ = "cache_entries"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    cache_key = Column(String(500), nullable=False)
+    namespace = Column(String(100), nullable=False, default="result")
+    data = Column(JSONB, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint('cache_key', 'namespace', name='uq_cache_key_namespace'),
+        Index('idx_cache_key_namespace', 'cache_key', 'namespace'),
+        Index('idx_cache_expires_at', 'expires_at'),
+    )
+
+
 class Problem(Base):
     __tablename__ = "problems"
     
