@@ -343,38 +343,147 @@ class RedisService:
     
     def enqueue_submission(self, user_id: str, problem_id: str, sql_query: str) -> str:
         """
-        Add SQL submission to job queue.
+        Add SQL submission to job queue with Postgres fallback.
         Returns job_id for tracking.
         """
-        if not self.is_available():
-            raise Exception("Redis unavailable - cannot queue submission")
+        job_id = str(uuid.uuid4())
+        job_data = {
+            "job_id": job_id,
+            "user_id": user_id,
+            "problem_id": problem_id,
+            "sql": sql_query
+        }
+        
+        # Try Redis first
+        if self.is_available():
+            try:
+                # Push to queue
+                self.client.lpush("problems:queue", json.dumps(job_data))
+                
+                # Mark as queued
+                self.client.hset(
+                    f"problems:job:{job_id}",
+                    mapping={
+                        "status": "queued",
+                        "user_id": user_id,
+                        "problem_id": problem_id
+                    }
+                )
+                self.client.expire(f"problems:job:{job_id}", 3600)  # 1 hour TTL
+                
+                print(f"✅ Submission {job_id} queued to Redis")
+                return job_id
+            except redis.exceptions.RedisError as e:
+                print(f"⚠️ Redis enqueue failed: {e}, falling back to Postgres")
+        else:
+            print("⚠️ Redis unavailable, using Postgres fallback")
+        
+        # Fallback to Postgres
+        if self._pg_save_fallback_submission(job_id, job_data):
+            print(f"✅ Submission {job_id} saved to Postgres fallback queue")
+            return job_id
+        else:
+            raise Exception("Failed to enqueue submission to both Redis and Postgres")
+    
+    def _pg_save_fallback_submission(self, job_id: str, job_data: dict) -> bool:
+        """Save submission to Postgres fallback queue when Redis is unavailable"""
+        db = self._get_db_session()
+        if not db:
+            return False
             
         try:
-            job_id = str(uuid.uuid4())
-            job_data = {
-                "job_id": job_id,
-                "user_id": user_id,
-                "problem_id": problem_id,
-                "sql": sql_query
-            }
+            from .models import FallbackSubmission
             
-            # Push to queue
-            self.client.lpush("problems:queue", json.dumps(job_data))
-            
-            # Mark as queued
-            self.client.hset(
-                f"problems:job:{job_id}",
-                mapping={
-                    "status": "queued",
-                    "user_id": user_id,
-                    "problem_id": problem_id
-                }
+            fallback_entry = FallbackSubmission(
+                job_id=job_id,
+                data=job_data,
+                status="pending"
             )
-            self.client.expire(f"problems:job:{job_id}", 3600)  # 1 hour TTL
-            
-            return job_id
+            db.add(fallback_entry)
+            db.commit()
+            return True
         except Exception as e:
-            raise Exception(f"Failed to enqueue submission: {e}")
+            print(f"PostgreSQL fallback save error: {e}")
+            db.rollback()
+            return False
+        finally:
+            if db:
+                db.close()
+    
+    def recover_fallback_submissions(self, batch_size: int = 100) -> int:
+        """
+        Recover pending submissions from Postgres fallback queue back to Redis.
+        Returns the number of submissions recovered.
+        This should be called periodically when Redis becomes available again.
+        """
+        if not self.is_available():
+            print("⚠️ Redis unavailable - cannot recover fallback submissions")
+            return 0
+            
+        db = self._get_db_session()
+        if not db:
+            return 0
+            
+        try:
+            from .models import FallbackSubmission
+            
+            # Get pending submissions ordered by creation time
+            pending_submissions = db.query(FallbackSubmission).filter(
+                FallbackSubmission.status == "pending"
+            ).order_by(FallbackSubmission.created_at).limit(batch_size).all()
+            
+            if not pending_submissions:
+                return 0
+            
+            recovered_count = 0
+            
+            for submission in pending_submissions:
+                try:
+                    job_data = submission.data
+                    job_id = submission.job_id
+                    
+                    # Try to push to Redis
+                    self.client.lpush("problems:queue", json.dumps(job_data))
+                    
+                    # Mark as queued in Redis
+                    self.client.hset(
+                        f"problems:job:{job_id}",
+                        mapping={
+                            "status": "queued",
+                            "user_id": job_data.get("user_id"),
+                            "problem_id": job_data.get("problem_id")
+                        }
+                    )
+                    self.client.expire(f"problems:job:{job_id}", 3600)
+                    
+                    # Mark as recovered in Postgres (delete it)
+                    db.delete(submission)
+                    db.commit()
+                    
+                    recovered_count += 1
+                    print(f"♻️  Recovered fallback submission {job_id} to Redis")
+                    
+                except redis.exceptions.RedisError as e:
+                    print(f"⚠️ Redis still unavailable during recovery: {e}, stopping recovery")
+                    break
+                except Exception as e:
+                    print(f"Error recovering submission {submission.job_id}: {e}")
+                    # Mark as failed and continue
+                    submission.status = "failed"
+                    submission.processed_at = datetime.utcnow()
+                    db.commit()
+            
+            if recovered_count > 0:
+                print(f"✅ Recovered {recovered_count} submission(s) from Postgres fallback to Redis")
+            
+            return recovered_count
+            
+        except Exception as e:
+            print(f"Fallback recovery error: {e}")
+            return 0
+        finally:
+            if db:
+                db.close()
     
     def get_job_from_queue(self, timeout: int = 5) -> Optional[tuple]:
         """
