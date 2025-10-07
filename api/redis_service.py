@@ -6,7 +6,7 @@ import json
 import redis
 import time
 from typing import Optional, Dict, List, Any
-from datetime import timedelta
+from datetime import datetime, timedelta
 import uuid
 
 class RedisService:
@@ -35,6 +35,124 @@ class RedisService:
         """Check if Redis is available"""
         return self.client is not None
     
+    # ==================== POSTGRES FALLBACK FOR CACHING ====================
+    
+    def _get_db_session(self):
+        """Get database session for PostgreSQL fallback"""
+        try:
+            from .database import SessionLocal
+            return SessionLocal()
+        except Exception as e:
+            print(f"Failed to create DB session for cache fallback: {e}")
+            return None
+    
+    def _pg_get_cached_result(self, cache_key: str, namespace: str = "result") -> Optional[Dict]:
+        """PostgreSQL fallback for getting cached results"""
+        db = self._get_db_session()
+        if not db:
+            return None
+            
+        try:
+            from .models import CacheEntry
+            
+            # Query cache entry
+            entry = db.query(CacheEntry).filter(
+                CacheEntry.cache_key == cache_key,
+                CacheEntry.namespace == namespace,
+                CacheEntry.expires_at > datetime.utcnow()
+            ).first()
+            
+            if entry:
+                return entry.data
+            return None
+        except Exception as e:
+            print(f"PostgreSQL cache get error: {e}")
+            return None
+        finally:
+            db.close()
+    
+    def _pg_cache_result(self, cache_key: str, namespace: str, result: Dict, ttl_seconds: int = 600):
+        """PostgreSQL fallback for caching results"""
+        db = self._get_db_session()
+        if not db:
+            return
+            
+        try:
+            from .models import CacheEntry
+            from sqlalchemy import delete
+            
+            expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+            
+            # Delete existing entry if present (upsert)
+            db.execute(
+                delete(CacheEntry).where(
+                    CacheEntry.cache_key == cache_key,
+                    CacheEntry.namespace == namespace
+                )
+            )
+            
+            # Insert new entry
+            entry = CacheEntry(
+                cache_key=cache_key,
+                namespace=namespace,
+                data=result,
+                expires_at=expires_at
+            )
+            db.add(entry)
+            db.commit()
+        except Exception as e:
+            print(f"PostgreSQL cache set error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+    
+    def _pg_invalidate_cache(self, cache_key: str, namespace: str = "result"):
+        """PostgreSQL fallback for invalidating cache"""
+        db = self._get_db_session()
+        if not db:
+            return
+            
+        try:
+            from .models import CacheEntry
+            from sqlalchemy import delete
+            
+            db.execute(
+                delete(CacheEntry).where(
+                    CacheEntry.cache_key == cache_key,
+                    CacheEntry.namespace == namespace
+                )
+            )
+            db.commit()
+        except Exception as e:
+            print(f"PostgreSQL cache invalidate error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+    
+    def _pg_cleanup_expired_cache(self):
+        """Clean up expired cache entries from PostgreSQL"""
+        db = self._get_db_session()
+        if not db:
+            return
+            
+        try:
+            from .models import CacheEntry
+            from sqlalchemy import delete
+            
+            result = db.execute(
+                delete(CacheEntry).where(
+                    CacheEntry.expires_at <= datetime.utcnow()
+                )
+            )
+            db.commit()
+            if result.rowcount > 0:
+                print(f"🧹 Cleaned up {result.rowcount} expired cache entries from PostgreSQL")
+        except Exception as e:
+            print(f"PostgreSQL cache cleanup error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+    
     # ==================== RESULT CACHING ====================
     
     def get_cached_result(self, cache_key: str, namespace: str = "result") -> Optional[Dict]:
@@ -46,7 +164,8 @@ class RedisService:
         Returns None if not found or Redis unavailable.
         """
         if not self.is_available():
-            return None
+            print(f"⚠️  Redis unavailable - using PostgreSQL fallback for cache get")
+            return self._pg_get_cached_result(cache_key, namespace)
             
         try:
             key = f"cache:{namespace}:{cache_key}"
@@ -55,8 +174,8 @@ class RedisService:
                 return json.loads(cached)
             return None
         except Exception as e:
-            print(f"Redis cache get error: {e}")
-            return None
+            print(f"Redis cache get error: {e} - falling back to PostgreSQL")
+            return self._pg_get_cached_result(cache_key, namespace)
     
     def cache_result(self, cache_key: str, namespace: str, result: Dict, ttl_seconds: int = 600):
         """
@@ -68,6 +187,8 @@ class RedisService:
             ttl_seconds: Time-to-live in seconds (default 10 minutes)
         """
         if not self.is_available():
+            print(f"⚠️  Redis unavailable - using PostgreSQL fallback for cache set")
+            self._pg_cache_result(cache_key, namespace, result, ttl_seconds)
             return
             
         try:
@@ -78,18 +199,22 @@ class RedisService:
                 json.dumps(result)
             )
         except Exception as e:
-            print(f"Redis cache set error: {e}")
+            print(f"Redis cache set error: {e} - falling back to PostgreSQL")
+            self._pg_cache_result(cache_key, namespace, result, ttl_seconds)
     
     def invalidate_cache(self, cache_key: str, namespace: str = "result"):
         """Invalidate cached result using full cache key"""
         if not self.is_available():
+            print(f"⚠️  Redis unavailable - using PostgreSQL fallback for cache invalidation")
+            self._pg_invalidate_cache(cache_key, namespace)
             return
             
         try:
             key = f"cache:{namespace}:{cache_key}"
             self.client.delete(key)
         except Exception as e:
-            print(f"Redis cache invalidate error: {e}")
+            print(f"Redis cache invalidate error: {e} - falling back to PostgreSQL")
+            self._pg_invalidate_cache(cache_key, namespace)
     
     # ==================== RATE LIMITING ====================
     
