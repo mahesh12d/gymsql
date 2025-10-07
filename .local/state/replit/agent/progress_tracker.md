@@ -11,3 +11,4 @@
 [x] 11. Fixed submission status polling for Google OAuth users - added credentials: 'include' to job status requests to properly send authentication cookies
 [x] 12. Redesigned home page to match hero-style design with large hero section, progress card, achievement badges, and clean call-to-action
 [x] 13. Reverted home page to previous state with personalized welcome message, dynamic progress tracking, recommended problems, and helpful resources section
+[x] 14. Identified issue with weak ADMIN_SECRET_KEY - needs to be updated to secure value from .env.secure file
