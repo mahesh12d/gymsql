@@ -131,6 +131,23 @@ class CacheEntry(Base):
     )
 
 
+class FallbackSubmission(Base):
+    """PostgreSQL fallback queue for submissions when Redis is unavailable"""
+    __tablename__ = "fallback_submissions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String(100), nullable=False, unique=True)
+    data = Column(JSONB, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")  # pending, processing, completed, failed
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+    
+    __table_args__ = (
+        Index('idx_fallback_status', 'status'),
+        Index('idx_fallback_created_at', 'created_at'),
+    )
+
+
 class Problem(Base):
     __tablename__ = "problems"
     
