@@ -488,6 +488,22 @@ class SecureQueryExecutor:
                     logger.error(
                         f"Failed to load problem data: {setup_result.get('error')}"
                     )
+            # Load tables from question.tables if no S3 data and question has tables
+            elif hasattr(problem, 'question') and problem.question and isinstance(problem.question, dict):
+                tables = problem.question.get('tables', [])
+                if tables:
+                    logger.info(f"Loading {len(tables)} tables from question.tables for problem {problem_id}")
+                    for table_def in tables:
+                        table_name = table_def.get('name')
+                        columns = table_def.get('columns', [])
+                        sample_data = table_def.get('sampleData', [])
+                        
+                        if table_name and columns:
+                            result = sandbox._create_table_from_question_schema(
+                                table_name, columns, sample_data
+                            )
+                            if not result.get('success'):
+                                logger.error(f"Failed to create table {table_name}: {result.get('error')}")
 
             return sandbox
 
