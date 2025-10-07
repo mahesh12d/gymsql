@@ -13,3 +13,4 @@
 [x] 13. Reverted home page to previous state with personalized welcome message, dynamic progress tracking, recommended problems, and helpful resources section
 [x] 14. Identified issue with weak ADMIN_SECRET_KEY - needs to be updated to secure value from .env.secure file
 [x] 15. Implemented PostgreSQL fallback for Redis caching - application will use PostgreSQL for caching when Redis/Replit is unavailable
+[x] 16. Fixed NoneType database query error - added null checks before calling db.rollback() and db.close() in PostgreSQL fallback methods

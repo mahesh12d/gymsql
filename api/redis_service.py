@@ -69,7 +69,8 @@ class RedisService:
             print(f"PostgreSQL cache get error: {e}")
             return None
         finally:
-            db.close()
+            if db:
+                db.close()
     
     def _pg_cache_result(self, cache_key: str, namespace: str, result: Dict, ttl_seconds: int = 600):
         """PostgreSQL fallback for caching results"""
@@ -102,9 +103,11 @@ class RedisService:
             db.commit()
         except Exception as e:
             print(f"PostgreSQL cache set error: {e}")
-            db.rollback()
+            if db:
+                db.rollback()
         finally:
-            db.close()
+            if db:
+                db.close()
     
     def _pg_invalidate_cache(self, cache_key: str, namespace: str = "result"):
         """PostgreSQL fallback for invalidating cache"""
@@ -125,9 +128,11 @@ class RedisService:
             db.commit()
         except Exception as e:
             print(f"PostgreSQL cache invalidate error: {e}")
-            db.rollback()
+            if db:
+                db.rollback()
         finally:
-            db.close()
+            if db:
+                db.close()
     
     def _pg_cleanup_expired_cache(self):
         """Clean up expired cache entries from PostgreSQL"""
@@ -149,9 +154,11 @@ class RedisService:
                 print(f"🧹 Cleaned up {result.rowcount} expired cache entries from PostgreSQL")
         except Exception as e:
             print(f"PostgreSQL cache cleanup error: {e}")
-            db.rollback()
+            if db:
+                db.rollback()
         finally:
-            db.close()
+            if db:
+                db.close()
     
     # ==================== RESULT CACHING ====================
     
