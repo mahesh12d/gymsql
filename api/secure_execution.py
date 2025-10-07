@@ -274,6 +274,15 @@ class SecureQueryExecutor:
             test_results = await self._execute_minimal_validation(
                 sandbox, problem_id, query, db)
 
+            # STEP 4.5: Prefetch all valid test_case_ids AFTER validation
+            # This ensures any test cases created during validation (e.g., master_solution) are included
+            # Note: db.flush() in validation makes new test cases visible in this same transaction
+            valid_test_case_ids = {
+                tc.id for tc in db.query(TestCase).filter(
+                    TestCase.problem_id == problem_id
+                ).all()
+            }
+
             # STEP 5: Fast scoring
             final_score = self._calculate_score_fast(test_results)
             is_correct = final_score['overall_score'] >= 100.0
@@ -290,12 +299,6 @@ class SecureQueryExecutor:
             db.flush()  # Get submission.id without committing
             
             # STEP 6.5: Create ExecutionResult records for each test case
-            # Prefetch all valid test_case_ids for this problem to ensure FK integrity
-            valid_test_case_ids = {
-                tc.id for tc in db.query(TestCase).filter(
-                    TestCase.problem_id == problem_id
-                ).all()
-            }
             
             for test_result in test_results:
                 test_case_id = test_result.get('test_case_id')
