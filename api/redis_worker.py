@@ -106,14 +106,34 @@ async def worker_loop():
     else:
         logger.info("✅ No orphaned jobs found")
     
+    # Recover fallback submissions from Postgres (when Redis was down)
+    logger.info("🔍 Checking for fallback submissions in Postgres...")
+    fallback_recovered = redis_service.recover_fallback_submissions()
+    if fallback_recovered > 0:
+        logger.info(f"♻️  Recovered {fallback_recovered} fallback submission(s) from Postgres")
+    else:
+        logger.info("✅ No fallback submissions found")
+    
     logger.info("Press Ctrl+C to stop gracefully")
     
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
+    # Track last fallback recovery check
+    import time
+    last_fallback_check = time.time()
+    FALLBACK_CHECK_INTERVAL = 60  # Check every 60 seconds
+    
     while not shutdown_requested:
         try:
+            # Periodically check for fallback submissions (every 60 seconds)
+            if time.time() - last_fallback_check > FALLBACK_CHECK_INTERVAL:
+                fallback_count = redis_service.recover_fallback_submissions(batch_size=50)
+                if fallback_count > 0:
+                    logger.info(f"♻️  Periodic recovery: {fallback_count} fallback submission(s) from Postgres")
+                last_fallback_check = time.time()
+            
             # Block for up to 5 seconds waiting for a job
             # This now uses BRPOPLPUSH internally and returns (job_data, job_json) tuple
             result = redis_service.get_job_from_queue(timeout=5)
