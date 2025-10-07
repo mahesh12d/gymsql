@@ -640,6 +640,73 @@ class SecureQueryExecutor:
                             })
                     ]
 
+            # Check if problem has master_solution - create test case from it
+            if hasattr(problem, 'master_solution') and problem.master_solution:
+                logger.info(f"Using master_solution validation for problem {problem_id}")
+                
+                # Execute user's query
+                result = await self._execute_query_fast(sandbox, query)
+                
+                if result.get('success'):
+                    user_output = result.get('results', [])
+                    expected_output = problem.master_solution
+                    
+                    # Create or get test case from master_solution
+                    test_case_id = self._get_or_create_master_solution_test_case(
+                        db, problem_id, expected_output, for_submission=True
+                    )
+                    
+                    # Apply validation pipeline
+                    is_correct, comparison_details = self._six_step_validation_pipeline(
+                        user_output, expected_output, {}
+                    )
+                    
+                    feedback = []
+                    if is_correct:
+                        feedback.append('Results match expected output perfectly')
+                    else:
+                        feedback.extend(comparison_details)
+                    
+                    # Create detailed validation structure
+                    validation_details = self._create_validation_details(
+                        user_output, expected_output
+                    )
+                    
+                    return [
+                        self._build_validation_result(
+                            test_case_id=test_case_id or 'master_solution',
+                            test_case_name='Expected Output Check',
+                            is_hidden=True,
+                            is_correct=is_correct,
+                            score=100.0 if is_correct else 0.0,
+                            feedback=feedback,
+                            execution_time_ms=result.get('execution_time_ms', 0),
+                            execution_status=ExecutionStatus.SUCCESS.value,
+                            validation_details=validation_details,
+                            user_output=user_output,
+                            expected_output=expected_output,
+                            output_matches=is_correct
+                        )
+                    ]
+                else:
+                    return [
+                        self._build_validation_result(
+                            test_case_id='master_solution_error',
+                            test_case_name='Master Solution Validation',
+                            is_correct=False,
+                            feedback=[result.get('error', 'Query execution failed')],
+                            execution_status=ExecutionStatus.ERROR.value,
+                            validation_details={
+                                'row_comparisons': [],
+                                'matching_row_count': 0,
+                                'total_row_count': 0,
+                                'comparison_differences': [
+                                    result.get('error', 'Query execution failed')
+                                ]
+                            }
+                        )
+                    ]
+            
             # No test cases found - return error message
             logger.warning(f"⚠️  No test cases found for problem {problem_id}")
             return [
