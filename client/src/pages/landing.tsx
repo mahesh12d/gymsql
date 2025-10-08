@@ -42,6 +42,8 @@ export default function Landing() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string>("");
+  const [registerError, setRegisterError] = useState<string>("");
   const { login } = useAuth();
   const { toast } = useToast();
 
@@ -108,12 +110,14 @@ export default function Landing() {
 
   const handleLogin = async (data: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
+    setLoginError("");
     try {
       const response = await authApi.login(data);
       login(response.token!, response.user!);
       setIsLoginOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      setLoginError(error?.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -121,12 +125,14 @@ export default function Landing() {
 
   const handleRegister = async (data: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
+    setRegisterError("");
     try {
       const response = await authApi.register(data);
       login(response.token!, response.user!);
       setIsRegisterOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed:", error);
+      setRegisterError(error?.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +158,10 @@ export default function Landing() {
         </h1>
 
         <div className="relative z-10 flex gap-4 mb-8">
-          <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
+          <Dialog open={isLoginOpen} onOpenChange={(open) => {
+            setIsLoginOpen(open);
+            if (open) setLoginError("");
+          }}>
             <DialogTrigger asChild>
               <Button 
                 variant="outline" 
@@ -206,6 +215,12 @@ export default function Landing() {
                       </FormItem>
                     )}
                   />
+                  {loginError && (
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md" data-testid="error-login">
+                      {loginError}
+                    </div>
+                  )}
+                  
                   <Button
                     type="submit"
                     disabled={isLoading}
@@ -243,7 +258,10 @@ export default function Landing() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+          <Dialog open={isRegisterOpen} onOpenChange={(open) => {
+            setIsRegisterOpen(open);
+            if (open) setRegisterError("");
+          }}>
             <DialogTrigger asChild>
               <Button
                 size="lg"
@@ -338,6 +356,13 @@ export default function Landing() {
                       )}
                     />
                   </div>
+                  
+                  {registerError && (
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md" data-testid="error-register">
+                      {registerError}
+                    </div>
+                  )}
+                  
                   <Button
                     type="submit"
                     disabled={isLoading}

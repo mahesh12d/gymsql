@@ -16,3 +16,5 @@
 [x] 16. Fixed NoneType database query error - added null checks before calling db.rollback() and db.close() in PostgreSQL fallback methods
 [x] 17. Implemented worker availability detection (hybrid approach) - prevents jobs from getting stuck when worker is down while maintaining Redis caching benefits
 [x] 18. Fixed hardcoded pie chart total values in profile - backend now dynamically fetches total problem counts by difficulty from database and frontend uses this data instead of hardcoded values
+[x] 19. Reduced pie chart arc size to prevent overlap with legend text - adjusted radius values for better visual spacing
+[x] 20. Added login/register error messages - users now see "Invalid email or password" error displayed below the form when authentication fails
