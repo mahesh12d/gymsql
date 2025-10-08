@@ -18,3 +18,4 @@
 [x] 18. Fixed hardcoded pie chart total values in profile - backend now dynamically fetches total problem counts by difficulty from database and frontend uses this data instead of hardcoded values
 [x] 19. Reduced pie chart arc size to prevent overlap with legend text - adjusted radius values for better visual spacing
 [x] 20. Added login/register error messages - users now see "Invalid email or password" error displayed below the form when authentication fails
+[x] 21. Created Docker deployment configuration - added Dockerfile.backend, Dockerfile.frontend, docker-compose.yml, nginx.conf, .dockerignore, .env.docker, and comprehensive deployment guide (docker-deploy.md) for web deployment
