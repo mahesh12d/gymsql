@@ -2,9 +2,6 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.backend"
 
-[deploy]
-startCommand = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
-
 # Health check configuration
 [healthcheck]
 path = "/api/health"
