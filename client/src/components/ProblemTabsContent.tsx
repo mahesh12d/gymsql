@@ -145,10 +145,9 @@ const NestedComment = memo(function NestedComment({
       queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${discussionId}/comments`] });
       setReplyContent('');
       setShowReplyBox(false);
-      toast({ title: "Reply posted successfully!" });
     },
-    onError: () => {
-      toast({ title: "Failed to post reply", variant: "destructive" });
+    onError: (error) => {
+      console.error("Failed to post reply:", error);
     },
   });
 
@@ -331,10 +330,9 @@ const DiscussionCard = memo(function DiscussionCard({
       queryClient.invalidateQueries({ queryKey: [`/api/community/posts/${discussion.id}/comments`] });
       queryClient.invalidateQueries({ queryKey: [`/api/problems/${discussion.problemId}/discussions`] });
       setReplyContent('');
-      toast({ title: "Reply posted successfully!" });
     },
-    onError: () => {
-      toast({ title: "Failed to post reply", variant: "destructive" });
+    onError: (error) => {
+      console.error("Failed to post reply:", error);
     },
   });
 
@@ -475,10 +473,9 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/problems/${problemId}/discussions`] });
       setNewDiscussionContent('');
-      toast({ title: "Discussion posted successfully!" });
     },
-    onError: () => {
-      toast({ title: "Failed to create discussion", variant: "destructive" });
+    onError: (error) => {
+      console.error("Failed to create discussion:", error);
     },
   });
 
@@ -496,8 +493,8 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/problems/${problemId}/discussions`] });
     },
-    onError: () => {
-      toast({ title: "Failed to update like", variant: "destructive" });
+    onError: (error) => {
+      console.error("Failed to update like:", error);
     },
   });
 

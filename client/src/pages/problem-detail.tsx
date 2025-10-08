@@ -64,11 +64,7 @@ export default function ProblemDetail() {
       }
     },
     onError: (error) => {
-      toast({
-        title: "Query failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      console.error("Query failed:", error);
     },
   });
 
@@ -162,11 +158,7 @@ export default function ProblemDetail() {
       setActiveTab('submission');
     },
     onError: (error) => {
-      toast({
-        title: "Submission failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive",
-      });
+      console.error("Submission failed:", error);
     },
   });
 

@@ -61,19 +61,9 @@ const ProblemNavigation = memo(function ProblemNavigation({
       queryClient.invalidateQueries({
         queryKey: ["/api/problems", problem?.id],
       });
-      toast({
-        title: problem?.isBookmarked ? "Bookmark removed" : "Problem bookmarked",
-        description: problem?.isBookmarked 
-          ? "Problem removed from your bookmarks" 
-          : "Problem added to your bookmarks",
-      });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to update bookmark",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      console.error("Failed to update bookmark:", error);
     },
   });
 
@@ -88,19 +78,9 @@ const ProblemNavigation = memo(function ProblemNavigation({
       queryClient.invalidateQueries({
         queryKey: ["/api/problems", problem?.id],
       });
-      toast({
-        title: problem?.isUpvoted ? "Upvote removed" : "Problem upvoted",
-        description: problem?.isUpvoted 
-          ? "You removed your upvote from this problem" 
-          : "You upvoted this problem",
-      });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to update upvote",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      console.error("Failed to update upvote:", error);
     },
   });
 
@@ -115,19 +95,9 @@ const ProblemNavigation = memo(function ProblemNavigation({
       queryClient.invalidateQueries({
         queryKey: ["/api/problems", problem?.id],
       });
-      toast({
-        title: problem?.isDownvoted ? "Downvote removed" : "Problem downvoted",
-        description: problem?.isDownvoted 
-          ? "You removed your downvote from this problem" 
-          : "You downvoted this problem",
-      });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to update downvote",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
+      console.error("Failed to update downvote:", error);
     },
   });
 

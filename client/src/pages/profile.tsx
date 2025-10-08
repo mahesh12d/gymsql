@@ -498,17 +498,9 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
       queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/followers", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/following", userId] });
-      toast({
-        title: "Success",
-        description: "Successfully followed user",
-      });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to follow user",
-        variant: "destructive",
-      });
+      console.error("Failed to follow user:", error);
     },
   });
 
@@ -522,17 +514,9 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
       queryClient.invalidateQueries({ queryKey: ["/api/users/follow-status", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/followers", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/following", userId] });
-      toast({
-        title: "Success",
-        description: "Successfully unfollowed user",
-      });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unfollow user",
-        variant: "destructive",
-      });
+      console.error("Failed to unfollow user:", error);
     },
   });
 
@@ -546,17 +530,9 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
       queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
       setNewTitle('');
       setNewUrl('');
-      toast({
-        title: 'Success',
-        description: 'Link shared successfully!',
-      });
     },
     onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to share link',
-        variant: 'destructive',
-      });
+      console.error("Failed to share link:", error);
     },
   });
 
@@ -568,17 +544,9 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/helpful-links'] });
-      toast({
-        title: 'Success',
-        description: 'Link removed successfully!',
-      });
     },
     onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to remove link',
-        variant: 'destructive',
-      });
+      console.error("Failed to remove link:", error);
     },
   });
 
@@ -594,11 +562,7 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
       const data = await response.json();
       setSearchResults(data);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to search users",
-        variant: "destructive",
-      });
+      console.error("Failed to search users:", error);
     }
   };
 

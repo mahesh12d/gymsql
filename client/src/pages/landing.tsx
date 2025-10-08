@@ -65,17 +65,9 @@ export default function Landing() {
         .getCurrentUser()
         .then((user) => {
           login(token, user);
-          toast({
-            title: "Welcome!",
-            description: "Successfully logged into SQLGym.",
-          });
         })
-        .catch(() => {
-          toast({
-            title: "Authentication failed",
-            description: "Please try logging in again.",
-            variant: "destructive",
-          });
+        .catch((error) => {
+          console.error("Authentication failed:", error);
         });
     } else if (authStatus === "success") {
       window.history.replaceState({}, document.title, "/");
@@ -84,26 +76,14 @@ export default function Landing() {
         .getCurrentUser()
         .then((user) => {
           login("cookie-based", user);
-          toast({
-            title: "Welcome!",
-            description: "Successfully logged into SQLGym.",
-          });
         })
-        .catch(() => {
-          toast({
-            title: "Authentication failed",
-            description: "Please try logging in again.",
-            variant: "destructive",
-          });
+        .catch((error) => {
+          console.error("Authentication failed:", error);
         });
     } else if (authStatus === "failed") {
       const error = urlParams.get("error");
       window.history.replaceState({}, document.title, "/");
-      toast({
-        title: "Authentication failed",
-        description: error || "Please try logging in again.",
-        variant: "destructive",
-      });
+      console.error("Authentication failed:", error);
     }
   }, [login, toast]);
 
@@ -132,19 +112,8 @@ export default function Landing() {
       const response = await authApi.login(data);
       login(response.token!, response.user!);
       setIsLoginOpen(false);
-      toast({
-        title: "Welcome back!",
-        description: "Successfully logged into SQLGym.",
-      });
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Please check your credentials.",
-        variant: "destructive",
-      });
+      console.error("Login failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -156,17 +125,8 @@ export default function Landing() {
       const response = await authApi.register(data);
       login(response.token!, response.user!);
       setIsRegisterOpen(false);
-      toast({
-        title: "Welcome to SQLGym!",
-        description: "Your account has been created successfully.",
-      });
     } catch (error) {
-      toast({
-        title: "Registration failed",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      console.error("Registration failed:", error);
     } finally {
       setIsLoading(false);
     }

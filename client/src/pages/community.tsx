@@ -88,18 +88,9 @@ export default function Community() {
     onSuccess: () => {
       setNewPostContent("");
       queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
-      toast({
-        title: "Success!",
-        description: "Your post has been shared with the community.",
-      });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to create post",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      console.error("Failed to create post:", error);
     },
   });
 
@@ -142,12 +133,7 @@ export default function Community() {
         );
       }
 
-      toast({
-        title: "Action failed",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      console.error("Failed to like/unlike post:", error);
     },
     onSettled: (data, error, { postId }) => {
       // Remove from pending likes
@@ -179,18 +165,9 @@ export default function Community() {
         queryKey: [`/api/community/posts/${selectedPostComments}/comments`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
-      toast({
-        title: "Comment posted!",
-        description: "Your comment has been added.",
-      });
     },
     onError: (error) => {
-      toast({
-        title: "Failed to post comment",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      console.error("Failed to post comment:", error);
     },
   });
 
