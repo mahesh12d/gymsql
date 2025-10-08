@@ -1026,13 +1026,16 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
   const totalAvailable = totalProblems.Easy + totalProblems.Medium + totalProblems.Hard;
   const solvedPercentage = totalAvailable > 0 ? ((totalSolved / totalAvailable) * 100).toFixed(1) : '0.0';
 
-  // Prepare difficulty distribution circular chart
+  // Prepare difficulty distribution circular chart (stacked arcs)
   const difficultyChartOption = {
     title: {
-      text: 'Difficulty Split 💪',
-      subtext: 'Distribution by Difficulty',
+      text: 'Distribution by Difficulty',
       left: 'center',
-      top: 10
+      top: 10,
+      textStyle: {
+        fontSize: 14,
+        fontWeight: 'normal'
+      }
     },
     graphic: {
       type: 'text',
@@ -1040,24 +1043,26 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
       top: 'center',
       style: {
         text: `${solvedPercentage}%`,
-        fontSize: 36,
+        fontSize: 32,
         fontWeight: 'bold',
         fill: 'currentColor'
       }
     },
-    polar: {
-      radius: ['45%', '75%'],
-      center: ['50%', '55%']
-    },
-    angleAxis: {
-      max: 100,
-      show: false
-    },
-    radiusAxis: {
-      type: 'category',
-      data: [''],
-      show: false
-    },
+    polar: [
+      { radius: ['55%', '62%'], center: ['50%', '55%'] }, // Innermost ring - Hard
+      { radius: ['63%', '70%'], center: ['50%', '55%'] }, // Middle ring - Medium
+      { radius: ['71%', '78%'], center: ['50%', '55%'] }  // Outer ring - Easy
+    ],
+    angleAxis: [
+      { polarIndex: 0, max: 100, show: false },
+      { polarIndex: 1, max: 100, show: false },
+      { polarIndex: 2, max: 100, show: false }
+    ],
+    radiusAxis: [
+      { polarIndex: 0, type: 'category', data: [''], show: false },
+      { polarIndex: 1, type: 'category', data: [''], show: false },
+      { polarIndex: 2, type: 'category', data: [''], show: false }
+    ],
     tooltip: {
       formatter: (params: any) => {
         const difficulty = params.seriesName;
@@ -1067,65 +1072,41 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
       }
     },
     series: [
-      // Background circles
-      {
-        type: 'bar',
-        data: [100],
-        coordinateSystem: 'polar',
-        name: 'Background',
-        stack: 'a',
-        roundCap: true,
-        barWidth: 12,
-        itemStyle: {
-          color: '#f0f0f0'
-        },
-        silent: true,
-        z: 0
-      },
-      // Easy difficulty arc
-      {
-        type: 'bar',
-        data: [totalProblems.Easy > 0 ? (difficultyBreakdown.Easy / totalProblems.Easy) * 100 : 0],
-        coordinateSystem: 'polar',
-        name: 'Easy',
-        stack: 'b',
-        roundCap: true,
-        barWidth: 12,
-        barGap: '-100%',
-        itemStyle: {
-          color: DIFFICULTY_COLORS.Easy
-        },
-        z: 1
-      },
-      // Medium difficulty arc
-      {
-        type: 'bar',
-        data: [totalProblems.Medium > 0 ? (difficultyBreakdown.Medium / totalProblems.Medium) * 100 : 0],
-        coordinateSystem: 'polar',
-        name: 'Medium',
-        stack: 'c',
-        roundCap: true,
-        barWidth: 12,
-        barGap: '-100%',
-        itemStyle: {
-          color: DIFFICULTY_COLORS.Medium
-        },
-        z: 2
-      },
-      // Hard difficulty arc
+      // Hard difficulty arc (innermost)
       {
         type: 'bar',
         data: [totalProblems.Hard > 0 ? (difficultyBreakdown.Hard / totalProblems.Hard) * 100 : 0],
         coordinateSystem: 'polar',
+        polarIndex: 0,
         name: 'Hard',
-        stack: 'd',
         roundCap: true,
-        barWidth: 12,
-        barGap: '-100%',
         itemStyle: {
           color: DIFFICULTY_COLORS.Hard
-        },
-        z: 3
+        }
+      },
+      // Medium difficulty arc (middle)
+      {
+        type: 'bar',
+        data: [totalProblems.Medium > 0 ? (difficultyBreakdown.Medium / totalProblems.Medium) * 100 : 0],
+        coordinateSystem: 'polar',
+        polarIndex: 1,
+        name: 'Medium',
+        roundCap: true,
+        itemStyle: {
+          color: DIFFICULTY_COLORS.Medium
+        }
+      },
+      // Easy difficulty arc (outermost)
+      {
+        type: 'bar',
+        data: [totalProblems.Easy > 0 ? (difficultyBreakdown.Easy / totalProblems.Easy) * 100 : 0],
+        coordinateSystem: 'polar',
+        polarIndex: 2,
+        name: 'Easy',
+        roundCap: true,
+        itemStyle: {
+          color: DIFFICULTY_COLORS.Easy
+        }
       }
     ],
     legend: {
