@@ -27,7 +27,6 @@ from .auth import (get_password_hash, verify_password, create_access_token,
 from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
-from .models import ProblemSubmissionQueue
 from .redis_service import redis_service
 import hashlib
 

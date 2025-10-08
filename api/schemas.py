@@ -306,35 +306,7 @@ class ExecutionResultResponse(ExecutionResultBase):
     created_at: datetime
 
 # User sandbox schemas removed - PostgreSQL sandbox functionality removed
-
-# User progress schemas
-class UserProgressBase(CamelCaseModel):
-    user_id: str
-    topic_id: str
-    problems_attempted: int = 0
-    problems_solved: int = 0
-    total_submissions: int = 0
-    successful_submissions: int = 0
-    average_execution_time_ms: Optional[float] = None
-    best_execution_time_ms: Optional[float] = None
-    total_time_spent_minutes: int = 0
-    current_difficulty: DifficultyLevel = DifficultyLevel.EASY
-    highest_difficulty_solved: DifficultyLevel = DifficultyLevel.EASY
-    hint_usage_count: int = 0
-    average_attempts_per_problem: float = 1.0
-    streak_count: int = 0
-    max_streak_count: int = 0
-    experience_points: int = 0
-    first_attempt_at: Optional[datetime] = None
-    last_activity_at: Optional[datetime] = None
-
-class UserProgressCreate(UserProgressBase):
-    pass
-
-class UserProgressResponse(UserProgressBase):
-    id: str
-    created_at: datetime
-    updated_at: datetime
+# User progress schemas removed - unused in application
 
 # Badge schemas
 class BadgeBase(CamelCaseModel):
@@ -361,8 +333,7 @@ class UserBadgeResponse(CamelCaseModel):
 
 # Enhanced existing schemas
 class EnhancedUserResponse(UserResponse):
-    """Enhanced user response with progress data"""
-    progress: Optional[List[UserProgressResponse]] = []
+    """Enhanced user response with badges"""
     badges: Optional[List[UserBadgeResponse]] = []
     current_level: Optional[str] = None
     total_xp: Optional[int] = 0
