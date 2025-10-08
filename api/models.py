@@ -73,7 +73,6 @@ class User(Base):
     community_posts = relationship("CommunityPost", back_populates="user")
     post_likes = relationship("PostLike", back_populates="user")
     post_comments = relationship("PostComment", back_populates="user")
-    progress = relationship("UserProgress", back_populates="user")
     user_badges = relationship("UserBadge", back_populates="user")
     
     # Follower relationships
@@ -286,7 +285,6 @@ class Topic(Base):
     # Relationships
     parent_topic = relationship("Topic", remote_side=[id])
     problems = relationship("Problem", back_populates="topic")
-    user_progress = relationship("UserProgress", back_populates="topic")
 
 class TestCase(Base):
     """Test cases for problems with input data and expected outputs"""
@@ -350,50 +348,6 @@ class ExecutionResult(Base):
     # user_sandbox relationship removed - PostgreSQL sandbox functionality removed
 
 
-class UserProgress(Base):
-    """Track user statistics and problem-solving progress"""
-    __tablename__ = "user_progress"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    topic_id = Column(String, ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
-    
-    # Progress metrics
-    problems_attempted = Column(Integer, default=0)
-    problems_solved = Column(Integer, default=0)
-    total_submissions = Column(Integer, default=0)
-    successful_submissions = Column(Integer, default=0)
-    
-    # Performance metrics
-    average_execution_time_ms = Column(Float)
-    best_execution_time_ms = Column(Float)
-    total_time_spent_minutes = Column(Integer, default=0)
-    
-    # Difficulty progression
-    current_difficulty = Column(difficulty_enum, default="EASY")
-    highest_difficulty_solved = Column(difficulty_enum, default="EASY")
-    
-    # Learning metrics
-    hint_usage_count = Column(Integer, default=0)
-    average_attempts_per_problem = Column(Float, default=1.0)
-    streak_count = Column(Integer, default=0)  # Current solving streak
-    max_streak_count = Column(Integer, default=0)  # Best streak ever
-    
-    # XP and achievements
-    experience_points = Column(Integer, default=0)
-    
-    # Timestamps
-    first_attempt_at = Column(DateTime)
-    last_activity_at = Column(DateTime, default=func.now())
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    
-    # Relationships
-    user = relationship("User", back_populates="progress")
-    topic = relationship("Topic", back_populates="user_progress")
-    
-    # Unique constraint: one progress record per user per topic
-    __table_args__ = (UniqueConstraint('user_id', 'topic_id', name='uq_user_progress_user_topic'),)
 
 class Badge(Base):
     """Achievement badges for user motivation"""
@@ -501,36 +455,6 @@ class Solution(Base):
     )
 
 
-# Redis-backed Models for Problem Queue
-
-class ProblemSubmissionQueue(Base):
-    """Problem submissions for job queue processing (persisted from Redis)"""
-    __tablename__ = "problem_submissions"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    problem_id = Column(String, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
-    sql_query = Column(Text, nullable=False)
-    status = Column(String(20), nullable=False, default="queued")  # queued, processing, completed, failed
-    rows_returned = Column(Integer, nullable=True)
-    execution_time_ms = Column(Integer, nullable=True)
-    error_message = Column(Text, nullable=True)
-    result_data = Column(JSONB, nullable=True)  # Query results for analytics
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    completed_at = Column(DateTime, nullable=True)
-    
-    # Relationships
-    user = relationship("User", backref="problem_queue_submissions")
-    problem = relationship("Problem", backref="queue_submissions")
-    
-    # Indexes for performance
-    __table_args__ = (
-        Index('idx_problem_submissions_user_id', 'user_id'),
-        Index('idx_problem_submissions_problem_id', 'problem_id'),
-        Index('idx_problem_submissions_status', 'status'),
-        Index('idx_problem_submissions_created_at', 'created_at'),
-        Index('idx_problem_submissions_completed_at', 'completed_at'),
-    )
 
 
 class HelpfulLink(Base):
