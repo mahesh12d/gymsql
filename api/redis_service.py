@@ -375,10 +375,49 @@ class RedisService:
             print(f"Worker heartbeat check error: {e}")
             return False
     
+    async def execute_submission_directly(self, user_id: str, problem_id: str, sql_query: str, db: Session) -> Dict:
+        """
+        Execute submission directly without queueing (used when worker is unavailable).
+        Still caches result in Redis for performance.
+        """
+        from .secure_execution import secure_executor
+        
+        try:
+            # Execute submission using secure executor
+            result = await secure_executor.submit_solution(
+                user_id=user_id,
+                problem_id=problem_id,
+                query=sql_query,
+                db=db
+            )
+            
+            # Cache result in Redis if available (for subsequent requests)
+            if self.is_available():
+                job_id = str(uuid.uuid4())
+                self.store_job_result(job_id, result, ttl_seconds=300)
+                print(f"✅ Direct execution completed, result cached in Redis")
+            
+            return result
+            
+        except Exception as e:
+            print(f"Direct execution error: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'feedback': [f'Execution failed: {str(e)}']
+            }
+    
     def enqueue_submission(self, user_id: str, problem_id: str, sql_query: str) -> str:
         """
-        Add SQL submission to job queue with Postgres fallback.
-        Returns job_id for tracking.
+        Add SQL submission to job queue with worker availability detection.
+        
+        Flow:
+        1. Check if worker is alive (via heartbeat)
+        2. If worker alive + Redis available → queue job
+        3. If no worker → return 'direct' to trigger direct execution
+        4. If Redis unavailable → save to Postgres fallback
+        
+        Returns job_id for tracking or 'direct' for immediate execution.
         """
         job_id = str(uuid.uuid4())
         job_data = {
@@ -388,8 +427,11 @@ class RedisService:
             "sql": sql_query
         }
         
-        # Try Redis first
-        if self.is_available():
+        # Check worker availability first
+        worker_alive = self.check_worker_alive()
+        
+        # If Redis available AND worker alive → queue normally
+        if self.is_available() and worker_alive:
             try:
                 # Push to queue
                 self.client.lpush("problems:queue", json.dumps(job_data))
@@ -405,19 +447,25 @@ class RedisService:
                 )
                 self.client.expire(f"problems:job:{job_id}", 3600)  # 1 hour TTL
                 
-                print(f"✅ Submission {job_id} queued to Redis")
+                print(f"✅ Submission {job_id} queued to Redis (worker alive)")
                 return job_id
             except redis.exceptions.RedisError as e:
-                print(f"⚠️ Redis enqueue failed: {e}, falling back to Postgres")
+                print(f"⚠️ Redis enqueue failed: {e}, falling back to direct execution")
+                return "direct"
+        
+        # If worker NOT alive → signal direct execution
+        elif self.is_available() and not worker_alive:
+            print(f"⚠️ No worker available - signaling direct execution")
+            return "direct"
+        
+        # If Redis unavailable → fallback to Postgres
         else:
             print("⚠️ Redis unavailable, using Postgres fallback")
-        
-        # Fallback to Postgres
-        if self._pg_save_fallback_submission(job_id, job_data):
-            print(f"✅ Submission {job_id} saved to Postgres fallback queue")
-            return job_id
-        else:
-            raise Exception("Failed to enqueue submission to both Redis and Postgres")
+            if self._pg_save_fallback_submission(job_id, job_data):
+                print(f"✅ Submission {job_id} saved to Postgres fallback queue")
+                return job_id
+            else:
+                raise Exception("Failed to enqueue submission to both Redis and Postgres")
     
     def _pg_save_fallback_submission(self, job_id: str, job_data: dict) -> bool:
         """Save submission to Postgres fallback queue when Redis is unavailable"""
