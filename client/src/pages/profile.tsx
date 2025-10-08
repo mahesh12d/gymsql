@@ -1047,9 +1047,9 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
       }
     },
     polar: [
-      { radius: ['55%', '62%'], center: ['50%', '55%'] }, // Innermost ring - Hard
-      { radius: ['63%', '70%'], center: ['50%', '55%'] }, // Middle ring - Medium
-      { radius: ['71%', '78%'], center: ['50%', '55%'] }  // Outer ring - Easy
+      { radius: ['45%', '50%'], center: ['50%', '50%'] }, // Innermost ring - Hard
+      { radius: ['51%', '56%'], center: ['50%', '50%'] }, // Middle ring - Medium
+      { radius: ['57%', '62%'], center: ['50%', '50%'] }  // Outer ring - Easy
     ],
     angleAxis: [
       { polarIndex: 0, max: 100, show: false },
