@@ -45,6 +45,13 @@ export default function Landing() {
   const { login } = useAuth();
   const { toast } = useToast();
 
+  // Dynamic date formatting
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authStatus = urlParams.get("auth");
@@ -175,7 +182,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dust.png')] opacity-30 mix-blend-overlay pointer-events-none"></div>
 
         <div className="absolute top-6 right-10 text-xs font-mono text-foreground/70 uppercase tracking-widest">
-          Oct 6 2025 • Channel 01
+          {currentDate}
         </div>
 
         <h1 className="text-7xl font-display text-foreground leading-tight drop-shadow-[0_4px_2px_rgba(0,0,0,0.2)] relative z-10 mb-8">
