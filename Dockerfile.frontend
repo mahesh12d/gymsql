@@ -11,6 +11,7 @@ RUN npm ci --silent
 
 # Copy source code
 COPY client/ ./client/
+COPY attached_assets/ ./attached_assets/
 COPY tsconfig.json .
 COPY vite.config.ts .
 COPY tailwind.config.ts .
