@@ -79,6 +79,7 @@ interface UserProfile {
   basic_info: BasicInfo;
   performance_stats: PerformanceStats;
   difficulty_breakdown: DifficultyBreakdown;
+  total_problems_by_difficulty: DifficultyBreakdown;
   topic_breakdown: Record<string, number>;
   recent_activity: RecentActivity[];
   progress_over_time: ProgressOverTime[];
@@ -945,10 +946,11 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
 }
 
 // 📈 Progress Charts with ECharts
-function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBreakdown }: { 
+function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBreakdown, totalProblemsByDifficulty }: { 
   progressOverTime: ProgressOverTime[]; 
   topicBreakdown: Record<string, number>;
   difficultyBreakdown: DifficultyBreakdown;
+  totalProblemsByDifficulty: DifficultyBreakdown;
 }) {
   // Prepare data for GitHub-style heatmap (last 365 days)
   const today = new Date();
@@ -1016,11 +1018,7 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
   };
 
   // Calculate total problems and percentage for circular chart
-  const totalProblems = {
-    Easy: 85,
-    Medium: 103,
-    Hard: 48
-  };
+  const totalProblems = totalProblemsByDifficulty;
   
   const totalSolved = difficultyBreakdown.Easy + difficultyBreakdown.Medium + difficultyBreakdown.Hard;
   const totalAvailable = totalProblems.Easy + totalProblems.Medium + totalProblems.Hard;
@@ -1433,6 +1431,7 @@ export default function Profile() {
         progressOverTime={profile.progress_over_time}
         topicBreakdown={profile.topic_breakdown}
         difficultyBreakdown={profile.difficulty_breakdown}
+        totalProblemsByDifficulty={profile.total_problems_by_difficulty}
       />
 
       {/* 📜 Recent Activity */}

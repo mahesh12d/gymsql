@@ -15,3 +15,4 @@
 [x] 15. Implemented PostgreSQL fallback for Redis caching - application will use PostgreSQL for caching when Redis/Replit is unavailable
 [x] 16. Fixed NoneType database query error - added null checks before calling db.rollback() and db.close() in PostgreSQL fallback methods
 [x] 17. Implemented worker availability detection (hybrid approach) - prevents jobs from getting stuck when worker is down while maintaining Redis caching benefits
+[x] 18. Fixed hardcoded pie chart total values in profile - backend now dynamically fetches total problem counts by difficulty from database and frontend uses this data instead of hardcoded values

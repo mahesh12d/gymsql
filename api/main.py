@@ -1915,6 +1915,22 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
         if normalized_difficulty in difficulty_breakdown:
             difficulty_breakdown[normalized_difficulty] = stat.solved_count
     
+    # Get total problem counts by difficulty
+    total_problems_stats = db.query(
+        Problem.difficulty,
+        func.count(Problem.id).label('total_count')
+    ).group_by(Problem.difficulty).all()
+    
+    total_problems_by_difficulty = {
+        'Easy': 0,
+        'Medium': 0,
+        'Hard': 0
+    }
+    for stat in total_problems_stats:
+        normalized_difficulty = stat.difficulty.capitalize() if stat.difficulty else None
+        if normalized_difficulty in total_problems_by_difficulty:
+            total_problems_by_difficulty[normalized_difficulty] = stat.total_count
+    
     # Topic breakdown - Get all solved problems and process tags manually
     solved_problems_with_tags = db.query(Problem.tags).join(
         Submission, Submission.problem_id == Problem.id
@@ -2025,6 +2041,7 @@ async def get_user_profile(current_user: User = Depends(get_current_user),
             'total_users': total_users
         },
         'difficulty_breakdown': difficulty_breakdown,
+        'total_problems_by_difficulty': total_problems_by_difficulty,
         'topic_breakdown': topic_breakdown,
         'recent_activity': recent_submissions,
         'progress_over_time': progress_over_time,
