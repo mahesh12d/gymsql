@@ -1,21 +1,9 @@
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.backend"
 
 [deploy]
-startCommand = "python3 -m uvicorn api.main:app --host 0.0.0.0 --port $PORT"
-
-[env]
-PYTHONPATH = "/app"
-
-# Runtime settings
-[nixpacks.phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
-
-[nixpacks.phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[nixpacks.phases.build]
-cmds = []
+startCommand = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
 
 # Health check configuration
 [healthcheck]
