@@ -15,6 +15,7 @@ import microsoftLogo from '@assets/logos/microsoft.svg';
 import netflixLogo from '@assets/logos/netflix.svg';
 import snapchatLogo from '@assets/logos/snapchat.svg';
 import stripeLogo from '@assets/logos/stripe.svg';
+import tiktokLogo from '@assets/logos/tiktok.svg';
 
 export interface CompanyInfo {
   id: string;
@@ -38,6 +39,7 @@ const LOGO_REGISTRY: Record<string, string> = {
   netflix: netflixLogo,
   snapchat: snapchatLogo,
   stripe: stripeLogo,
+  tiktok: tiktokLogo,
 };
 
 // Default color configurations for known companies
