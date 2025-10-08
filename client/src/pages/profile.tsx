@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1014,47 +1015,142 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
     animationDelay: (idx: number) => idx * 100
   };
 
-  // Prepare difficulty distribution pie chart - filter out zero values
-  const difficultyData = Object.entries(difficultyBreakdown)
-    .filter(([_, value]) => value > 0)  // Only show difficulties with solved problems
-    .map(([name, value]) => ({
-      name,
-      value,
-      itemStyle: {
-        color: DIFFICULTY_COLORS[name as keyof typeof DIFFICULTY_COLORS]
-      }
-    }));
+  // Calculate total problems and percentage for circular chart
+  const totalProblems = {
+    Easy: 85,
+    Medium: 103,
+    Hard: 48
+  };
+  
+  const totalSolved = difficultyBreakdown.Easy + difficultyBreakdown.Medium + difficultyBreakdown.Hard;
+  const totalAvailable = totalProblems.Easy + totalProblems.Medium + totalProblems.Hard;
+  const solvedPercentage = totalAvailable > 0 ? ((totalSolved / totalAvailable) * 100).toFixed(1) : '0.0';
 
+  // Prepare difficulty distribution circular chart
   const difficultyChartOption = {
     title: {
       text: 'Difficulty Split 💪',
       subtext: 'Distribution by Difficulty',
-      left: 'center'
+      left: 'center',
+      top: 10
+    },
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: 'center',
+      style: {
+        text: `${solvedPercentage}%`,
+        fontSize: 36,
+        fontWeight: 'bold',
+        fill: 'currentColor'
+      }
+    },
+    polar: {
+      radius: ['45%', '75%'],
+      center: ['50%', '55%']
+    },
+    angleAxis: {
+      max: 100,
+      show: false
+    },
+    radiusAxis: {
+      type: 'category',
+      data: [''],
+      show: false
     },
     tooltip: {
-      trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)'
-    },
-    series: [{
-      name: 'Difficulty',
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['50%', '60%'],
-      data: difficultyData,
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowOffsetX: 0,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
-        }
-      },
-      label: {
-        show: true,
-        formatter: '{b}: {c}'
+      formatter: (params: any) => {
+        const difficulty = params.seriesName;
+        const solved = difficultyBreakdown[difficulty as keyof typeof difficultyBreakdown];
+        const total = totalProblems[difficulty as keyof typeof totalProblems];
+        return `${difficulty}: ${solved}/${total}`;
       }
-    }],
-    animation: true,
-    animationDuration: 2000
+    },
+    series: [
+      // Background circles
+      {
+        type: 'bar',
+        data: [100],
+        coordinateSystem: 'polar',
+        name: 'Background',
+        stack: 'a',
+        roundCap: true,
+        barWidth: 12,
+        itemStyle: {
+          color: '#f0f0f0'
+        },
+        silent: true,
+        z: 0
+      },
+      // Easy difficulty arc
+      {
+        type: 'bar',
+        data: [totalProblems.Easy > 0 ? (difficultyBreakdown.Easy / totalProblems.Easy) * 100 : 0],
+        coordinateSystem: 'polar',
+        name: 'Easy',
+        stack: 'b',
+        roundCap: true,
+        barWidth: 12,
+        barGap: '-100%',
+        itemStyle: {
+          color: DIFFICULTY_COLORS.Easy
+        },
+        z: 1
+      },
+      // Medium difficulty arc
+      {
+        type: 'bar',
+        data: [totalProblems.Medium > 0 ? (difficultyBreakdown.Medium / totalProblems.Medium) * 100 : 0],
+        coordinateSystem: 'polar',
+        name: 'Medium',
+        stack: 'c',
+        roundCap: true,
+        barWidth: 12,
+        barGap: '-100%',
+        itemStyle: {
+          color: DIFFICULTY_COLORS.Medium
+        },
+        z: 2
+      },
+      // Hard difficulty arc
+      {
+        type: 'bar',
+        data: [totalProblems.Hard > 0 ? (difficultyBreakdown.Hard / totalProblems.Hard) * 100 : 0],
+        coordinateSystem: 'polar',
+        name: 'Hard',
+        stack: 'd',
+        roundCap: true,
+        barWidth: 12,
+        barGap: '-100%',
+        itemStyle: {
+          color: DIFFICULTY_COLORS.Hard
+        },
+        z: 3
+      }
+    ],
+    legend: {
+      show: true,
+      data: [
+        {
+          name: 'Easy',
+          itemStyle: { color: DIFFICULTY_COLORS.Easy }
+        },
+        {
+          name: 'Medium',
+          itemStyle: { color: DIFFICULTY_COLORS.Medium }
+        },
+        {
+          name: 'Hard',
+          itemStyle: { color: DIFFICULTY_COLORS.Hard }
+        }
+      ],
+      bottom: 20,
+      formatter: (name: string) => {
+        const solved = difficultyBreakdown[name as keyof typeof difficultyBreakdown];
+        const total = totalProblems[name as keyof typeof totalProblems];
+        return `${name}  ${solved}/${total}`;
+      }
+    }
   };
 
   return (
@@ -1113,22 +1209,13 @@ function ProgressChartsSection({ progressOverTime, topicBreakdown, difficultyBre
         
         <Card data-testid="card-difficulty-breakdown">
           <CardContent className="p-4">
-            {difficultyData.length > 0 ? (
-              <ReactECharts 
-                option={difficultyChartOption} 
-                style={{ height: '300px' }}
-                opts={{ renderer: 'canvas' }}
-                notMerge={true}
-                lazyUpdate={false}
-              />
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <p className="text-lg">No problems solved yet</p>
-                  <p className="text-sm">Start solving to see your difficulty breakdown</p>
-                </div>
-              </div>
-            )}
+            <ReactECharts 
+              option={difficultyChartOption} 
+              style={{ height: '300px' }}
+              opts={{ renderer: 'canvas' }}
+              notMerge={true}
+              lazyUpdate={false}
+            />
           </CardContent>
         </Card>
       </div>
@@ -1303,15 +1390,32 @@ function ProfileSkeleton() {
 }
 
 export default function Profile() {
-  const { data: profile, isLoading: profileLoading } = useQuery<UserProfile>({
+  const { user, isLoading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading, isError } = useQuery<UserProfile>({
     queryKey: ["/api/user/profile"],
+    enabled: !!user && !authLoading,
   });
 
-  if (profileLoading) {
+  if (authLoading || profileLoading) {
     return <ProfileSkeleton />;
   }
 
-  if (!profile || !profile.success) {
+  if (!user) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <div className="text-lg font-medium">Please log in</div>
+              <div className="text-muted-foreground">You need to be authenticated to view your profile</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isError || !profile || !profile.success) {
     return (
       <div className="container mx-auto p-6">
         <Card>
