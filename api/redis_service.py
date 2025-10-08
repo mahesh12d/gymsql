@@ -5,9 +5,12 @@ import os
 import json
 import redis
 import time
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, TYPE_CHECKING
 from datetime import datetime, timedelta
 import uuid
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 class RedisService:
     def __init__(self):
@@ -375,7 +378,7 @@ class RedisService:
             print(f"Worker heartbeat check error: {e}")
             return False
     
-    async def execute_submission_directly(self, user_id: str, problem_id: str, sql_query: str, db: Session) -> Dict:
+    async def execute_submission_directly(self, user_id: str, problem_id: str, sql_query: str, db: "Session") -> Dict:
         """
         Execute submission directly without queueing (used when worker is unavailable).
         Still caches result in Redis for performance.
