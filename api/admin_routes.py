@@ -2,7 +2,7 @@
 Admin routes for creating and managing problems
 """
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Query
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, Field
 import uuid
@@ -1762,4 +1762,61 @@ async def convert_parquet_to_jsonb(
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
+        )
+
+# Data Retention Endpoints
+class DataRetentionStats(BaseModel):
+    """Response model for data retention statistics"""
+    total_execution_results: int
+    execution_results_older_than_6_months: int
+    retention_policy: str
+    cutoff_date: str
+
+class CleanupResponse(BaseModel):
+    """Response model for cleanup operation"""
+    success: bool
+    deleted_count: int
+    message: str
+
+@admin_router.get("/data-retention/stats", response_model=DataRetentionStats)
+async def get_data_retention_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin_access)
+):
+    """
+    Get statistics about execution_results storage and retention policy.
+    Admin only.
+    """
+    from .data_retention import get_execution_results_stats
+    
+    stats = get_execution_results_stats(db)
+    return stats
+
+@admin_router.post("/data-retention/cleanup", response_model=CleanupResponse)
+async def cleanup_execution_results(
+    retention_days: int = Query(default=180, description="Number of days to retain (default: 180 days / 6 months)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin_access)
+):
+    """
+    Manually trigger cleanup of old execution_results.
+    Deletes execution_results older than specified retention period.
+    Submission records are preserved to maintain user statistics.
+    Admin only.
+    """
+    from .data_retention import cleanup_old_execution_results
+    
+    try:
+        deleted_count = cleanup_old_execution_results(db, retention_days)
+        
+        return CleanupResponse(
+            success=True,
+            deleted_count=deleted_count,
+            message=f"Successfully deleted {deleted_count} execution results older than {retention_days} days. Submission counts remain unchanged."
+        )
+    except Exception as e:
+        logger.error(f"Error during manual cleanup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Cleanup failed: {str(e)}"
         )

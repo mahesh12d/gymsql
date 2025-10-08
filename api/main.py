@@ -28,6 +28,7 @@ from .secure_execution import secure_executor
 from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
 from .redis_service import redis_service
+from .scheduler import lifespan_with_scheduler
 import hashlib
 
 # Helper function for time tracking
@@ -102,10 +103,13 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
         
         redis_service.increment_leaderboard(user_id, problem_id, score=1, topic=topic)
 
-# Create FastAPI app
-app = FastAPI(title="SQLGym API",
-              description="A gamified SQL learning platform API",
-              version="1.0.0")
+# Create FastAPI app with lifespan scheduler
+app = FastAPI(
+    title="SQLGym API",
+    description="A gamified SQL learning platform API",
+    version="1.0.0",
+    lifespan=lifespan_with_scheduler
+)
 
 # Add CORS middleware - Updated for Railway + Vercel/Netlify deployment
 frontend_origins = [
