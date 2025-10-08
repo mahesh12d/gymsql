@@ -341,6 +341,40 @@ class RedisService:
     
     # ==================== JOB QUEUE ====================
     
+    def update_worker_heartbeat(self, worker_id: str = "default"):
+        """
+        Update worker heartbeat to indicate it's alive and processing.
+        Worker calls this every 15 seconds.
+        TTL is 30 seconds - if heartbeat expires, worker is considered dead.
+        """
+        if not self.is_available():
+            return
+            
+        try:
+            key = f"worker:heartbeat:{worker_id}"
+            self.client.setex(key, 30, int(time.time()))  # 30 second TTL
+        except Exception as e:
+            print(f"Worker heartbeat update error: {e}")
+    
+    def check_worker_alive(self, worker_id: str = "default") -> bool:
+        """
+        Check if worker is alive by checking heartbeat timestamp.
+        Returns True if heartbeat exists and is recent (< 30 seconds old).
+        """
+        if not self.is_available():
+            return False
+            
+        try:
+            key = f"worker:heartbeat:{worker_id}"
+            heartbeat = self.client.get(key)
+            if heartbeat:
+                # Heartbeat exists, worker is alive
+                return True
+            return False
+        except Exception as e:
+            print(f"Worker heartbeat check error: {e}")
+            return False
+    
     def enqueue_submission(self, user_id: str, problem_id: str, sql_query: str) -> str:
         """
         Add SQL submission to job queue with Postgres fallback.
