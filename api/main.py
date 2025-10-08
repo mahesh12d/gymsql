@@ -921,29 +921,7 @@ async def submit_solution(problem_id: str,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Query is required")
 
-    # Check if Redis is available for job queue
-    if not redis_service.is_available():
-        # Fallback to direct execution if Redis is unavailable
-        result = await secure_executor.submit_solution(current_user.id, problem_id,
-                                                       query, db)
-
-        if not result['success']:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail=result.get('feedback',
-                                                  ['Submission failed'])[0])
-
-        # Track successful submission for recommendation system
-        if result['success']:
-            track_successful_submission(current_user.id, problem_id, db)
-
-        # Add console output to submission response
-        result['console_output'] = format_console_output(result)
-        
-        # Sanitize result to prevent JSON serialization errors
-        from .secure_execution import sanitize_json_data
-        return sanitize_json_data(result)
-    
-    # Enqueue submission to Redis job queue
+    # Enqueue submission to Redis job queue (with worker availability detection)
     try:
         job_id = redis_service.enqueue_submission(
             user_id=current_user.id,
@@ -951,6 +929,32 @@ async def submit_solution(problem_id: str,
             sql_query=query
         )
         
+        # If enqueue returns "direct", execute immediately (no worker available)
+        if job_id == "direct":
+            result = await redis_service.execute_submission_directly(
+                user_id=current_user.id,
+                problem_id=problem_id,
+                sql_query=query,
+                db=db
+            )
+            
+            if not result['success']:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=result.get('feedback',
+                                                      ['Submission failed'])[0])
+            
+            # Track successful submission for recommendation system
+            if result['success']:
+                track_successful_submission(current_user.id, problem_id, db)
+            
+            # Add console output to submission response
+            result['console_output'] = format_console_output(result)
+            
+            # Sanitize result to prevent JSON serialization errors
+            from .secure_execution import sanitize_json_data
+            return sanitize_json_data(result)
+        
+        # Normal queue flow - worker is available
         return {
             "success": True,
             "job_id": job_id,

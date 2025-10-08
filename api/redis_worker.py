@@ -98,6 +98,10 @@ async def worker_loop():
     
     logger.info("🚀 Redis worker started. Waiting for jobs...")
     
+    # Set initial heartbeat to signal worker is alive
+    redis_service.update_worker_heartbeat()
+    logger.info("💓 Worker heartbeat initialized")
+    
     # Recover any orphaned jobs from previous crashes
     logger.info("🔍 Checking for orphaned jobs from previous crashes...")
     recovered = redis_service.recover_orphaned_jobs()
@@ -120,13 +124,20 @@ async def worker_loop():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Track last fallback recovery check
+    # Track last fallback recovery check and heartbeat
     import time
     last_fallback_check = time.time()
+    last_heartbeat = time.time()
     FALLBACK_CHECK_INTERVAL = 60  # Check every 60 seconds
+    HEARTBEAT_INTERVAL = 15  # Update heartbeat every 15 seconds
     
     while not shutdown_requested:
         try:
+            # Update worker heartbeat (every 15 seconds)
+            if time.time() - last_heartbeat > HEARTBEAT_INTERVAL:
+                redis_service.update_worker_heartbeat()
+                last_heartbeat = time.time()
+            
             # Periodically check for fallback submissions (every 60 seconds)
             if time.time() - last_fallback_check > FALLBACK_CHECK_INTERVAL:
                 fallback_count = redis_service.recover_fallback_submissions(batch_size=50)
