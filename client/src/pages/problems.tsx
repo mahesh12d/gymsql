@@ -608,9 +608,6 @@ export default function Problems() {
                         Title
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        Description
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
                         Difficulty
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
@@ -654,41 +651,6 @@ export default function Problems() {
                             <h3 className="font-medium text-gray-900 hover:text-orange-600 transition-colors truncate">
                               {problem.title}
                             </h3>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="py-4 max-w-md">
-                          <div className="text-gray-600 text-sm line-clamp-2">
-                            <ReactMarkdown 
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                // Flatten all elements for preview - keep formatting but avoid line breaks
-                                p: ({children}) => <span className="inline">{children} </span>,
-                                strong: ({children}) => <strong className="font-semibold text-gray-800">{children}</strong>,
-                                em: ({children}) => <em className="italic">{children}</em>,
-                                code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">{children}</code>,
-                                h1: ({children}) => <span className="font-bold text-gray-800">{children} </span>,
-                                h2: ({children}) => <span className="font-semibold text-gray-800">{children} </span>,
-                                h3: ({children}) => <span className="font-medium text-gray-800">{children} </span>,
-                                ul: ({children}) => <span>{children}</span>,
-                                ol: ({children}) => <span>{children}</span>,
-                                li: ({children}) => <span>{children} • </span>,
-                                blockquote: ({children}) => <span className="italic text-blue-600">"{children}" </span>,
-                                // Tables and code blocks are hidden in preview
-                                table: () => <span className="text-blue-600 font-medium">[Table] </span>,
-                                pre: () => <span className="text-green-600 font-medium">[Code] </span>,
-                              }}
-                            >
-                              {(() => {
-                                // Get first paragraph or first 150 chars to avoid breaking markdown syntax
-                                const desc = problem.question.description;
-                                const firstParagraph = desc.split('\n\n')[0];
-                                if (firstParagraph.length > 150) {
-                                  return firstParagraph.substring(0, 150) + '...';
-                                }
-                                return firstParagraph + (desc.length > firstParagraph.length ? '...' : '');
-                              })()}
-                            </ReactMarkdown>
                           </div>
                         </TableCell>
 
