@@ -111,7 +111,7 @@ app = FastAPI(
     lifespan=lifespan_with_scheduler
 )
 
-# Add CORS middleware - Updated for Railway + Vercel/Netlify deployment
+# Add CORS middleware - Updated for Vercel + Replit deployment
 frontend_origins = [
     "http://localhost:5000", 
     "http://localhost:3000",  # Local React development
@@ -121,11 +121,10 @@ frontend_origins = [
 if os.getenv("FRONTEND_URL"):
     frontend_origins.append(os.getenv("FRONTEND_URL"))
 
-# Railway deployment support
-if os.getenv("RAILWAY_PUBLIC_DOMAIN"):
-    frontend_origins.append(f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}")
-if os.getenv("RAILWAY_STATIC_URL"):
-    frontend_origins.append(os.getenv("RAILWAY_STATIC_URL"))
+# Vercel deployment support - Allow all Vercel preview and production URLs
+vercel_url = os.getenv("VERCEL_URL")
+if vercel_url:
+    frontend_origins.append(f"https://{vercel_url}")
 
 # In production, use environment variable or specific domain
 if os.getenv("REPL_ID"):

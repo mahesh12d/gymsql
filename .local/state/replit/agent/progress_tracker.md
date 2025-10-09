@@ -34,11 +34,22 @@ The application is now fully migrated and ready to use. You can:
 4. **Deployment Config**: Added build and run commands for production deployment
 5. **[x] Railway CORS Issue**: Updated CORS configuration to support Railway domains via environment variables (RAILWAY_PUBLIC_DOMAIN or FRONTEND_URL)
 
-## Railway Deployment Checklist 📦
+## Vercel (Frontend) + Replit (Backend) Deployment Setup ✅
 
-To deploy successfully on Railway, ensure:
-- [x] Port configuration: Backend runs on port 8000
-- [ ] Database: Add PostgreSQL database to Railway project (auto-configures DATABASE_URL)
-- [ ] Redis: Add Redis database to Railway project (auto-configures REDIS_URL)
-- [ ] Environment variables: Set FRONTEND_URL to your Railway domain
-- [ ] Deploy: Backend service on port 8000, frontend served via backend
+### Backend (Replit) - Ready! 🟢
+- **URL**: `https://1bf67045-8c55-4d8d-8b46-9c60b062e31d-00-2kgy1wk1knd96.sisko.replit.dev`
+- **Port**: 8000 (API runs at `/api`)
+- **CORS**: Configured to accept requests from Vercel
+- **Status**: Running locally on Replit ✅
+
+### Frontend (Vercel) - Deployment Steps:
+1. Push code to GitHub/GitLab/Bitbucket
+2. Import project in Vercel
+3. **Set Environment Variable**:
+   - `VITE_API_URL` = `https://1bf67045-8c55-4d8d-8b46-9c60b062e31d-00-2kgy1wk1knd96.sisko.replit.dev/api`
+4. Deploy!
+
+### How It Works:
+- Frontend on Vercel calls backend API on Replit
+- CORS allows communication between domains
+- Both can be accessed from anywhere on the internet
