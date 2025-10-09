@@ -33,6 +33,7 @@ The application is now fully migrated and ready to use. You can:
 3. **Concurrently Not Found**: Resolved by restarting workflow with proper environment
 4. **Deployment Config**: Added build and run commands for production deployment
 5. **[x] Railway CORS Issue**: Updated CORS configuration to support Railway domains via environment variables (RAILWAY_PUBLIC_DOMAIN or FRONTEND_URL)
+6. **[x] Vercel Configuration Error**: Fixed conflicting `builds` and `functions` properties in vercel.json
 
 ## Vercel (Frontend) + Replit (Backend) Deployment Setup ✅
 
