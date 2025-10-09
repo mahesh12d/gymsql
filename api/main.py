@@ -115,17 +115,17 @@ app = FastAPI(
 frontend_origins = [
     "http://localhost:5000", 
     "http://localhost:3000",  # Local React development
-    "https://*.replit.dev", 
-    "https://*.replit.app",
-    "https://*.replit.co",
-    "https://*.vercel.app",   # Vercel deployments
-    "https://*.netlify.app",  # Netlify deployments
-    "https://*.netlify.com"   # Netlify custom domains
 ]
 
 # Add production frontend domains from environment variables
 if os.getenv("FRONTEND_URL"):
     frontend_origins.append(os.getenv("FRONTEND_URL"))
+
+# Railway deployment support
+if os.getenv("RAILWAY_PUBLIC_DOMAIN"):
+    frontend_origins.append(f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}")
+if os.getenv("RAILWAY_STATIC_URL"):
+    frontend_origins.append(os.getenv("RAILWAY_STATIC_URL"))
 
 # In production, use environment variable or specific domain
 if os.getenv("REPL_ID"):

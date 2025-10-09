@@ -32,3 +32,4 @@ The application is now fully migrated and ready to use. You can:
 2. **Redis Worker Import Error**: Fixed Python module imports by setting correct working directory
 3. **Concurrently Not Found**: Resolved by restarting workflow with proper environment
 4. **Deployment Config**: Added build and run commands for production deployment
+5. **[x] Railway CORS Issue**: Updated CORS configuration to support Railway domains via environment variables (RAILWAY_PUBLIC_DOMAIN or FRONTEND_URL)
