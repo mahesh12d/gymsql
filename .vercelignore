@@ -1,0 +1,18 @@
+# Ignore backend/API code - deployed separately on Replit
+api/
+*.py
+requirements.txt
+scripts/
+.pythonlibs/
+
+# Ignore node_modules (will be installed by Vercel)
+node_modules/
+
+# Ignore development files
+.env
+.env.local
+*.log
+
+# Ignore build artifacts not needed for deployment
+.replit
+replit.nix
