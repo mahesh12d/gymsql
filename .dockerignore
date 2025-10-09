@@ -20,7 +20,7 @@ pip-delete-this-directory.txt
 .env.*.local
 .env.secure
 
-# Build outputs
+# Build outputs (dist is built in container, so we can exclude it)
 dist
 build
 *.egg-info
