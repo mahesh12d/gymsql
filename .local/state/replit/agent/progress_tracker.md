@@ -35,6 +35,7 @@ The application is now fully migrated and ready to use. You can:
 5. **[x] Railway CORS Issue**: Updated CORS configuration to support Railway domains via environment variables (RAILWAY_PUBLIC_DOMAIN or FRONTEND_URL)
 6. **[x] Vercel Configuration Error**: Fixed conflicting `builds` and `functions` properties in vercel.json
 7. **[x] Vercel Serverless Functions Limit**: Added .vercelignore and updated vercel.json to deploy only static frontend (no serverless functions)
+8. **[x] Login CORS Error**: Added custom CORS middleware to automatically allow all Vercel domains (*.vercel.app)
 
 ## Vercel (Frontend) + Replit (Backend) Deployment Setup ✅
 

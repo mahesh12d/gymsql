@@ -135,8 +135,30 @@ if os.getenv("REPL_ID"):
         f"https://{repl_id}.{username}.replit.dev"
     ])
 
+# Allow all Vercel domains (*.vercel.app)
+import re
+def check_vercel_origin(origin: str) -> bool:
+    """Check if origin is from Vercel"""
+    return bool(re.match(r'^https://.*\.vercel\.app$', origin))
+
+# Custom CORS middleware that allows Vercel domains dynamically
+from starlette.middleware.cors import CORSMiddleware as StarletteCorsMW
+from starlette.types import ASGIApp, Receive, Scope, Send
+
+class CustomCORSMiddleware(StarletteCorsMW):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers", []))
+            origin = headers.get(b"origin", b"").decode("utf-8")
+            
+            # Add Vercel origins dynamically
+            if origin and check_vercel_origin(origin) and origin not in self.allow_origins:
+                self.allow_origins.append(origin)
+        
+        await super().__call__(scope, receive, send)
+
 app.add_middleware(
-    CORSMiddleware,
+    CustomCORSMiddleware,
     allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
