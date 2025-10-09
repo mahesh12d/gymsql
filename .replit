@@ -119,12 +119,12 @@ args = "python3.11 -m api.redis_worker"
 name = "Redis Worker"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3.11 -m api.redis_worker"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace && python3.11 -m api.redis_worker"
 
 [agent]
 integrations = [
