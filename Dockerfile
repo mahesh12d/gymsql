@@ -27,6 +27,4 @@ RUN npm run build
 EXPOSE 5000
 
 # Start both backend and Redis worker
-CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-5000} & \
-    cd /app && python3.11 -m api.redis_worker & \
-    wait -n
+CMD ["/bin/bash", "-c", "python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-5000} & cd /app && python3.11 -m api.redis_worker & wait -n"]
