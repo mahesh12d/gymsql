@@ -23,8 +23,8 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Expose port (Cloud Run uses dynamic PORT env var)
-EXPOSE 5000
+# Expose port (Cloud Run uses dynamic PORT env var, defaults to 8080)
+EXPOSE 8080
 
 # Start both backend and Redis worker
-CMD ["/bin/bash", "-c", "python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-5000} & cd /app && python3.11 -m api.redis_worker & wait -n"]
+CMD ["/bin/bash", "-c", "python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} & cd /app && python3.11 -m api.redis_worker & wait -n"]
