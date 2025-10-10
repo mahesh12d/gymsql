@@ -2317,6 +2317,6 @@ def spa_fallback(full_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8080))
     host = "0.0.0.0" if os.getenv("REPL_ID") else "127.0.0.1"
     uvicorn.run(app, host=host, port=port)
