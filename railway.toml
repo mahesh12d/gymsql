@@ -1,7 +1,0 @@
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-
-# Health check configuration
-[healthcheck]
-path = "/api/health"

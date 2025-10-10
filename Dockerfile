@@ -23,7 +23,7 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Expose port (Railway uses dynamic PORT env var)
+# Expose port (Cloud Run uses dynamic PORT env var)
 EXPOSE 5000
 
 # Start both backend and Redis worker

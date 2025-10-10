@@ -79,8 +79,8 @@ Two workflows must run simultaneously:
 
 ## Deployment
 
-### Railway Deployment
-The application is configured for deployment on Railway.app with the following setup:
+### Google Cloud Run Deployment
+The application is configured for deployment on Google Cloud Run with the following setup:
 
 #### Build Process
 ```bash
@@ -91,18 +91,20 @@ pip install --no-cache-dir -r requirements.txt && npm run build
 - **Dockerfile**: Unified container that installs Node.js 20 and Python 3.11
 - **Build Step**: Installs dependencies and builds React frontend
 - **Runtime**: Runs FastAPI backend and Redis worker in same container
-- **Port**: Configured to use Railway's dynamic PORT environment variable (defaults to 5000)
+- **Port**: Configured to use PORT environment variable (defaults to 5000)
 
 #### Required Environment Variables
-- `DATABASE_URL` - PostgreSQL connection (auto-set by Railway)
-- `REDIS_URL` - Redis connection (auto-set by Railway)
-- `JWT_SECRET` - JWT authentication secret (must be set manually)
-- `ADMIN_SECRET_KEY` - Admin access secret (must be set manually)
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `JWT_SECRET` - JWT authentication secret
+- `ADMIN_SECRET_KEY` - Admin access secret
 - Optional OAuth credentials: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
 #### Deployment Files
-- `Dockerfile` - Unified container configuration
-- `railway.toml` - Railway deployment configuration with health check
-- `RAILWAY_DEPLOYMENT.md` - Comprehensive deployment guide
+- `Dockerfile` - Unified container configuration for Cloud Run
 
-See `RAILWAY_DEPLOYMENT.md` for detailed deployment instructions.
+#### Cloud Run Deployment Steps
+1. Build and push Docker image to Google Container Registry or Artifact Registry
+2. Deploy to Cloud Run with required environment variables
+3. Configure Cloud SQL (PostgreSQL) and Redis instances
+4. Set up health check endpoint: `/api/health`

@@ -6,9 +6,10 @@
 [x] 2. Build frontend using `npm run build` to create dist/public directory
 [x] 3. Fix Redis Worker workflow to run from correct directory (/home/runner/workspace)
 [x] 4. Restart and verify all workflows are running successfully
-[x] 5. Configure deployment settings for Railway/production hosting
+[x] 5. Configure deployment settings for production hosting
 [x] 6. Verify the application is working correctly (screenshot confirmed)
 [x] 7. Complete import and inform user
+[x] 8. Remove Railway integration and update documentation for Google Cloud Run
 
 ## Application Status 🚀
 
@@ -16,15 +17,15 @@
 - **Backend API**: Running on port 8000 ✅
 - **Redis Worker**: Running and processing jobs ✅
 - **Database**: PostgreSQL configured ✅
-- **Deployment**: Configured for production (builds frontend, runs backend + worker) ✅
+- **Deployment**: Configured for Google Cloud Run (Docker-based) ✅
 
 ## Next Steps for User 📋
 
 The application is now fully migrated and ready to use. You can:
-1. Deploy to Railway or other hosting platforms (build and deployment config is set up)
+1. Deploy to Google Cloud Run (Dockerfile is configured)
 2. Start developing new features
 3. The frontend is accessible at the webview on port 5000
-4. All workflows are running correctly
+4. All workflows should be running correctly
 
 ## Issues Resolved 🔧
 
@@ -36,23 +37,20 @@ The application is now fully migrated and ready to use. You can:
 6. **[x] Vercel Configuration Error**: Fixed conflicting `builds` and `functions` properties in vercel.json
 7. **[x] Vercel Serverless Functions Limit**: Added .vercelignore and updated vercel.json to deploy only static frontend (no serverless functions)
 8. **[x] Login CORS Error**: Added custom CORS middleware to automatically allow all Vercel domains (*.vercel.app)
+9. **[x] Railway Integration Removed**: Removed railway.toml and RAILWAY_DEPLOYMENT.md, updated documentation for Google Cloud Run
 
-## Vercel (Frontend) + Replit (Backend) Deployment Setup ✅
+## Deployment Configuration ✅
 
-### Backend (Replit) - Ready! 🟢
-- **URL**: `https://1bf67045-8c55-4d8d-8b46-9c60b062e31d-00-2kgy1wk1knd96.sisko.replit.dev`
-- **Port**: 8000 (API runs at `/api`)
-- **CORS**: Configured to accept requests from Vercel
-- **Status**: Running locally on Replit ✅
+### Google Cloud Run Setup
+- **Container**: Docker-based deployment using unified Dockerfile
+- **Build**: `pip install --no-cache-dir -r requirements.txt && npm run build`
+- **Runtime**: FastAPI backend + Redis worker in single container
+- **Port**: 5000 (configurable via PORT env var)
+- **Health Check**: `/api/health` endpoint
 
-### Frontend (Vercel) - Deployment Steps:
-1. Push code to GitHub/GitLab/Bitbucket
-2. Import project in Vercel
-3. **Set Environment Variable**:
-   - `VITE_API_URL` = `https://1bf67045-8c55-4d8d-8b46-9c60b062e31d-00-2kgy1wk1knd96.sisko.replit.dev/api`
-4. Deploy!
-
-### How It Works:
-- Frontend on Vercel calls backend API on Replit
-- CORS allows communication between domains
-- Both can be accessed from anywhere on the internet
+### Required Environment Variables
+- `DATABASE_URL` - PostgreSQL connection (Cloud SQL)
+- `REDIS_URL` - Redis connection (Memorystore)
+- `JWT_SECRET` - JWT authentication secret
+- `ADMIN_SECRET_KEY` - Admin access secret
+- Optional OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
