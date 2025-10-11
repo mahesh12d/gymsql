@@ -27,4 +27,4 @@ RUN npm run build
 EXPOSE 8080
 
 # Start both backend and Redis worker
-CMD ["/bin/bash", "-c", "python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} & cd /app && python3.11 -m api.redis_worker & wait -n"]
+CMD ["python3.11", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
