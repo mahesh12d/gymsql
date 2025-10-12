@@ -128,8 +128,21 @@ export default function Landing() {
     setRegisterError("");
     try {
       const response = await authApi.register(data);
-      login(response.token!, response.user!);
-      setIsRegisterOpen(false);
+      
+      // Check if email verification is required (no token returned)
+      if (!response.token) {
+        toast({
+          title: "Registration Successful!",
+          description: response.message || "Please check your email to verify your account.",
+          duration: 6000,
+        });
+        setIsRegisterOpen(false);
+        registerForm.reset();
+      } else {
+        // OAuth users get immediate access
+        login(response.token, response.user!);
+        setIsRegisterOpen(false);
+      }
     } catch (error: any) {
       console.error("Registration failed:", error);
       setRegisterError(error?.message || "Registration failed. Please try again.");

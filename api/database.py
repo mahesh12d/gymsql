@@ -201,6 +201,22 @@ def run_schema_migrations():
             else:
                 print("Question column already exists, no migration needed")
         
+        # Email verification fields migration for users table
+        if 'users' in inspector.get_table_names():
+            user_columns = [col['name'] for col in inspector.get_columns('users')]
+            
+            if 'email_verified' not in user_columns:
+                print("Adding email verification fields to users table...")
+                
+                conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_token VARCHAR(255) NULL"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_token_expires TIMESTAMP NULL"))
+                
+                # Mark all existing users as verified (they signed up before email verification was added)
+                conn.execute(text("UPDATE users SET email_verified = TRUE WHERE auth_provider != 'email' OR created_at < NOW()"))
+                
+                print("Email verification migration completed successfully!")
+        
         # Premium feature migrations
         print("Checking premium columns...")
         

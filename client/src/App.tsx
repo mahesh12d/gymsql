@@ -15,6 +15,7 @@ import Submissions from "@/pages/submissions";
 import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
+import VerifyEmail from "@/pages/verify-email";
 import Navbar from "@/components/navbar";
 function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -41,7 +42,10 @@ function AppRouter() {
       )}
       <Switch>
         {!isAuthenticated ? (
-          <Route path="/" component={Landing} />
+          <>
+            <Route path="/" component={Landing} />
+            <Route path="/verify-email" component={VerifyEmail} />
+          </>
         ) : (
           <>
             <Route path="/" component={Home} />
