@@ -65,6 +65,12 @@ class User(Base):
     problems_solved = Column(Integer, default=0, nullable=False, name="problems_solved")
     premium = Column(Boolean, nullable=False, default=False)  # False = free user, True = premium user
     is_admin = Column(Boolean, nullable=False, default=False)  # False = regular user, True = admin user
+    
+    # Email verification fields
+    email_verified = Column(Boolean, nullable=False, default=False, name="email_verified")
+    verification_token = Column(String(255), nullable=True, name="verification_token")
+    verification_token_expires = Column(DateTime, nullable=True, name="verification_token_expires")
+    
     created_at = Column(DateTime, default=func.now(), nullable=False, name="created_at")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, name="updated_at")
     
