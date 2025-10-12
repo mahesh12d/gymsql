@@ -208,28 +208,28 @@ export default function SubmissionResultPanel({ result, isLoading, problemId, us
 
         {/* AI Hint Display */}
         {aiHint && (
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4" data-testid="ai-hint-panel">
+          <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200 rounded-lg p-4" data-testid="ai-hint-panel">
             <div className="flex items-start space-x-3">
-              <div className="bg-purple-500 rounded-full p-2 mt-0.5">
+              <div className="bg-teal-500 rounded-full p-2 mt-0.5">
                 <Lightbulb className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-semibold text-purple-900 mb-3">AI Hint</h4>
+                <h4 className="text-sm font-semibold text-teal-900 mb-3">AI Hint</h4>
                 
                 <div className="space-y-3">
                   <div>
-                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Issue Identified</span>
-                    <p className="text-sm text-purple-800 mt-1">{aiHint.issue_identified}</p>
+                    <span className="text-xs font-medium text-teal-700 uppercase tracking-wide">Issue Identified</span>
+                    <p className="text-sm text-teal-800 mt-1">{aiHint.issue_identified}</p>
                   </div>
                   
                   <div>
-                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Concept to Use</span>
-                    <p className="text-sm text-purple-800 mt-1 font-medium">{aiHint.concept_needed}</p>
+                    <span className="text-xs font-medium text-teal-700 uppercase tracking-wide">Concept to Use</span>
+                    <p className="text-sm text-teal-800 mt-1 font-medium">{aiHint.concept_needed}</p>
                   </div>
                   
                   <div className="bg-white bg-opacity-70 rounded-md p-3">
-                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">💡 Hint</span>
-                    <p className="text-sm text-purple-900 mt-1 leading-relaxed">{aiHint.hint}</p>
+                    <span className="text-xs font-medium text-teal-700 uppercase tracking-wide">💡 Hint</span>
+                    <p className="text-sm text-teal-900 mt-1 leading-relaxed">{aiHint.hint}</p>
                   </div>
                 </div>
               </div>
