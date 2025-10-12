@@ -43,7 +43,7 @@ interface SubmissionResultPanelProps {
   userQuery?: string;
 }
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lightbulb, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
@@ -52,6 +52,12 @@ export default function SubmissionResultPanel({ result, isLoading, problemId, us
   const [aiHint, setAiHint] = useState<AIHint | null>(null);
   const [isLoadingHint, setIsLoadingHint] = useState(false);
   const [hintError, setHintError] = useState<string | null>(null);
+
+  // Reset hint when submission changes
+  useEffect(() => {
+    setAiHint(null);
+    setHintError(null);
+  }, [result?.submission_id]);
 
   const handleGetAIHint = async () => {
     if (!result || !userQuery) return;
