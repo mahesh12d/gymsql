@@ -29,6 +29,7 @@ from .sandbox_routes import sandbox_router
 from .admin_routes import admin_router
 from .redis_service import redis_service
 from .scheduler import lifespan_with_scheduler
+from .gemini_hint import sql_hint_generator
 import hashlib
 
 # Helper function for time tracking
@@ -1073,6 +1074,99 @@ async def test_query(problem_id: str,
     # Sanitize result to prevent JSON serialization errors
     from .secure_execution import sanitize_json_data
     return sanitize_json_data(response_data)
+
+
+@app.post("/api/problems/{problem_id}/ai-hint")
+async def get_ai_hint(
+    problem_id: str,
+    hint_request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate an AI-powered hint for a failed submission using Gemini
+    
+    Request body:
+    {
+        "user_query": "SELECT * FROM users",
+        "feedback": ["Column mismatch", "Missing WHERE clause"],
+        "user_output": [...],  # optional
+        "expected_output": [...]  # optional
+    }
+    """
+    # Rate limit: 5 hints per problem per user
+    rate_limit = redis_service.check_rate_limit(
+        user_id=current_user.id,
+        action=f"ai_hint:{problem_id}",
+        limit=5,
+        window_seconds=3600  # 1 hour window
+    )
+    
+    if not rate_limit['allowed']:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many hint requests. Try again in {rate_limit['retry_after']} seconds."
+        )
+    
+    # Check if problem exists
+    problem = db.query(Problem).filter(Problem.id == problem_id).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Problem not found"
+        )
+    
+    # Check if Gemini API key is configured
+    if not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI hint service is not configured"
+        )
+    
+    try:
+        # Extract request data
+        user_query = hint_request.get("user_query", "").strip()
+        feedback = hint_request.get("feedback", [])
+        user_output = hint_request.get("user_output")
+        expected_output = hint_request.get("expected_output")
+        
+        if not user_query:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User query is required"
+            )
+        
+        # Extract problem information
+        question_data = problem.question or {}
+        problem_title = problem.title or "SQL Problem"
+        problem_description = question_data.get("description", "")
+        tables = question_data.get("tables", [])
+        
+        # Generate hint using Gemini
+        hint_result = await sql_hint_generator.generate_hint(
+            problem_title=problem_title,
+            problem_description=problem_description,
+            tables=tables,
+            user_query=user_query,
+            feedback=feedback,
+            user_output=user_output,
+            expected_output=expected_output
+        )
+        
+        return {
+            "success": True,
+            "hint": hint_result,
+            "remaining_hints": rate_limit.get('remaining', 0)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating AI hint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate hint. Please try again."
+        )
 
 
 @app.get("/api/user/progress")

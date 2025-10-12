@@ -51,6 +51,7 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
   const [isSubmissionMode, setIsSubmissionMode] = useState(false);
+  const [submittedQuery, setSubmittedQuery] = useState<string>("");
 
   const selectedCompany = problem?.company || "NY Times";
   const selectedDifficulty = problem?.difficulty || "Medium";
@@ -86,6 +87,7 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
       setIsSubmitting(true);
       setShowOutput(true);
       setIsSubmissionMode(true); // Switch to submission mode
+      setSubmittedQuery(query); // Store the query for AI hints
       try {
         const submitResult = await handleSubmitSolution(query);
         setSubmissionResult(submitResult);
@@ -132,7 +134,8 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
     <SubmissionResultPanel 
       result={submissionResult} 
       isLoading={isSubmitting}
-      problemId={problemId || ""} 
+      problemId={problemId || ""}
+      userQuery={submittedQuery}
     />
   ) : (
     <OutputPanel result={result} isLoading={isRunning} />

@@ -11,6 +11,14 @@ interface SubmissionResult {
     max_time_ms: number;
     memory_used_mb: number;
   };
+  user_query?: string;
+}
+
+interface AIHint {
+  issue_identified: string;
+  concept_needed: string;
+  hint: string;
+  confidence: number;
 }
 
 interface TestResult {
@@ -32,10 +40,54 @@ interface SubmissionResultPanelProps {
   result: SubmissionResult | null;
   isLoading: boolean;
   problemId: string;
+  userQuery?: string;
 }
 
+import { useState } from "react";
+import { Lightbulb, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/queryClient";
 
-export default function SubmissionResultPanel({ result, isLoading, problemId }: SubmissionResultPanelProps) {
+export default function SubmissionResultPanel({ result, isLoading, problemId, userQuery }: SubmissionResultPanelProps) {
+  const [aiHint, setAiHint] = useState<AIHint | null>(null);
+  const [isLoadingHint, setIsLoadingHint] = useState(false);
+  const [hintError, setHintError] = useState<string | null>(null);
+
+  const handleGetAIHint = async () => {
+    if (!result || !userQuery) return;
+    
+    setIsLoadingHint(true);
+    setHintError(null);
+    
+    try {
+      const mainTestResult = result.test_results?.find(test => !test.is_hidden) || result.test_results?.[0];
+      
+      const response = await apiRequest(`/api/problems/${problemId}/ai-hint`, {
+        method: "POST",
+        body: JSON.stringify({
+          user_query: userQuery,
+          feedback: result.feedback || [],
+          user_output: mainTestResult?.user_output?.slice(0, 3),
+          expected_output: mainTestResult?.expected_output?.slice(0, 3)
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (response.success && response.hint) {
+        setAiHint(response.hint);
+      } else {
+        setHintError("Unable to generate hint. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Error getting AI hint:", error);
+      setHintError(error.message || "Failed to get hint. Please try again.");
+    } finally {
+      setIsLoadingHint(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full bg-gray-50 flex items-center justify-center">
@@ -63,13 +115,39 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
         {/* Mismatch Banner */}
         {hasOutputMismatch && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3" data-testid="banner-mismatch">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-red-800 font-medium text-sm">Mismatched</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-red-800 font-medium text-sm">Mismatched</span>
+                </div>
+                <p className="text-red-700 text-sm mt-1">
+                  Your query's output doesn't match with the solution's output!
+                </p>
+              </div>
+              {!aiHint && (
+                <Button
+                  onClick={handleGetAIHint}
+                  disabled={isLoadingHint}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white hover:bg-gray-50"
+                  data-testid="button-get-hint"
+                >
+                  {isLoadingHint ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Getting hint...
+                    </>
+                  ) : (
+                    <>
+                      <Lightbulb className="w-4 h-4 mr-2" />
+                      Get AI Hint
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-            <p className="text-red-700 text-sm mt-1">
-              Your query's output doesn't match with the solution's output!
-            </p>
           </div>
         )}
 
@@ -119,6 +197,44 @@ export default function SubmissionResultPanel({ result, isLoading, problemId }: 
                 <li key={index}>• {message}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* AI Hint Display */}
+        {aiHint && (
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4" data-testid="ai-hint-panel">
+            <div className="flex items-start space-x-3">
+              <div className="bg-purple-500 rounded-full p-2 mt-0.5">
+                <Lightbulb className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-purple-900 mb-3">AI Hint</h4>
+                
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Issue Identified</span>
+                    <p className="text-sm text-purple-800 mt-1">{aiHint.issue_identified}</p>
+                  </div>
+                  
+                  <div>
+                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">Concept to Use</span>
+                    <p className="text-sm text-purple-800 mt-1 font-medium">{aiHint.concept_needed}</p>
+                  </div>
+                  
+                  <div className="bg-white bg-opacity-70 rounded-md p-3">
+                    <span className="text-xs font-medium text-purple-700 uppercase tracking-wide">💡 Hint</span>
+                    <p className="text-sm text-purple-900 mt-1 leading-relaxed">{aiHint.hint}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hint Error Display */}
+        {hintError && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800">{hintError}</p>
           </div>
         )}
 
