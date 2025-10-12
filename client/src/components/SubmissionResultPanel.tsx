@@ -194,18 +194,6 @@ export default function SubmissionResultPanel({ result, isLoading, problemId, us
           </div>
         </div>
 
-        {/* Feedback Messages */}
-        {result.feedback && result.feedback.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">Feedback</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              {result.feedback.map((message, index) => (
-                <li key={index}>• {message}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* AI Hint Display */}
         {aiHint && (
           <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200 rounded-lg p-4" data-testid="ai-hint-panel">

@@ -677,29 +677,6 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
             {/* Latest Submission Result */}
             {latestSubmissionResult && (
               <div className="space-y-4">
-                {/* Result Status Banner */}
-                {latestSubmissionResult.is_correct ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3" data-testid="banner-success">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-green-800 font-medium text-sm">Success!</span>
-                    </div>
-                    <p className="text-green-700 text-sm mt-1">
-                      Your solution is correct! Well done!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3" data-testid="banner-mismatch">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <span className="text-red-800 font-medium text-sm">Mismatched</span>
-                    </div>
-                    <p className="text-red-700 text-sm mt-1">
-                      Your query's output doesn't match with the solution's output!
-                    </p>
-                  </div>
-                )}
-
                 {/* Output and Expected Tables */}
                 {latestSubmissionResult.test_results && latestSubmissionResult.test_results.length > 0 && (
                   <div className="space-y-4">
