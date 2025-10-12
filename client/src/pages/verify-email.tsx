@@ -30,9 +30,9 @@ export default function VerifyEmail() {
           setStatus("success");
           setMessage("Email verified successfully! Redirecting to home...");
           
-          // Store the auth token
+          // Store the auth token with correct key
           if (data.token) {
-            localStorage.setItem("token", data.token);
+            localStorage.setItem("auth_token", data.token);
           }
 
           toast({

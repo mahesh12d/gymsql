@@ -6,6 +6,7 @@ import json
 import asyncio
 from typing import List, Optional, Dict
 from fastapi import FastAPI, Depends, HTTPException, status, Query
+from pydantic import EmailStr
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
