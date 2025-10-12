@@ -62,21 +62,21 @@ export default function SubmissionResultPanel({ result, isLoading, problemId, us
     try {
       const mainTestResult = result.test_results?.find(test => !test.is_hidden) || result.test_results?.[0];
       
-      const response = await apiRequest(`/api/problems/${problemId}/ai-hint`, {
-        method: "POST",
-        body: JSON.stringify({
+      const response = await apiRequest(
+        "POST",
+        `/api/problems/${problemId}/ai-hint`,
+        {
           user_query: userQuery,
           feedback: result.feedback || [],
           user_output: mainTestResult?.user_output?.slice(0, 3),
           expected_output: mainTestResult?.expected_output?.slice(0, 3)
-        }),
-        headers: {
-          "Content-Type": "application/json"
         }
-      });
+      );
       
-      if (response.success && response.hint) {
-        setAiHint(response.hint);
+      const data = await response.json();
+      
+      if (data.success && data.hint) {
+        setAiHint(data.hint);
       } else {
         setHintError("Unable to generate hint. Please try again.");
       }
