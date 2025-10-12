@@ -46,3 +46,4 @@ pyarrow==17.0.0
 authlib
 httpx
 itsdangerous
+google-generativeai
