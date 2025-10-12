@@ -233,7 +233,7 @@ class LoginResponse(CamelCaseModel):
     message: str = "Login successful"
 
 class RegisterResponse(CamelCaseModel):
-    token: str
+    token: Optional[str] = None
     user: UserResponse
     message: str = "User created successfully"
 

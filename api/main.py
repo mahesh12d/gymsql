@@ -30,6 +30,7 @@ from .admin_routes import admin_router
 from .redis_service import redis_service
 from .scheduler import lifespan_with_scheduler
 from .gemini_hint import sql_hint_generator
+from .email_service import create_verification_token, send_verification_email, verify_token, mark_email_verified
 import hashlib
 
 # Helper function for time tracking
@@ -372,7 +373,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if user_data.password is not None:
         password_hash = get_password_hash(user_data.password)
 
-    # Create user
+    # Create user - email not verified by default for email/password signups
     user = User(username=user_data.username,
                 email=user_data.email,
                 password_hash=password_hash,
@@ -380,13 +381,26 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 last_name=user_data.last_name,
                 profile_image_url=user_data.profile_image_url,
                 google_id=user_data.google_id,
-                auth_provider=user_data.auth_provider)
+                auth_provider=user_data.auth_provider,
+                email_verified=user_data.auth_provider != "email")  # OAuth users are auto-verified
 
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    # Generate JWT token
+    # Send verification email for email/password signups
+    if user_data.auth_provider == "email":
+        token = create_verification_token(user, db)
+        send_verification_email(user, token)
+        
+        # Return response without token - user must verify email first
+        return RegisterResponse(
+            token=None,
+            user=UserResponse.from_orm(user),
+            message="Please check your email to verify your account"
+        )
+
+    # For OAuth users, generate JWT token immediately
     access_token = create_access_token(data={
         "userId": user.id,
         "username": user.username,
@@ -412,6 +426,13 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
                                                      user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid credentials")
+
+    # Check if email is verified (only for email/password users)
+    if user.auth_provider == "email" and not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in. Check your inbox for the verification link."
+        )
 
     # Generate JWT token
     access_token = create_access_token(data={
