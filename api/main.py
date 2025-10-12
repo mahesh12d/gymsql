@@ -451,6 +451,67 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
     return UserResponse.from_orm(current_user)
 
 
+# Email verification endpoints
+@app.get("/api/auth/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    """Verify user's email address with the provided token"""
+    user = verify_token(token, db)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+    
+    # Mark email as verified
+    mark_email_verified(user, db)
+    
+    # Generate JWT token for immediate login
+    access_token = create_access_token(data={
+        "userId": user.id,
+        "username": user.username,
+        "isAdmin": user.is_admin
+    })
+    
+    return {
+        "message": "Email verified successfully",
+        "token": access_token,
+        "user": UserResponse.from_orm(user)
+    }
+
+
+@app.post("/api/auth/resend-verification")
+def resend_verification_email(email: EmailStr, db: Session = Depends(get_db)):
+    """Resend verification email to the user"""
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified"
+        )
+    
+    # Create new verification token
+    token = create_verification_token(user, db)
+    
+    # Send verification email
+    email_sent = send_verification_email(user, token)
+    
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email"
+        )
+    
+    return {"message": "Verification email sent successfully"}
+
+
 # Problem endpoints
 @app.get("/api/problems",
          response_model=List[ProblemResponse],
