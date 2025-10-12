@@ -23,6 +23,7 @@ Authentication supports traditional email/password login with JWT tokens, and OA
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.
 -   **Problem Management**: Categorized SQL problems with hints and expected outputs.
 -   **Code Execution**: SQL query submission and validation with an anti-hardcode detection system.
+-   **AI-Powered Hints**: Google Gemini integration provides intelligent hints for failed submissions without revealing solutions. Rate limited to 5 hints per problem per hour per user.
 -   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system, helpful resources sharing.
 -   **Progress Tracking**: User submission history, leaderboards, and dynamic profile statistics.
 -   **Responsive Design**: Mobile-friendly interface.
@@ -74,6 +75,9 @@ Two workflows must run simultaneously:
 -   **remark-gfm**: GitHub Flavored Markdown support.
 -   **CodeMirror**: In-editor syntax highlighting for code blocks.
 
+### AI & Machine Learning
+-   **Google Gemini**: AI model (gemini-2.0-flash-exp) for generating educational hints on failed submissions.
+
 ### Other
 -   **Wouter**: Lightweight client-side routing.
 
@@ -98,6 +102,7 @@ pip install --no-cache-dir -r requirements.txt && npm run build
 - `REDIS_URL` - Redis connection string
 - `JWT_SECRET` - JWT authentication secret
 - `ADMIN_SECRET_KEY` - Admin access secret
+- `GEMINI_API_KEY` - Google Gemini API key for AI hints feature
 - Optional OAuth credentials: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
 #### Deployment Files
