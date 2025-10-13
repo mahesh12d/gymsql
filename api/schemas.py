@@ -98,6 +98,13 @@ class UserLogin(CamelCaseModel):
     email: EmailStr
     password: str
 
+class VerifyCodeRequest(CamelCaseModel):
+    email: EmailStr
+    code: str
+
+class ResendVerificationRequest(CamelCaseModel):
+    email: EmailStr
+
 # Table column definition for structured display
 class TableColumn(BaseModel):
     name: str

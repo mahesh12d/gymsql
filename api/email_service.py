@@ -36,27 +36,31 @@ def get_base_url() -> str:
     return "http://localhost:5000"
 
 
-def generate_verification_token() -> str:
-    """Generate a secure random verification token"""
-    return secrets.token_urlsafe(32)
+def generate_verification_code() -> str:
+    """Generate a secure 6-digit verification code"""
+    return ''.join(secrets.choice('0123456789') for _ in range(6))
 
 
-def create_verification_token(user: User, db: Session) -> str:
-    """Create and save a verification token for the user"""
-    token = generate_verification_token()
-    user.verification_token = token
+def hash_verification_code(code: str) -> str:
+    """Hash the verification code for secure storage"""
+    from .auth import get_password_hash
+    return get_password_hash(code)
+
+
+def create_verification_code(user: User, db: Session) -> str:
+    """Create and save a hashed verification code for the user"""
+    code = generate_verification_code()
+    hashed_code = hash_verification_code(code)
+    user.verification_token = hashed_code
     user.verification_token_expires = datetime.utcnow() + timedelta(hours=24)
     db.commit()
     db.refresh(user)
-    return token
+    return code  # Return the plain code to send via email
 
 
-def send_verification_email(user: User, token: str) -> bool:
-    """Send verification email to the user"""
+def send_verification_email(user: User, code: str) -> bool:
+    """Send verification email with 6-digit code to the user"""
     try:
-        base_url = get_base_url()
-        verification_link = f"{base_url}/verify-email?token={token}"
-        
         params = {
             "from": FROM_EMAIL,
             "to": [user.email],
@@ -87,15 +91,20 @@ def send_verification_email(user: User, token: str) -> bool:
                             border-radius: 8px;
                             margin-top: 20px;
                         }}
-                        .button {{
-                            display: inline-block;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            padding: 14px 28px;
-                            text-decoration: none;
-                            border-radius: 6px;
-                            margin: 20px 0;
-                            font-weight: 600;
+                        .code-box {{
+                            background: #f5f5f5;
+                            border: 2px solid #667eea;
+                            border-radius: 8px;
+                            padding: 20px;
+                            margin: 30px 0;
+                            text-align: center;
+                        }}
+                        .code {{
+                            font-size: 36px;
+                            font-weight: 700;
+                            letter-spacing: 8px;
+                            color: #667eea;
+                            font-family: 'Courier New', monospace;
                         }}
                         .footer {{
                             margin-top: 30px;
@@ -110,21 +119,14 @@ def send_verification_email(user: User, token: str) -> bool:
                         <h1>🏋️ Welcome to SQLGym!</h1>
                         <div class="content">
                             <h2>Hi {user.username},</h2>
-                            <p>Thank you for signing up for SQLGym! To complete your registration and start your SQL learning journey, please verify your email address.</p>
+                            <p>Thank you for signing up for SQLGym! To complete your registration and start your SQL learning journey, please enter this verification code:</p>
                             
-                            <div style="text-align: center;">
-                                <a href="{verification_link}" class="button">
-                                    Verify Email Address
-                                </a>
+                            <div class="code-box">
+                                <div class="code">{code}</div>
                             </div>
                             
                             <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                                Or copy and paste this link into your browser:<br>
-                                <a href="{verification_link}" style="color: #667eea; word-break: break-all;">{verification_link}</a>
-                            </p>
-                            
-                            <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                                This link will expire in 24 hours. If you didn't create an account with SQLGym, you can safely ignore this email.
+                                This code will expire in 24 hours. If you didn't create an account with SQLGym, you can safely ignore this email.
                             </p>
                         </div>
                     </div>
@@ -143,15 +145,21 @@ def send_verification_email(user: User, token: str) -> bool:
         return False
 
 
-def verify_token(token: str, db: Session) -> Optional[User]:
-    """Verify a token and return the user if valid"""
-    user = db.query(User).filter(User.verification_token == token).first()
+def verify_code(email: str, code: str, db: Session) -> Optional[User]:
+    """Verify a 6-digit code and return the user if valid"""
+    from .auth import verify_password
     
-    if not user:
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user or not user.verification_token:
         return None
     
     # Check if token is expired
     if user.verification_token_expires and user.verification_token_expires < datetime.utcnow():
+        return None
+    
+    # Verify the code against the hashed version
+    if not verify_password(code, user.verification_token):
         return None
     
     return user

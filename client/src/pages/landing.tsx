@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Code } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const registerSchema = z.object({
 });
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +119,19 @@ export default function Landing() {
       setIsLoginOpen(false);
     } catch (error: any) {
       console.error("Login failed:", error);
-      setLoginError(error?.message || "Invalid email or password");
+      const errorMessage = error?.message || "Invalid email or password";
+      setLoginError(errorMessage);
+      
+      // If error is about email verification, redirect to verification page
+      if (errorMessage.includes("verify your email") || errorMessage.includes("verification")) {
+        toast({
+          title: "Email Not Verified",
+          description: "Please verify your email to continue.",
+          variant: "destructive",
+        });
+        setIsLoginOpen(false);
+        setLocation("/verify-email");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -133,11 +147,13 @@ export default function Landing() {
       if (!response.token) {
         toast({
           title: "Registration Successful!",
-          description: response.message || "Please check your email to verify your account.",
-          duration: 6000,
+          description: response.message || "Please check your email for a verification code.",
+          duration: 5000,
         });
         setIsRegisterOpen(false);
         registerForm.reset();
+        // Redirect to verification page
+        setLocation("/verify-email");
       } else {
         // OAuth users get immediate access
         login(response.token, response.user!);

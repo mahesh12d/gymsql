@@ -22,7 +22,8 @@ from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       RegisterResponse, ProblemResponse, SubmissionCreate,
                       SubmissionResponse, DetailedSubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
-                      PostCommentResponse, SolutionResponse, QuestionData)
+                      PostCommentResponse, SolutionResponse, QuestionData,
+                      VerifyCodeRequest, ResendVerificationRequest)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
@@ -31,7 +32,7 @@ from .admin_routes import admin_router
 from .redis_service import redis_service
 from .scheduler import lifespan_with_scheduler
 from .gemini_hint import sql_hint_generator
-from .email_service import create_verification_token, send_verification_email, verify_token, mark_email_verified
+from .email_service import send_verification_email, mark_email_verified
 import hashlib
 
 # Helper function for time tracking
@@ -391,14 +392,15 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
     # Send verification email for email/password signups
     if user_data.auth_provider == "email":
-        token = create_verification_token(user, db)
-        send_verification_email(user, token)
+        from api.email_service import create_verification_code
+        code = create_verification_code(user, db)
+        send_verification_email(user, code)
         
         # Return response without token - user must verify email first
         return RegisterResponse(
             token=None,
             user=UserResponse.from_orm(user),
-            message="Please check your email to verify your account"
+            message="Please check your email for a 6-digit verification code"
         )
 
     # For OAuth users, generate JWT token immediately
@@ -432,7 +434,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     if user.auth_provider == "email" and not user.email_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email before logging in. Check your inbox for the verification link."
+            detail="Please verify your email before logging in. Check your inbox for the 6-digit verification code."
         )
 
     # Generate JWT token
@@ -453,15 +455,27 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 
 # Email verification endpoints
-@app.get("/api/auth/verify-email")
-def verify_email(token: str, db: Session = Depends(get_db)):
-    """Verify user's email address with the provided token"""
-    user = verify_token(token, db)
+@app.post("/api/auth/verify-code")
+def verify_email_code(
+    request: VerifyCodeRequest,
+    db: Session = Depends(get_db)
+):
+    """Verify user's email address with the provided 6-digit code"""
+    from api.email_service import verify_code
+    
+    # Validate code format
+    if not request.code or len(request.code) != 6 or not request.code.isdigit():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code format. Please enter a 6-digit code"
+        )
+    
+    user = verify_code(request.email, request.code, db)
     
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
+            detail="Invalid or expired verification code"
         )
     
     # Mark email as verified
@@ -482,9 +496,11 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/resend-verification")
-def resend_verification_email(email: EmailStr, db: Session = Depends(get_db)):
-    """Resend verification email to the user"""
-    user = db.query(User).filter(User.email == email).first()
+def resend_verification_email(request: ResendVerificationRequest, db: Session = Depends(get_db)):
+    """Resend verification code to the user"""
+    from api.email_service import create_verification_code
+    
+    user = db.query(User).filter(User.email == request.email).first()
     
     if not user:
         raise HTTPException(
@@ -498,11 +514,11 @@ def resend_verification_email(email: EmailStr, db: Session = Depends(get_db)):
             detail="Email is already verified"
         )
     
-    # Create new verification token
-    token = create_verification_token(user, db)
+    # Create new verification code
+    code = create_verification_code(user, db)
     
     # Send verification email
-    email_sent = send_verification_email(user, token)
+    email_sent = send_verification_email(user, code)
     
     if not email_sent:
         raise HTTPException(
@@ -510,7 +526,7 @@ def resend_verification_email(email: EmailStr, db: Session = Depends(get_db)):
             detail="Failed to send verification email"
         )
     
-    return {"message": "Verification email sent successfully"}
+    return {"message": "Verification code sent successfully"}
 
 
 # Problem endpoints

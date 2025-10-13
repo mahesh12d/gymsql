@@ -1,95 +1,207 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CheckCircle2, Mail, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function VerifyEmail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState("");
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [verified, setVerified] = useState(false);
 
-  useEffect(() => {
-    const verifyEmail = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("token");
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-      if (!token) {
-        setStatus("error");
-        setMessage("Invalid verification link");
-        return;
+    if (!email || !code) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both your email and verification code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (code.length !== 6 || !/^\d+$/.test(code)) {
+      toast({
+        title: "Invalid Code",
+        description: "Please enter a valid 6-digit verification code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const response = await apiRequest("/api/auth/verify-code", {
+        method: "POST",
+        body: JSON.stringify({ email, code }),
+      });
+
+      if (response.token) {
+        localStorage.setItem("auth_token", response.token);
       }
 
-      try {
-        const response = await fetch(`/api/auth/verify-email?token=${token}`);
-        const data = await response.json();
+      setVerified(true);
 
-        if (response.ok) {
-          setStatus("success");
-          setMessage("Email verified successfully! Redirecting to home...");
-          
-          // Store the auth token with correct key
-          if (data.token) {
-            localStorage.setItem("auth_token", data.token);
-          }
+      toast({
+        title: "Email Verified",
+        description: "Your email has been verified successfully. Welcome to SQLGym!",
+      });
 
-          toast({
-            title: "Email Verified",
-            description: "Your email has been verified successfully. Welcome to SQLGym!",
-          });
+      // Redirect to home after 2 seconds
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Invalid or expired verification code",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
-          // Redirect to home after 2 seconds
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 2000);
-        } else {
-          setStatus("error");
-          setMessage(data.detail || "Email verification failed");
-        }
-      } catch (error) {
-        setStatus("error");
-        setMessage("An error occurred during verification");
-        console.error("Email verification error:", error);
-      }
-    };
+  const handleResend = async () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to resend the code",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    verifyEmail();
-  }, [toast]);
+    setIsResending(true);
+
+    try {
+      await apiRequest("/api/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+
+      toast({
+        title: "Code Resent",
+        description: "A new verification code has been sent to your email",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Resend Failed",
+        description: error.message || "Failed to resend verification code",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  if (verified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+        <Card className="w-full max-w-md" data-testid="card-verification-success">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+              <CheckCircle2 className="w-16 h-16 text-green-600" data-testid="icon-success" />
+            </div>
+            <CardTitle className="text-2xl font-bold" data-testid="text-title">
+              Email Verified!
+            </CardTitle>
+            <CardDescription data-testid="text-message">
+              Redirecting to home...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md" data-testid="card-verification">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            {status === "loading" && (
-              <Loader2 className="w-16 h-16 text-purple-600 animate-spin" data-testid="icon-loading" />
-            )}
-            {status === "success" && (
-              <CheckCircle2 className="w-16 h-16 text-green-600" data-testid="icon-success" />
-            )}
-            {status === "error" && (
-              <XCircle className="w-16 h-16 text-red-600" data-testid="icon-error" />
-            )}
+            <Mail className="w-16 h-16 text-purple-600" data-testid="icon-mail" />
           </div>
           <CardTitle className="text-2xl font-bold" data-testid="text-title">
-            {status === "loading" && "Verifying Email..."}
-            {status === "success" && "Email Verified!"}
-            {status === "error" && "Verification Failed"}
+            Verify Your Email
           </CardTitle>
-          <CardDescription data-testid="text-message">{message}</CardDescription>
+          <CardDescription data-testid="text-description">
+            Enter the 6-digit code sent to your email
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-center">
-          {status === "error" && (
+        <CardContent>
+          <form onSubmit={handleVerify} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" data-testid="label-email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                data-testid="input-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="code" data-testid="label-code">Verification Code</Label>
+              <Input
+                id="code"
+                type="text"
+                placeholder="000000"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                maxLength={6}
+                className="text-center text-2xl tracking-widest font-mono"
+                required
+                data-testid="input-code"
+              />
+            </div>
             <Button
-              onClick={() => setLocation("/")}
+              type="submit"
               className="w-full"
-              data-testid="button-back-home"
+              disabled={isVerifying}
+              data-testid="button-verify"
             >
-              Back to Home
+              {isVerifying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Email"
+              )}
             </Button>
-          )}
+          </form>
+          <div className="mt-4 text-center">
+            <Button
+              variant="link"
+              onClick={handleResend}
+              disabled={isResending}
+              data-testid="button-resend"
+            >
+              {isResending ? "Resending..." : "Resend Code"}
+            </Button>
+          </div>
+          <div className="mt-4 text-center">
+            <Button
+              variant="ghost"
+              onClick={() => setLocation("/")}
+              data-testid="button-back"
+            >
+              Back to Login
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
