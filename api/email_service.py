@@ -12,7 +12,9 @@ from .models import User
 # Initialize Resend with API key
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 if not RESEND_API_KEY:
-    raise ValueError("RESEND_API_KEY environment variable is required for email verification")
+    raise ValueError(
+        "RESEND_API_KEY environment variable is required for email verification"
+    )
 
 resend.api_key = RESEND_API_KEY
 
@@ -20,18 +22,21 @@ resend.api_key = RESEND_API_KEY
 FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5000")
 
+
 # Get the appropriate base URL based on environment
 def get_base_url() -> str:
     """Get the base URL for email verification links"""
     # Try Replit domain first
-    replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv('REPLIT_DOMAINS', '').split(',')[0] if os.getenv('REPLIT_DOMAINS') else None
+    replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv(
+        'REPLIT_DOMAINS',
+        '').split(',')[0] if os.getenv('REPLIT_DOMAINS') else None
     if replit_domain:
         return f"https://{replit_domain}"
-    
+
     # Use FRONTEND_URL if set
     if FRONTEND_URL and FRONTEND_URL != "http://localhost:5000":
         return FRONTEND_URL
-    
+
     # Default to localhost
     return "http://localhost:5000"
 
@@ -62,82 +67,118 @@ def send_verification_email(user: User, code: str) -> bool:
     """Send verification email with 6-digit code to the user"""
     try:
         params = {
-            "from": FROM_EMAIL,
+            "from":
+            FROM_EMAIL,
             "to": [user.email],
-            "subject": "Verify your SQLGym account",
-            "html": f"""
+            "subject":
+            "Verify your SQLGym account",
+            "html":
+            f"""
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <style>
-                        body {{
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                            line-height: 1.6;
-                            color: #333;
-                            max-width: 600px;
-                            margin: 0 auto;
-                            padding: 20px;
-                        }}
-                        .container {{
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            padding: 40px;
-                            border-radius: 10px;
-                            color: white;
-                        }}
-                        .content {{
-                            background: white;
-                            color: #333;
-                            padding: 30px;
-                            border-radius: 8px;
-                            margin-top: 20px;
-                        }}
-                        .code-box {{
-                            background: #f5f5f5;
-                            border: 2px solid #667eea;
-                            border-radius: 8px;
-                            padding: 20px;
-                            margin: 30px 0;
-                            text-align: center;
-                        }}
-                        .code {{
-                            font-size: 36px;
-                            font-weight: 700;
-                            letter-spacing: 8px;
-                            color: #667eea;
-                            font-family: 'Courier New', monospace;
-                        }}
-                        .footer {{
-                            margin-top: 30px;
-                            font-size: 12px;
-                            color: #666;
-                            text-align: center;
-                        }}
-                    </style>
+                  <meta charset="UTF-8">
+                  <title>SQLGym Verification Code</title>
+                  <style>
+                    body {
+                      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                      background-color: #f4f6fa;
+                      line-height: 1.6;
+                      color: #333;
+                      margin: 0;
+                      padding: 0;
+                    }
+                    .wrapper {
+                      max-width: 600px;
+                      margin: 40px auto;
+                      padding: 20px;
+                    }
+                    .header {
+                      text-align: center;
+                      background: linear-gradient(135deg, #ff7b00 0%, #ffb347 100%);
+                      padding: 35px 20px;
+                      border-radius: 12px 12px 0 0;
+                      color: #fff;
+                    }
+                    .header h1 {
+                      font-size: 28px;
+                      margin: 0;
+                      font-weight: 700;
+                    }
+                    .content {
+                      background: #fff;
+                      padding: 40px 30px;
+                      border-radius: 0 0 12px 12px;
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                    }
+                    .content h2 {
+                      color: #222;
+                      margin-bottom: 10px;
+                    }
+                    .content p {
+                      color: #555;
+                      font-size: 15px;
+                      margin-top: 8px;
+                    }
+                    .code-box {
+                      background: #fafafa;
+                      border: 2px solid #ff7b00;
+                      border-radius: 8px;
+                      padding: 25px;
+                      text-align: center;
+                      margin: 30px 0;
+                    }
+                    .code {
+                      font-size: 36px;
+                      font-weight: 700;
+                      letter-spacing: 8px;
+                      color: #ff7b00;
+                      font-family: 'Courier New', monospace;
+                    }
+                    .footer {
+                      text-align: center;
+                      font-size: 13px;
+                      color: #777;
+                      margin-top: 25px;
+                    }
+                    .footer a {
+                      color: #ff7b00;
+                      text-decoration: none;
+                      font-weight: 500;
+                    }
+                  </style>
                 </head>
                 <body>
-                    <div class="container">
-                        <h1>🏋️ Welcome to SQLGym!</h1>
-                        <div class="content">
-                            <h2>Hi {user.username},</h2>
-                            <p>Thank you for signing up for SQLGym! To complete your registration and start your SQL learning journey, please enter this verification code:</p>
-                            
-                            <div class="code-box">
-                                <div class="code">{code}</div>
-                            </div>
-                            
-                            <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                                This code will expire in 24 hours. If you didn't create an account with SQLGym, you can safely ignore this email.
-                            </p>
-                        </div>
+                  <div class="wrapper">
+                    <div class="header">
+                      <h1>🏋️ SQLGym Verification</h1>
+                      <p style="font-size:14px;opacity:0.9;">Level up your SQL skills with every rep 💪</p>
                     </div>
+
+                    <div class="content">
+                      <h2>Hi {user.username},</h2>
+                      <p>Thanks for joining <strong>SQLGym</strong>! To complete your registration, please enter the verification code below:</p>
+
+                      <div class="code-box">
+                        <div class="code">{code}</div>
+                      </div>
+
+                      <p style="font-size:14px;">
+                        This code will expire in <strong>24 hours</strong>. If you didn’t create an account, you can safely ignore this message.
+                      </p>
+                    </div>
+
                     <div class="footer">
-                        <p>SQLGym - Level up your SQL skills 💪</p>
+                      <p>Need help? <a href="mailto:support@sqlgym.com">Contact Support</a></p>
+                      <p>&copy; 2025 SQLGym. All rights reserved.</p>
                     </div>
+                  </div>
                 </body>
                 </html>
+
             """
         }
-        
+
         response = resend.Emails.send(params)
         return True
     except Exception as e:
@@ -148,20 +189,21 @@ def send_verification_email(user: User, code: str) -> bool:
 def verify_code(email: str, code: str, db: Session) -> Optional[User]:
     """Verify a 6-digit code and return the user if valid"""
     from .auth import verify_password
-    
+
     user = db.query(User).filter(User.email == email).first()
-    
+
     if not user or not user.verification_token:
         return None
-    
+
     # Check if token is expired
-    if user.verification_token_expires and user.verification_token_expires < datetime.utcnow():
+    if user.verification_token_expires and user.verification_token_expires < datetime.utcnow(
+    ):
         return None
-    
+
     # Verify the code against the hashed version
     if not verify_password(code, user.verification_token):
         return None
-    
+
     return user
 
 
