@@ -130,7 +130,7 @@ export default function Landing() {
           variant: "destructive",
         });
         setIsLoginOpen(false);
-        setLocation("/verify-email");
+        setLocation(`/verify-email?email=${encodeURIComponent(data.email)}`);
       }
     } finally {
       setIsLoading(false);
@@ -152,8 +152,8 @@ export default function Landing() {
         });
         setIsRegisterOpen(false);
         registerForm.reset();
-        // Redirect to verification page
-        setLocation("/verify-email");
+        // Redirect to verification page with email in URL
+        setLocation(`/verify-email?email=${encodeURIComponent(data.email)}`);
       } else {
         // OAuth users get immediate access
         login(response.token, response.user!);

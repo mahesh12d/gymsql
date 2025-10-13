@@ -12,7 +12,10 @@ export default function VerifyEmail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [code, setCode] = useState("");
-  const [email, setEmail] = useState("");
+  // Get email from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const emailFromUrl = urlParams.get("email") || "";
+  const [email, setEmail] = useState(emailFromUrl);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -41,10 +44,8 @@ export default function VerifyEmail() {
     setIsVerifying(true);
 
     try {
-      const response = await apiRequest("/api/auth/verify-code", {
-        method: "POST",
-        body: JSON.stringify({ email, code }),
-      });
+      const res = await apiRequest("POST", "/api/auth/verify-code", { email, code });
+      const response = await res.json();
 
       if (response.token) {
         localStorage.setItem("auth_token", response.token);
@@ -85,10 +86,7 @@ export default function VerifyEmail() {
     setIsResending(true);
 
     try {
-      await apiRequest("/api/auth/resend-verification", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+      await apiRequest("POST", "/api/auth/resend-verification", { email });
 
       toast({
         title: "Code Resent",
@@ -150,6 +148,8 @@ export default function VerifyEmail() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={!!emailFromUrl}
+                className={emailFromUrl ? "bg-muted" : ""}
                 data-testid="input-email"
               />
             </div>
