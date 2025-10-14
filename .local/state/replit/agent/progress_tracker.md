@@ -2,16 +2,16 @@
 
 ## Completed Tasks ✅
 
-[x] 1. Install the required packages
-[x] 2. Build frontend using `npm run build` to create dist/public directory
-[x] 3. Fix Redis Worker workflow to run from correct directory (/home/runner/workspace)
-[x] 4. Restart and verify all workflows are running successfully
-[x] 5. Configure deployment settings for production hosting
-[x] 6. Verify the application is working correctly (screenshot confirmed)
-[x] 7. Complete import and inform user
-[x] 8. Remove Railway integration and update documentation for Google Cloud Run
-[x] 9. Analyze Gemini integration feasibility for AI-powered hints on failed submissions
-[x] 10. Implement Gemini AI-powered hint system for failed SQL submissions
+[x] 1. Install the required Python packages (pip install -r requirements.txt)
+[x] 2. Install the required Node.js packages (npm install)
+[x] 3. Configure Gemini API key for AI-powered hints feature
+[x] 4. Fix Google Cloud Run Dockerfile to properly handle PORT environment variable
+[x] 5. Start and verify application workflows are running successfully
+[x] 6. Verify Redis connection and PostgreSQL database
+[x] 7. Build frontend using `npm run build` for production deployment
+[x] 8. Configure deployment settings for Google Cloud Run
+[x] 9. Remove Railway integration and update documentation
+[x] 10. Complete migration and inform user
 
 ## AI Hint Feature Implementation ✅
 
@@ -46,11 +46,12 @@ Successfully implemented AI-powered hints using Google Gemini for failed SQL sub
 
 ## Application Status 🚀
 
-- **Frontend**: Built and running on port 5000 ✅
-- **Backend API**: Running on port 8000 ✅
-- **Redis Worker**: Running and processing jobs ✅
-- **Database**: PostgreSQL configured ✅
-- **Deployment**: Configured for Google Cloud Run (Docker-based) ✅
+- **Frontend**: Running on port 5000 (Vite dev server) ✅
+- **Backend API**: Running on port 8000 (FastAPI with Uvicorn) ✅
+- **Redis**: Connected successfully (for caching and job queue) ✅
+- **Database**: PostgreSQL configured and connected ✅
+- **Gemini AI**: API key configured for hint system ✅
+- **Deployment**: Dockerfile fixed and ready for Google Cloud Run ✅
 
 ## Email Verification System ✅
 
@@ -116,13 +117,26 @@ The application is now fully migrated and ready to use. You can:
 ### Google Cloud Run Setup
 - **Container**: Docker-based deployment using unified Dockerfile
 - **Build**: `pip install --no-cache-dir -r requirements.txt && npm run build`
-- **Runtime**: FastAPI backend + Redis worker in single container
-- **Port**: 5000 (configurable via PORT env var)
+- **Runtime**: FastAPI backend serving frontend (single container)
+- **Port**: Configured to use PORT environment variable (defaults to 8080)
+- **Fixed Issue**: Changed CMD to shell form for proper environment variable expansion
 - **Health Check**: `/api/health` endpoint
 
-### Required Environment Variables
+### Required Environment Variables for Deployment
 - `DATABASE_URL` - PostgreSQL connection (Cloud SQL)
-- `REDIS_URL` - Redis connection (Memorystore)
+- `REDIS_URL` - Redis connection (Memorystore) - Optional
 - `JWT_SECRET` - JWT authentication secret
 - `ADMIN_SECRET_KEY` - Admin access secret
+- `GEMINI_API_KEY` - Google Gemini API key for AI hints ✅ (Already configured)
 - Optional OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+
+### Deployment Command
+```bash
+# Build and deploy to Google Cloud Run
+gcloud run deploy sqlgym \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars DATABASE_URL=your-database-url,JWT_SECRET=your-jwt-secret,GEMINI_API_KEY=your-gemini-key
+```
