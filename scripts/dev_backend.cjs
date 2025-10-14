@@ -170,7 +170,7 @@ async function startBackend() {
         "--host",
         "localhost",
         "--port",
-        "8080",
+        "8000",
         "--reload",
         "--reload-dir",
         "api",
