@@ -2508,10 +2508,14 @@ def spa_fallback(full_path: str):
     raise HTTPException(status_code=404, detail="Frontend not built")
 
 
+import os
+import uvicorn
+# Assuming 'app' is your FastAPI instance defined elsewhere in the file
+
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.getenv("PORT", 8080))
-    host = "0.0.0.0" if os.getenv("REPL_ID") else "127.0.0.1"
+    host = "0.0.0.0" # Always listen on all interfaces for Cloud Run and similar environments
     uvicorn.run(app, host=host, port=port)
+
 
 #line
