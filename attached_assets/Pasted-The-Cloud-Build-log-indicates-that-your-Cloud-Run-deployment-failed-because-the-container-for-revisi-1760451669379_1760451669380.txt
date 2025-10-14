@@ -1,0 +1,36 @@
+The Cloud Build log indicates that your Cloud Run deployment failed because the container for revision 'gymsql-00002-mgw' did not start and listen on port 8080 within the allotted timeout.
+
+Here's a breakdown of the common reasons for this error and how to troubleshoot it:
+
+Incorrect Port Configuration:
+Application not listening on PORT=8080 : Cloud Run injects the PORT environment variable, which defaults to 8080 , into your container. Your application inside the container must be configured to listen for incoming HTTP requests on this specific port. If your application is hard-coded to listen on a different port (e.g., 3000 or 5000 ), it won't respond to Cloud Run's health checks.
+Application not listening on 0.0.0.0 : Your application should listen on 0.0.0.0 to accept connections from all network interfaces within the container, not just localhost or 127.0.0.1 .
+Dockerfile EXPOSE instruction: While EXPOSE is informational and doesn't directly configure the listening port, ensure it aligns with the port your application is actually listening on. Your Dockerfile indicates EXPOSE 8080 which is correct, but the application code needs to respect the PORT environment variable. Your CMD instruction CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} correctly uses the PORT environment variable.
+Container Startup Timeout:
+Application takes too long to start: If your application has a lengthy initialization process (e.g., loading large datasets, performing complex setup, or database migrations), it might exceed the default Cloud Run startup timeout before it begins listening on the specified port.
+Dependency issues: Problems with installing dependencies or executing startup scripts can also delay the application from starting correctly.
+Troubleshooting Steps:
+
+Review Application Code for Port Listening:
+Verify that your Python FastAPI application ( api.main:app ) is indeed using the PORT environment variable for its listening port. The command python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} looks correct as it defaults to 8080 if PORT isn't set.
+Double-check that there isn't any other part of your application or its configuration that might be overriding or ignoring the PORT environment variable.
+Inspect Container Logs for Your Revision:
+The error message provides a link to the Logs URL: https://console.cloud.google.com/logs/viewer?project=gen-lang-client-0816724031&resource=cloud_run_revision/service_name/gymsql/revision_name/gymsql-00002-mgw&advancedFilter=resource.type%3D%22cloud_run_revision%22%0Aresource.labels.service_name%3D%22gymsql%22%0Aresource.labels.revision_name%3D%22gymsql-00002-mgw%22
+Go to this URL in the Cloud Console to view the logs specifically for the failed revision. Look for any errors or warnings from your application during startup. This is the most crucial step as it will often reveal why your application failed to start or listen on the port. Common issues include:
+Uncaught exceptions during initialization.
+Missing environment variables required by your application.
+Failed database connections or other external service dependencies.
+Increase Cloud Run Startup Timeout:
+If your application takes a long time to initialize, you can increase the startup timeout for your Cloud Run service. You can do this when deploying via gcloud run deploy by adding the --timeout flag (e.g., --timeout=5m for 5 minutes).
+In the Cloud Console:
+Go to the Cloud Run services page.
+Select your gymsql service.
+Click "Edit and deploy new revision".
+Navigate to the "Container(s), Volumes, Networking, Security" tab.
+You should find an option to configure the "Startup probe" or "Container timeout". Increase this value.
+Test the Docker Image Locally:
+Before deploying, you can run the Docker image that Cloud Build created locally to verify its behavior.
+You can find the tagged image name in the Cloud Build logs: europe-west1-docker.pkg.dev/gen-lang-client-0816724031/cloud-run-source-deploy/fastapi/gymsql:9782cc9ad8c3550ed5b93f4e74058c8ee5475707
+Run it with: docker run -p 8080:8080 -e PORT=8080 europe-west1-docker.pkg.dev/gen-lang-client-0816724031/cloud-run-source-deploy/fastapi/gymsql:9782cc9ad8c3550ed5b93f4e74058c8ee5475707
+Then try to access it at http://localhost:8080 . This can help isolate if the issue is with the image itself or the Cloud Run environment.
+The most likely culprit is an issue during your application's startup within the container that prevents it from listening on port 8080. The logs for the specific revision in Cloud Run will provide the most detailed information.
