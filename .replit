@@ -90,10 +90,6 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Redis Worker"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -114,17 +110,6 @@ author = 48238828
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3.11 -m api.redis_worker"
-
-[[workflows.workflow]]
-name = "Redis Worker"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd /home/runner/workspace && python3.11 -m api.redis_worker"
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "javascript_gemini:1.0.0"]
