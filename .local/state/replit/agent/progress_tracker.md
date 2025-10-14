@@ -109,6 +109,7 @@ The application is now fully migrated and ready to use. You can:
 7. **[x] Vercel Serverless Functions Limit**: Added .vercelignore and updated vercel.json to deploy only static frontend (no serverless functions)
 8. **[x] Login CORS Error**: Added custom CORS middleware to automatically allow all Vercel domains (*.vercel.app)
 9. **[x] Railway Integration Removed**: Removed railway.toml and RAILWAY_DEPLOYMENT.md, updated documentation for Google Cloud Run
+10. **[x] Google Cloud Run PORT Issue**: Fixed Dockerfile CMD to use shell form for PORT environment variable expansion (changed from exec form to shell form to support ${PORT:-8080})
 
 ## Deployment Configuration ✅
 

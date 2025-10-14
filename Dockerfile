@@ -26,5 +26,5 @@ RUN npm run build
 # Expose port (Cloud Run uses dynamic PORT env var, defaults to 8080)
 EXPOSE 8080
 
-# Start both backend and Redis worker
-CMD ["python3.11", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
+# Start backend (use shell form to support PORT env var)
+CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}
