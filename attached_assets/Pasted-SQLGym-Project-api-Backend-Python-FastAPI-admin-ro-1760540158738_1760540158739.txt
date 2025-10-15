@@ -1,0 +1,172 @@
+SQLGym Project
+│
+├── 📁 api/                          (Backend - Python/FastAPI)
+│   ├── admin_routes.py
+│   ├── [auth.py](http://auth.py/)
+│   ├── [database.py](http://database.py/)
+│   ├── duckdb_sandbox.py
+│   ├── file_processor.py
+│   ├── [main.py](http://main.py/)                      (Main API entry point)
+│   ├── [models.py](http://models.py/)                    (Database models)
+│   ├── query_validator.py
+│   ├── redis_service.py
+│   ├── redis_worker.py
+│   ├── s3_service.py
+│   ├── sandbox_routes.py
+│   ├── [schemas.py](http://schemas.py/)                   (Pydantic schemas)
+│   ├── secure_execution.py
+│   ├── [seed.py](http://seed.py/)
+│   ├── test_validator.py
+│   ├── user_routes.py
+│   └── 📁 data/
+│       └── demo_problems.json
+│
+├── 📁 attached_assets/              (Static assets)
+│   └── 📁 logos/
+│       ├── airbnb.svg
+│       ├── amazon.svg
+│       ├── apple.svg
+│       ├── google.svg
+│       ├── mcdonald.svg
+│       ├── meta.svg
+│       ├── microsoft.svg
+│       ├── netflix.svg
+│       ├── snapchat.svg
+│       ├── stripe.svg
+│       └── tesla.svg
+│
+├── 📁 client/                       (Frontend - React/TypeScript)
+│   ├── index.html
+│   └── 📁 src/
+│       ├── App.tsx                  (Main App component)
+│       ├── main.tsx                 (Entry point)
+│       ├── index.css                (Global styles)
+│       │
+│       ├── 📁 components/
+│       │   ├── AnimatedFields.css
+│       │   ├── AnswersScreen.tsx
+│       │   ├── CodeEditor.tsx
+│       │   ├── CompanyLogo.tsx
+│       │   ├── DatabaseSelector.tsx
+│       │   ├── DifficultyBadge.tsx
+│       │   ├── EditorHeader.tsx
+│       │   ├── MarkdownRenderer.tsx
+│       │   ├── navbar.tsx
+│       │   ├── OptimizedEditorOutputSplit.tsx
+│       │   ├── OutputPanel.tsx
+│       │   ├── ProblemDescriptionTab.tsx
+│       │   ├── ProblemNavigation.tsx
+│       │   ├── ProblemTabsContent.tsx
+│       │   ├── progress-bar.tsx
+│       │   ├── resizable-splitter.tsx
+│       │   ├── ResultComparisonTable.tsx
+│       │   ├── RichTextEditor.tsx
+│       │   ├── sql-editor.tsx
+│       │   ├── SubmissionHistory.tsx
+│       │   ├── SubmissionResultPanel.tsx
+│       │   ├── table-display.tsx
+│       │   ├── TimerControls.tsx
+│       │   ├── UserProfilePopover.tsx
+│       │   ├── vertical-resizable-splitter.tsx
+│       │   │
+│       │   ├── 📁 admin/
+│       │   │   ├── CreateQuestionTab.tsx
+│       │   │   ├── DataSourceTab.tsx
+│       │   │   ├── EnhancedTablePreview.tsx
+│       │   │   ├── SchemaInfoTab.tsx
+│       │   │   └── SolutionsTab.tsx
+│       │   │
+│       │   └── 📁 ui/               (Shadcn UI components)
+│       │       ├── alert.tsx
+│       │       ├── avatar.tsx
+│       │       ├── badge.tsx
+│       │       ├── button.tsx
+│       │       ├── card.tsx
+│       │       ├── checkbox.tsx
+│       │       ├── dialog.tsx
+│       │       ├── dropdown-menu.tsx
+│       │       ├── form.tsx
+│       │       ├── input.tsx
+│       │       ├── label.tsx
+│       │       ├── popover.tsx
+│       │       ├── progress.tsx
+│       │       ├── scroll-area.tsx
+│       │       ├── select.tsx
+│       │       ├── separator.tsx
+│       │       ├── sheet.tsx
+│       │       ├── skeleton.tsx
+│       │       ├── table.tsx
+│       │       ├── tabs.tsx
+│       │       ├── textarea.tsx
+│       │       ├── toast.tsx
+│       │       ├── toaster.tsx
+│       │       ├── toggle.tsx
+│       │       └── tooltip.tsx
+│       │
+│       ├── 📁 pages/                (Route pages)
+│       │   ├── admin-panel-old.tsx
+│       │   ├── admin-panel.tsx
+│       │   ├── community.tsx
+│       │   ├── home.tsx             (Dashboard)
+│       │   ├── landing.tsx          (Landing page)
+│       │   ├── leaderboard.tsx
+│       │   ├── not-found.tsx
+│       │   ├── problem-detail.tsx
+│       │   ├── problems.tsx
+│       │   ├── profile.tsx
+│       │   └── submissions.tsx
+│       │
+│       ├── 📁 hooks/                (React hooks)
+│       │   ├── use-auth.tsx
+│       │   ├── use-codemirror-config.tsx
+│       │   ├── use-mobile.tsx
+│       │   ├── use-theme.tsx
+│       │   ├── use-timer.tsx
+│       │   └── use-toast.ts
+│       │
+│       ├── 📁 contexts/             (React contexts)
+│       │   └── AdminContext.tsx
+│       │
+│       ├── 📁 data/                 (Data files)
+│       │   └── companyLogos.ts      (Auto-generated)
+│       │
+│       └── 📁 lib/                  (Utilities)
+│           ├── auth.ts
+│           ├── queryClient.ts
+│           └── utils.ts
+│
+├── 📁 scripts/                      (Build & utility scripts)
+│   ├── cleanup_chat_tables.sql
+│   ├── cleanup_unused_database_objects.sql
+│   ├── dev_backend.cjs              (Backend dev server)
+│   ├── generate-logos.js            ✨ (Logo automation)
+│   ├── init_enhanced_schema.py
+│   ├── migrate_database.py
+│   ├── migrate_to_unified_interactions.py
+│   ├── [README.md](http://readme.md/)
+│   ├── requirements.txt
+│   ├── rollback_database_cleanup.sql
+│   └── run_migration.sh
+│
+├── 📁 .github/
+│   └── 📁 workflows/
+│       └── logo-automation.yml      (GitHub Actions workflow)
+│
+├── 📄 Configuration Files
+│   ├── components.json              (Shadcn config)
+│   ├── netlify.toml                 (Netlify deploy)
+│   ├── package.json                 (Node dependencies & scripts)
+│   ├── package-lock.json
+│   ├── postcss.config.js            (PostCSS config)
+│   ├── pyproject.toml               (Python project config)
+│   ├── railway.toml                 (Railway deploy)
+│   ├── requirements.txt             (Python dependencies)
+│   ├── tailwind.config.ts           (Tailwind CSS config)
+│   ├── tsconfig.json                (TypeScript config)
+│   ├── vercel.json                  (Vercel deploy)
+│   └── vite.config.ts               (Vite config)
+│
+└── 📄 Documentation
+├── [replit.md](http://replit.md/)                    (Project memory/docs)
+├── REPLIT_SETUP.md              (Setup instructions)
+└── SECURITY_DEPLOYMENT.md       (Security docs)
