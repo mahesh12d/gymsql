@@ -5,3 +5,4 @@
 [x] 5. Configure deployment for Vercel/Cloudflare + Render split hosting
 [x] 6. Configure deployment for Google Cloud Run backend option
 [x] 7. Fix Cloud Run deployment - removed $COMMIT_SHA variable from cloudbuild.yaml for manual builds
+[x] 8. Replace hardcoded project ID with $PROJECT_ID variable for better portability

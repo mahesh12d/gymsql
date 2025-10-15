@@ -7,7 +7,7 @@ steps:
     args: 
       - 'build'
       - '-t'
-      - 'gcr.io/gymsql/sqlgym-backend:latest'
+      - 'gcr.io/$PROJECT_ID/sqlgym-backend:latest'
       - '-f'
       - 'Dockerfile.cloudrun'
       - '.'
@@ -19,7 +19,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'sqlgym-backend'
-      - '--image=gcr.io/gymsql/sqlgym-backend:latest'
+      - '--image=gcr.io/$PROJECT_ID/sqlgym-backend:latest'
       - '--region=us-central1'
       - '--platform=managed'
       - '--allow-unauthenticated'
@@ -31,7 +31,7 @@ steps:
       - '--concurrency=80'
 
 images:
-  - 'gcr.io/gymsql/sqlgym-backend:latest'
+  - 'gcr.io/$PROJECT_ID/sqlgym-backend:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
