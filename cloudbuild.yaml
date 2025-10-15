@@ -1,0 +1,51 @@
+# Google Cloud Build configuration for SQLGym backend
+# This enables automatic deployments from GitHub
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/sqlgym-backend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/sqlgym-backend:latest'
+      - '-f'
+      - 'Dockerfile.cloudrun'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/sqlgym-backend:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/sqlgym-backend:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'sqlgym-backend'
+      - '--image=gcr.io/$PROJECT_ID/sqlgym-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--timeout=300'
+      - '--max-instances=10'
+      - '--min-instances=0'
+      - '--concurrency=80'
+
+images:
+  - 'gcr.io/$PROJECT_ID/sqlgym-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/sqlgym-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
