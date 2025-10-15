@@ -115,22 +115,23 @@ app = FastAPI(
     lifespan=lifespan_with_scheduler
 )
 
-# Add CORS middleware - Updated for Vercel + Replit deployment
+# Add CORS middleware - Updated for Vercel/Cloudflare + Render deployment
 frontend_origins = [
     "http://localhost:5000", 
     "http://localhost:3000",  # Local React development
 ]
 
-# Add production frontend domains from environment variables
+# Add production frontend domains from environment variables (supports comma-separated list)
 if os.getenv("FRONTEND_URL"):
-    frontend_origins.append(os.getenv("FRONTEND_URL"))
+    urls = os.getenv("FRONTEND_URL").split(",")
+    frontend_origins.extend([url.strip() for url in urls if url.strip()])
 
-# Vercel deployment support - Allow all Vercel preview and production URLs
+# Vercel deployment support
 vercel_url = os.getenv("VERCEL_URL")
 if vercel_url:
     frontend_origins.append(f"https://{vercel_url}")
 
-# In production, use environment variable or specific domain
+# Replit deployment support
 if os.getenv("REPL_ID"):
     repl_id = os.getenv("REPL_ID")
     username = os.getenv("REPL_OWNER", "user")
@@ -139,13 +140,15 @@ if os.getenv("REPL_ID"):
         f"https://{repl_id}.{username}.replit.dev"
     ])
 
-# Allow all Vercel domains (*.vercel.app)
+# Allow Vercel and Cloudflare preview/production domains dynamically
 import re
-def check_vercel_origin(origin: str) -> bool:
-    """Check if origin is from Vercel"""
-    return bool(re.match(r'^https://.*\.vercel\.app$', origin))
+def check_deployment_origin(origin: str) -> bool:
+    """Check if origin is from Vercel or Cloudflare Pages"""
+    vercel_pattern = r'^https://.*\.vercel\.app$'
+    cloudflare_pattern = r'^https://.*\.pages\.dev$'
+    return bool(re.match(vercel_pattern, origin) or re.match(cloudflare_pattern, origin))
 
-# Custom CORS middleware that allows Vercel domains dynamically
+# Custom CORS middleware for dynamic origin validation
 from starlette.middleware.cors import CORSMiddleware as StarletteCorsMW
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -155,8 +158,8 @@ class CustomCORSMiddleware(StarletteCorsMW):
             headers = dict(scope.get("headers", []))
             origin = headers.get(b"origin", b"").decode("utf-8")
             
-            # Add Vercel origins dynamically
-            if origin and check_vercel_origin(origin) and origin not in self.allow_origins:
+            # Add Vercel/Cloudflare origins dynamically
+            if origin and check_deployment_origin(origin) and origin not in self.allow_origins:
                 self.allow_origins.append(origin)
         
         await super().__call__(scope, receive, send)
