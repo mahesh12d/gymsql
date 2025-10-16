@@ -18,3 +18,4 @@
 [x] 18. Create comprehensive environment configuration documentation (ENVIRONMENT_CONFIGURATION.md)
 [x] 19. Update .gitignore to exclude actual environment files
 [x] 20. Update replit.md with multi-stage deployment pipeline documentation
+[x] 21. Explain three-stage deployment pipeline to user
