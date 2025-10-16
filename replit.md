@@ -99,6 +99,7 @@ All configuration is managed through `api/config.py`, which provides:
 - Environment-specific settings
 - Configuration validation on startup
 - Security-first approach with required secrets
+- **Additive .env file loading**: Files are loaded in priority order (.env → .env.{env} → .env.local) to support base configurations, environment-specific settings, and local overrides
 
 #### Environment Templates
 Environment-specific templates are provided:
@@ -112,6 +113,17 @@ cp .env.dev.template .env.dev  # For development
 cp .env.uat.template .env.uat  # For UAT
 cp .env.prod.template .env.prod  # For production
 ```
+
+#### Additive Environment File Loading
+The configuration system loads `.env` files additively in priority order:
+1. **`.env`** - Base configuration (lowest priority)
+2. **`.env.{dev|uat|prod}`** - Environment-specific configuration (overrides base)
+3. **`.env.local`** - Local overrides (highest priority)
+
+This allows developers to:
+- Use `.env.dev` as their primary configuration
+- Override specific values with `.env.local` without recreating the entire configuration
+- Share base configuration across environments with `.env`
 
 #### Required Environment Variables (All Environments)
 Critical variables that must be set:
