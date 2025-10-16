@@ -1,0 +1,115 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  CLOUD_RUN_SERVICE: sqlgym-backend-prod
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Cloud Run (Production)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:${{ github.sha }} \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:latest \
+            -f Dockerfile.prod \
+            .
+
+      - name: Push Docker image to GCR
+        run: |
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:${{ github.sha }}
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image=gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=2Gi \
+            --cpu=2 \
+            --timeout=300 \
+            --max-instances=20 \
+            --min-instances=1 \
+            --concurrency=80 \
+            --set-env-vars=ENV=prod
+
+      - name: Get Cloud Run URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+          echo "backend_url=$URL" >> $GITHUB_OUTPUT
+
+    outputs:
+      backend_url: ${{ steps.get-url.outputs.backend_url }}
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel (Production)
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        env:
+          VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel Production
+        run: |
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+          cat deployment-url.txt
+
+      - name: Comment deployment URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const url = fs.readFileSync('deployment-url.txt', 'utf8').trim();
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `🎉 **Production Deployment Successful!**\n\n**Backend:** ${{ needs.deploy-backend.outputs.backend_url }}\n**Frontend:** ${url}`
+            });
