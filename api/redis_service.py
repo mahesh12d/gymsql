@@ -8,13 +8,14 @@ import time
 from typing import Optional, Dict, List, Any, TYPE_CHECKING
 from datetime import datetime, timedelta
 import uuid
+from .config import Config
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 class RedisService:
     def __init__(self):
-        redis_url = os.getenv('REDIS_URL')
+        redis_url = Config.REDIS_URL
         if not redis_url:
             self.client = None
             print("⚠️  REDIS_URL not configured - Redis features disabled")
@@ -24,9 +25,9 @@ class RedisService:
             self.client = redis.from_url(
                 redis_url,
                 decode_responses=True,
-                socket_connect_timeout=5,
+                socket_connect_timeout=Config.REDIS_SOCKET_TIMEOUT,
                 socket_keepalive=True,
-                health_check_interval=30
+                health_check_interval=Config.REDIS_HEALTH_CHECK_INTERVAL
             )
             self.client.ping()
             print("✅ Redis connected successfully")

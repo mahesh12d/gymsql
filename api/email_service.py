@@ -8,36 +8,33 @@ from typing import Optional
 import resend
 from sqlalchemy.orm import Session
 from .models import User
+from .config import Config
 
-# Initialize Resend with API key
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-if not RESEND_API_KEY:
-    raise ValueError(
-        "RESEND_API_KEY environment variable is required for email verification"
-    )
+# Initialize Resend with API key from configuration
+if Config.RESEND_API_KEY:
+    resend.api_key = Config.RESEND_API_KEY
+else:
+    print("⚠️  RESEND_API_KEY not configured - email features will be disabled")
 
-resend.api_key = RESEND_API_KEY
-
-# Email configuration
-FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5000")
+# Email configuration from centralized config
+FROM_EMAIL = Config.FROM_EMAIL
 
 
 # Get the appropriate base URL based on environment
 def get_base_url() -> str:
     """Get the base URL for email verification links"""
-    # Try Replit domain first
+    # Use first frontend URL if available
+    if Config.FRONTEND_URLS:
+        return Config.FRONTEND_URLS[0]
+    
+    # Try Replit domain
     replit_domain = os.getenv('REPLIT_DEV_DOMAIN') or os.getenv(
         'REPLIT_DOMAINS',
         '').split(',')[0] if os.getenv('REPLIT_DOMAINS') else None
     if replit_domain:
         return f"https://{replit_domain}"
 
-    # Use FRONTEND_URL if set
-    if FRONTEND_URL and FRONTEND_URL != "http://localhost:5000":
-        return FRONTEND_URL
-
-    # Default to localhost
+    # Default to localhost for local development
     return "http://localhost:5000"
 
 
@@ -65,6 +62,10 @@ def create_verification_code(user: User, db: Session) -> str:
 
 def send_verification_email(user: User, code: str) -> bool:
     """Send verification email with 6-digit code to the user"""
+    if not Config.RESEND_API_KEY:
+        print("⚠️  Email sending skipped - RESEND_API_KEY not configured")
+        return False
+    
     try:
         params = {
             "from":

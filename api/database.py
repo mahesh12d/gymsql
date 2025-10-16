@@ -8,36 +8,23 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import JSONB
 from .models import Base
+from .config import Config
 
-# Load environment variables from .env file
+# Load environment variables from .env file (for local development)
 load_dotenv()
 
-# Database URL from environment variable (preferred for production)
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Use centralized configuration for database connection
+DATABASE_URL = Config.DATABASE_URL
 
-# Only fallback to .env file in development if environment variable doesn't exist
-if not DATABASE_URL and os.getenv("NODE_ENV", "development") == "development":
-    from pathlib import Path
-    env_file = Path(".env")
-    if env_file.exists():
-        with open(env_file, 'r') as f:
-            for line in f:
-                if line.strip().startswith('DATABASE_URL=') and not line.strip().startswith('#'):
-                    DATABASE_URL = line.strip().split('=', 1)[1]
-                    break
-
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
-
-# Create engine with proper SSL and connection pooling
+# Create engine with environment-specific connection pooling
 engine = create_engine(
     DATABASE_URL,
-    pool_size=20,        # Increase pool size for concurrent requests
-    pool_pre_ping=True,  # Verify connections before use
-    pool_recycle=300,    # Recycle connections every 5 minutes
-    pool_timeout=30,     # Timeout for getting connection from pool
-    max_overflow=10,     # Allow 10 additional connections beyond pool size
-    echo=False          # Set to True for SQL logging if needed
+    pool_size=Config.DB_POOL_SIZE,
+    pool_pre_ping=True,
+    pool_recycle=Config.DB_POOL_RECYCLE,
+    pool_timeout=Config.DB_POOL_TIMEOUT,
+    max_overflow=Config.DB_MAX_OVERFLOW,
+    echo=Config.ENABLE_SQL_LOGGING
 )
 
 def parse_tabular_data(tabular_string: str) -> list:

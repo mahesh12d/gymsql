@@ -24,15 +24,18 @@ except ImportError:
     PANDAS_AVAILABLE = False
     logger.warning("pandas not available - CSV and Parquet parsing will be limited")
 
-# Configuration from environment with defaults
-MAX_FILE_SIZE_MB = int(os.getenv('S3_MAX_FILE_SIZE_MB', '5'))  # Maximum file size in MB
-MAX_ROWS = int(os.getenv('S3_MAX_ROWS', '1000'))  # Maximum number of rows to parse
-MAX_CACHE_ENTRIES = int(os.getenv('S3_MAX_CACHE_ENTRIES', '1000'))  # Maximum cache entries
+# Import centralized configuration
+from .config import Config
+
+# Configuration from centralized config module
+MAX_FILE_SIZE_MB = Config.S3_MAX_FILE_SIZE_MB
+MAX_ROWS = Config.S3_MAX_ROWS
+MAX_CACHE_ENTRIES = Config.S3_MAX_CACHE_ENTRIES
 
 # Dataset-specific configuration
-S3_DATASET_MAX_FILE_SIZE_MB = int(os.getenv('S3_DATASET_MAX_FILE_SIZE_MB', '100'))  # Max dataset file size
-S3_DATASET_MAX_ROWS = int(os.getenv('S3_DATASET_MAX_ROWS', '1000000'))  # Max dataset rows
-S3_ALLOWED_BUCKETS = [bucket.strip().lower() for bucket in os.getenv('S3_ALLOWED_BUCKETS', 'sql-learning-datasets,sql-learning-answers,sqlplatform-datasets,sqlplatform-answers').split(',')]
+S3_DATASET_MAX_FILE_SIZE_MB = Config.S3_DATASET_MAX_FILE_SIZE_MB
+S3_DATASET_MAX_ROWS = Config.S3_DATASET_MAX_ROWS
+S3_ALLOWED_BUCKETS = Config.S3_ALLOWED_BUCKETS
 
 class CacheResult:
     """Structured result for cached file operations"""
@@ -57,9 +60,14 @@ class S3AnswerService:
         """Lazy initialization of S3 client"""
         if self._s3_client is None:
             try:
-                # Initialize S3 client - uses AWS credentials from environment
-                self._s3_client = boto3.client('s3')
-                logger.info("S3 client created successfully")
+                # Initialize S3 client with configuration
+                self._s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+                    region_name=Config.AWS_REGION
+                )
+                logger.info(f"S3 client created successfully (Region: {Config.AWS_REGION})")
             except NoCredentialsError:
                 logger.error("AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY")
                 raise

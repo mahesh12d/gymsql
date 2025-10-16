@@ -14,10 +14,10 @@ The frontend is built with React and TypeScript using Vite. It utilizes `shadcn/
 The backend is a RESTful API developed with FastAPI and Python. It uses SQLAlchemy ORM with Pydantic for type safety. Authentication is managed via JWT tokens and bcrypt for password hashing. Middleware handles CORS, request logging, and error management.
 
 ### Database
-PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used for result caching (10 min TTL) and high-performance sorted-set leaderboards. The database connection pool is configured with `pool_size=20` and `max_overflow=10`. A 6-month data retention policy is implemented for `execution_results` to prevent unbounded database growth.
+PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used for result caching (10 min TTL) and high-performance sorted-set leaderboards. Database connection pool settings are environment-specific and configured via environment variables (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`, `DB_POOL_RECYCLE`). A 6-month data retention policy is implemented for `execution_results` to prevent unbounded database growth.
 
 ### Authentication System
-Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials are managed via Replit Secrets. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
+Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials and all secrets are managed via environment variables with environment-specific configuration. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
 
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.
@@ -83,33 +83,113 @@ Two workflows must run simultaneously:
 
 ## Deployment
 
-### Google Cloud Run Deployment
-The application is configured for deployment on Google Cloud Run with the following setup:
+### Multi-Stage Deployment Pipeline
+The application now supports a three-stage deployment pipeline with environment-based configuration:
+- **Development (dev)**: Local development and testing
+- **UAT/Staging (uat)**: User acceptance testing and staging
+- **Production (prod)**: Production deployment
 
-#### Build Process
+**All configuration is managed through environment variables** - no hardcoded values for enhanced security and multi-environment support.
+
+### Configuration Management
+
+#### Centralized Configuration
+All configuration is managed through `api/config.py`, which provides:
+- Environment detection (dev, UAT, prod, local)
+- Environment-specific settings
+- Configuration validation on startup
+- Security-first approach with required secrets
+
+#### Environment Templates
+Environment-specific templates are provided:
+- `.env.dev.template` - Development configuration
+- `.env.uat.template` - UAT/staging configuration
+- `.env.prod.template` - Production configuration
+
+Copy the appropriate template and fill in actual values:
 ```bash
-pip install --no-cache-dir -r requirements.txt && npm run build
+cp .env.dev.template .env.dev  # For development
+cp .env.uat.template .env.uat  # For UAT
+cp .env.prod.template .env.prod  # For production
 ```
 
-#### Docker Configuration
-- **Dockerfile**: Unified container that installs Node.js 20 and Python 3.11
-- **Build Step**: Installs dependencies and builds React frontend
-- **Runtime**: Runs FastAPI backend and Redis worker in same container
-- **Port**: Configured to use PORT environment variable (defaults to 5000)
-
-#### Required Environment Variables
+#### Required Environment Variables (All Environments)
+Critical variables that must be set:
+- `ENV` - Deployment environment (`dev`, `uat`, or `prod`)
 - `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string
-- `JWT_SECRET` - JWT authentication secret
-- `ADMIN_SECRET_KEY` - Admin access secret
-- `GEMINI_API_KEY` - Google Gemini API key for AI hints feature
-- Optional OAuth credentials: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+- `JWT_SECRET` - JWT authentication secret (use strong random value)
+- `ADMIN_SECRET_KEY` - Admin access secret (use strong random value)
 
-#### Deployment Files
-- `Dockerfile` - Unified container configuration for Cloud Run
+#### AWS S3 Configuration (Required if using S3 features)
+- `AWS_ACCESS_KEY_ID` - AWS access key
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key
+- `AWS_REGION` - AWS region (e.g., `us-east-1`)
+- `S3_ALLOWED_BUCKETS` - Comma-separated list of allowed buckets (environment-specific)
 
-#### Cloud Run Deployment Steps
-1. Build and push Docker image to Google Container Registry or Artifact Registry
-2. Deploy to Cloud Run with required environment variables
-3. Configure Cloud SQL (PostgreSQL) and Redis instances
-4. Set up health check endpoint: `/api/health`
+#### Optional Features
+- `REDIS_URL` - Redis connection string (caching and rate limiting)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
+- `RESEND_API_KEY` - Email verification service
+- `GEMINI_API_KEY` - AI-powered hints
+- `FRONTEND_URLS` - Comma-separated list of allowed frontend URLs
+
+See `ENVIRONMENT_CONFIGURATION.md` for complete configuration guide.
+
+### Google Cloud Run Deployment
+
+#### Environment-Specific Dockerfiles
+- `Dockerfile.dev` - Development (hot reload enabled)
+- `Dockerfile.uat` - UAT/staging (2 workers)
+- `Dockerfile.prod` - Production (4 workers, optimized)
+
+#### Environment-Specific Cloud Build Configurations
+- `cloudbuild.dev.yaml` - Dev deployment (512Mi RAM, 3 max instances)
+- `cloudbuild.uat.yaml` - UAT deployment (1Gi RAM, 5 max instances)
+- `cloudbuild.prod.yaml` - Prod deployment (2Gi RAM, 2 CPU, 20 max instances)
+
+#### Deployment Commands
+
+**Development:**
+```bash
+gcloud builds submit --config=cloudbuild.dev.yaml
+```
+
+**UAT/Staging:**
+```bash
+gcloud builds submit --config=cloudbuild.uat.yaml
+```
+
+**Production:**
+```bash
+gcloud builds submit --config=cloudbuild.prod.yaml
+```
+
+#### Setting Environment Variables
+After deployment, configure environment variables in Cloud Run:
+
+```bash
+# Example: Configure dev environment
+gcloud run services update sqlgym-backend-dev \
+  --region=us-central1 \
+  --set-env-vars="ENV=dev,DATABASE_URL=postgresql://...,JWT_SECRET=..." \
+  --set-env-vars="AWS_ACCESS_KEY_ID=...,AWS_SECRET_ACCESS_KEY=..." \
+  --set-env-vars="S3_ALLOWED_BUCKETS=bucket1,bucket2"
+```
+
+Or use an environment file:
+```bash
+gcloud run services update sqlgym-backend-dev \
+  --region=us-central1 \
+  --env-vars-file=env.dev.yaml
+```
+
+### Security Features
+- **No Hardcoded Values**: All configuration via environment variables
+- **Environment-Specific Secrets**: Different secrets for dev, UAT, and prod
+- **Bucket Allowlisting**: S3 bucket access restricted to configured buckets
+- **CORS Protection**: Environment-specific frontend URL allowlisting
+- **Configuration Validation**: Startup validation ensures required variables are set
+
+### Health Check
+All environments expose a health check endpoint: `/api/health`

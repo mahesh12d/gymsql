@@ -115,30 +115,11 @@ app = FastAPI(
     lifespan=lifespan_with_scheduler
 )
 
-# Add CORS middleware - Updated for Vercel/Cloudflare + Render deployment
-frontend_origins = [
-    "http://localhost:5000", 
-    "http://localhost:3000",  # Local React development
-]
+# Import centralized configuration
+from .config import Config
 
-# Add production frontend domains from environment variables (supports comma-separated list)
-if os.getenv("FRONTEND_URL"):
-    urls = os.getenv("FRONTEND_URL").split(",")
-    frontend_origins.extend([url.strip() for url in urls if url.strip()])
-
-# Vercel deployment support
-vercel_url = os.getenv("VERCEL_URL")
-if vercel_url:
-    frontend_origins.append(f"https://{vercel_url}")
-
-# Replit deployment support
-if os.getenv("REPL_ID"):
-    repl_id = os.getenv("REPL_ID")
-    username = os.getenv("REPL_OWNER", "user")
-    frontend_origins.extend([
-        f"https://{repl_id}--{username}.replit.app",
-        f"https://{repl_id}.{username}.replit.dev"
-    ])
+# Get CORS origins from centralized configuration
+frontend_origins = Config.get_cors_origins()
 
 # Allow Vercel and Cloudflare preview/production domains dynamically
 import re
@@ -194,7 +175,7 @@ async def unicode_decode_error_handler(request, exc: UnicodeDecodeError):
 from starlette.middleware.sessions import SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("JWT_SECRET", os.urandom(32).hex())
+    secret_key=Config.JWT_SECRET
 )
 
 # Include routers
