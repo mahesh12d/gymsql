@@ -196,6 +196,38 @@ gcloud run services update sqlgym-backend-dev \
   --env-vars-file=env.dev.yaml
 ```
 
+### GitHub Actions CI/CD Pipeline (Recommended)
+
+The project includes automated deployment workflows using GitHub Actions:
+
+#### Branch-Based Deployment Strategy
+- **`develop` branch** → Automatically deploys to Development environment
+- **`staging` branch** → Automatically deploys to UAT/Staging environment  
+- **`main` branch** → Automatically deploys to Production environment
+
+#### Automated Workflow
+1. Push code to a branch
+2. GitHub Actions automatically builds and deploys backend to Cloud Run
+3. GitHub Actions automatically builds and deploys frontend to Vercel
+4. Deployment URLs are posted as commit comments
+
+#### Setup Requirements
+Configure the following secrets in your GitHub repository:
+- `GCP_SERVICE_ACCOUNT_KEY` - Service account JSON for Cloud Run deployment
+- `GCP_PROJECT_ID` - Google Cloud Project ID
+- `VERCEL_TOKEN` - Vercel deployment token
+- `VERCEL_ORG_ID` - Vercel organization ID
+- `VERCEL_PROJECT_ID` - Vercel project ID
+
+See `GITHUB_ACTIONS_SETUP.md` for complete setup instructions.
+
+#### Benefits Over Manual Deployment
+- ✅ Fully automated - no manual commands needed
+- ✅ Branch-based deployment strategy
+- ✅ Deployment history and logs in GitHub UI
+- ✅ Works for entire team without local setup
+- ✅ Automatic deployment URLs in commit comments
+
 ### Security Features
 - **No Hardcoded Values**: All configuration via environment variables
 - **Environment-Specific Secrets**: Different secrets for dev, UAT, and prod
