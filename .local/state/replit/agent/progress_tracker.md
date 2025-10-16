@@ -19,9 +19,10 @@
 [x] 19. Update .gitignore to exclude actual environment files
 [x] 20. Update replit.md with multi-stage deployment pipeline documentation
 [x] 21. Explain three-stage deployment pipeline to user
-[x] 22. Create GitHub Actions workflow for development environment (develop branch → dev)
+[x] 22. Create GitHub Actions workflow for development environment (main branch → dev)
 [x] 23. Create GitHub Actions workflow for UAT environment (staging branch → uat)
-[x] 24. Create GitHub Actions workflow for production environment (main branch → prod)
+[x] 24. Create GitHub Actions workflow for production environment (production branch → prod)
 [x] 25. Create comprehensive GitHub Actions setup documentation (GITHUB_ACTIONS_SETUP.md)
 [x] 26. Set up automated CI/CD pipeline configuration
 [x] 27. Create setup checklist and quick start guide for user
+[x] 28. Simplify branch strategy - use main as dev branch, production as prod branch
