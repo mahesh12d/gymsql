@@ -1,0 +1,421 @@
+// ============================================================================
+// SQL Learning Platform - Database Schema in DBML
+// ============================================================================
+// This DBML file can be used with dbdiagram.io to visualize the database
+// Copy and paste this content into https://dbdiagram.io/d to see the diagram
+// ============================================================================
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+Enum difficulty_level {
+  BEGINNER
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+Enum execution_status {
+  SUCCESS
+  ERROR
+  TIMEOUT
+  MEMORY_LIMIT
+}
+
+Enum sandbox_status {
+  ACTIVE
+  EXPIRED
+  CLEANUP_PENDING
+}
+
+Enum auth_provider_type {
+  email
+  google
+  github
+  linkedin
+}
+
+Enum badge_rarity {
+  common
+  rare
+  epic
+  legendary
+}
+
+// ============================================================================
+// CORE USER & AUTHENTICATION TABLES
+// ============================================================================
+
+Table users {
+  id varchar [pk, note: 'UUID']
+  username varchar(50) [unique, not null]
+  email varchar(255) [unique, not null]
+  password_hash text
+  first_name varchar(50)
+  last_name varchar(50)
+  company_name varchar(100)
+  linkedin_url text
+  profile_image_url text
+  google_id varchar(255) [unique]
+  auth_provider varchar(20) [not null, default: 'email']
+  problems_solved integer [not null, default: 0]
+  premium boolean [not null, default: false]
+  is_admin boolean [not null, default: false]
+  email_verified boolean [not null, default: false]
+  verification_token varchar(255)
+  verification_token_expires timestamp
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  Note: 'Core user accounts with authentication and profile information'
+}
+
+Table followers {
+  id varchar [pk, note: 'UUID']
+  follower_id varchar [not null, ref: > users.id]
+  following_id varchar [not null, ref: > users.id]
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (follower_id, following_id) [unique, name: 'uq_follower_following']
+    follower_id [name: 'idx_followers_follower_id']
+    following_id [name: 'idx_followers_following_id']
+  }
+  
+  Note: 'User following relationships for social features'
+}
+
+// ============================================================================
+// CACHE & QUEUE TABLES
+// ============================================================================
+
+Table cache_entries {
+  id varchar [pk, note: 'UUID']
+  cache_key varchar(500) [not null]
+  namespace varchar(100) [not null, default: 'result']
+  data jsonb [not null]
+  expires_at timestamp [not null]
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (cache_key, namespace) [unique, name: 'uq_cache_key_namespace']
+    (cache_key, namespace) [name: 'idx_cache_key_namespace']
+    expires_at [name: 'idx_cache_expires_at']
+  }
+  
+  Note: 'PostgreSQL fallback cache when Redis is unavailable'
+}
+
+Table fallback_submissions {
+  id varchar [pk, note: 'UUID']
+  job_id varchar(100) [unique, not null]
+  data jsonb [not null]
+  status varchar(20) [not null, default: 'pending']
+  created_at timestamp [not null, default: `now()`]
+  processed_at timestamp
+  
+  indexes {
+    status [name: 'idx_fallback_status']
+    created_at [name: 'idx_fallback_created_at']
+  }
+  
+  Note: 'PostgreSQL fallback queue for submissions when Redis is unavailable'
+}
+
+// ============================================================================
+// PROBLEM & LEARNING CONTENT TABLES
+// ============================================================================
+
+Table topics {
+  id varchar [pk, note: 'UUID']
+  name varchar(100) [unique, not null]
+  description text
+  difficulty_level difficulty_level [not null]
+  order_index integer [default: 0]
+  parent_topic_id varchar [ref: > topics.id]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  Note: 'SQL topics/categories to organize problems by concepts'
+}
+
+Table problems {
+  id varchar [pk, note: 'UUID']
+  title varchar(200) [not null]
+  difficulty varchar(20) [not null]
+  tags json [not null, default: '[]']
+  company varchar(100)
+  hints json [not null, default: '[]']
+  question jsonb [not null, note: 'description, tables, expectedOutput']
+  s3_data_source jsonb [note: 'Single S3 dataset - legacy']
+  s3_datasets jsonb [note: 'Array of multiple S3 datasets']
+  premium boolean [default: null]
+  master_solution jsonb [note: 'Definitive expected output for validation']
+  expected_display jsonb [note: 'Expected output shown to users']
+  expected_hash varchar [note: 'MD5 hash for fast validation']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  topic_id varchar [ref: > topics.id]
+  
+  indexes {
+    difficulty [name: 'idx_problems_difficulty']
+    company [name: 'idx_problems_company']
+    topic_id [name: 'idx_problems_topic_id']
+    created_at [name: 'idx_problems_created_at']
+  }
+  
+  Note: 'SQL problems with questions, datasets, and solutions'
+}
+
+Table test_cases {
+  id varchar [pk, note: 'UUID']
+  problem_id varchar [not null, ref: > problems.id]
+  name varchar(200) [not null]
+  description text
+  input_data jsonb [not null]
+  expected_output jsonb [not null]
+  validation_rules jsonb [default: '{}']
+  is_hidden boolean [default: false]
+  order_index integer [default: 0]
+  timeout_seconds integer [default: 30]
+  memory_limit_mb integer [default: 256]
+  expected_output_source jsonb [note: 'S3 bucket, key, format, etag for full dataset']
+  preview_expected_output jsonb [note: 'Limited rows for frontend display']
+  display_limit integer [default: 10]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (problem_id, name) [unique, name: 'uq_test_cases_problem_name']
+  }
+  
+  Note: 'Test cases for problems with input data and expected outputs'
+}
+
+Table solutions {
+  id varchar [pk, note: 'UUID']
+  problem_id varchar [not null, ref: > problems.id]
+  created_by varchar [not null, ref: > users.id]
+  title varchar(200) [not null]
+  content text [not null]
+  sql_code text [not null]
+  is_official boolean [not null, default: true]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    problem_id [name: 'idx_solutions_problem_id']
+    created_by [name: 'idx_solutions_created_by']
+    created_at [name: 'idx_solutions_created_at']
+  }
+  
+  Note: 'Official solutions for problems posted by admins'
+}
+
+// ============================================================================
+// SUBMISSION & EXECUTION TABLES
+// ============================================================================
+
+Table submissions {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  problem_id varchar [not null, ref: > problems.id]
+  query text [not null]
+  is_correct boolean [not null]
+  execution_time integer [note: 'in milliseconds']
+  submitted_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    user_id [name: 'idx_submissions_user_id']
+    problem_id [name: 'idx_submissions_problem_id']
+    submitted_at [name: 'idx_submissions_submitted_at']
+    is_correct [name: 'idx_submissions_is_correct']
+  }
+  
+  Note: 'User SQL query submissions'
+}
+
+Table execution_results {
+  id varchar [pk, note: 'UUID']
+  submission_id varchar [not null, ref: > submissions.id]
+  test_case_id varchar [not null, ref: > test_cases.id]
+  status execution_status [not null]
+  execution_time_ms integer
+  memory_used_mb float
+  rows_affected integer
+  query_result jsonb
+  error_message text
+  is_correct boolean [not null]
+  validation_details jsonb
+  created_at timestamp [not null, default: `now()`]
+  
+  Note: 'Detailed query execution results per test case'
+}
+
+// ============================================================================
+// COMMUNITY & SOCIAL FEATURES
+// ============================================================================
+
+Table community_posts {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  problem_id varchar [ref: > problems.id]
+  content text [not null]
+  code_snippet text
+  likes integer [not null, default: 0]
+  comments integer [not null, default: 0]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  Note: 'Community discussion posts, can be problem-specific or general'
+}
+
+Table post_likes {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  post_id varchar [not null, ref: > community_posts.id]
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (user_id, post_id) [unique, name: 'uq_post_likes_user_post']
+  }
+  
+  Note: 'Likes on community posts'
+}
+
+Table post_comments {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  post_id varchar [not null, ref: > community_posts.id]
+  parent_id varchar [ref: > post_comments.id]
+  content text [not null]
+  created_at timestamp [not null, default: `now()`]
+  
+  Note: 'Comments on community posts, supports nested replies'
+}
+
+Table helpful_links {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  title varchar(200) [not null]
+  url text [not null]
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    created_at [name: 'idx_helpful_links_created_at']
+    user_id [name: 'idx_helpful_links_user_id']
+  }
+  
+  Note: 'Helpful links shared by premium users for the community'
+}
+
+// ============================================================================
+// GAMIFICATION & ACHIEVEMENTS
+// ============================================================================
+
+Table badges {
+  id varchar [pk, note: 'UUID']
+  name varchar(100) [unique, not null]
+  description text [not null]
+  icon_url text
+  criteria jsonb [not null]
+  points_reward integer [default: 0]
+  rarity badge_rarity [default: 'common']
+  created_at timestamp [not null, default: `now()`]
+  
+  Note: 'Achievement badges for user motivation'
+}
+
+Table user_badges {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  badge_id varchar [not null, ref: > badges.id]
+  earned_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (user_id, badge_id) [unique, name: 'uq_user_badges_user_badge']
+  }
+  
+  Note: 'Junction table for user-earned badges'
+}
+
+// ============================================================================
+// USER INTERACTIONS & TRACKING
+// ============================================================================
+
+Table problem_interactions {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  problem_id varchar [not null, ref: > problems.id]
+  bookmark boolean [not null, default: false]
+  upvote boolean [not null, default: false]
+  downvote boolean [not null, default: false]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (user_id, problem_id) [unique, name: 'uq_problem_interactions_user_problem']
+  }
+  
+  Note: 'Unified user interactions for problems (bookmark, upvote, downvote)'
+}
+
+Table problem_sessions {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, ref: > users.id]
+  problem_id varchar [not null, ref: > problems.id]
+  first_query_at timestamp
+  completed_at timestamp
+  total_time_spent_seconds integer
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    (user_id, problem_id) [name: 'idx_problem_sessions_user_problem']
+    completed_at [name: 'idx_problem_sessions_completed_at']
+  }
+  
+  Note: 'Track user engagement timing for problems'
+}
+
+// ============================================================================
+// TABLE GROUPS FOR ORGANIZATION
+// ============================================================================
+
+TableGroup core_system {
+  users
+  followers
+  cache_entries
+  fallback_submissions
+}
+
+TableGroup learning_content {
+  topics
+  problems
+  test_cases
+  solutions
+}
+
+TableGroup execution_engine {
+  submissions
+  execution_results
+}
+
+TableGroup community {
+  community_posts
+  post_likes
+  post_comments
+  helpful_links
+}
+
+TableGroup gamification {
+  badges
+  user_badges
+}
+
+TableGroup user_tracking {
+  problem_interactions
+  problem_sessions
+}
