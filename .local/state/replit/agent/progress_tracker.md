@@ -8,3 +8,4 @@
 [x] 8. Created comprehensive Docker deployment documentation (DOCKER_DEPLOYMENT.md)
 [x] 9. Updated replit.md with new Docker-only deployment strategy
 [x] 10. All configuration now managed via environment variables injected at runtime
+[x] 11. Fixed Vite build configuration - added explicit rollupOptions.input for Docker builds
