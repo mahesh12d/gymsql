@@ -9,3 +9,6 @@
 [x] 9. Updated replit.md with new Docker-only deployment strategy
 [x] 10. All configuration now managed via environment variables injected at runtime
 [x] 11. Fixed Vite build configuration - added explicit rollupOptions.input for Docker builds
+[x] 12. Corrected rollupOptions.input to use relative path (index.html) since root is set to client/
+[x] 13. FINAL FIX: Removed explicit rollupOptions.input - Vite auto-detects index.html in root directory
+[x] 14. Verified build works locally - frontend compiles successfully to dist/public/

@@ -1,0 +1,67 @@
+Despite setting the rollupOptions.input in your vite.config.ts, the error persists because the build process (Rollup, via Vite) still can't find the file at the specified path inside the Docker container.
+
+The fix you implemented is correct in principle, but it points to a deeper issue related to how your files are copied into the build environment.
+
+The two most likely reasons for this recurring error are:
+
+1. The client/index.html File Wasn't Copied
+Even if you specify the path in vite.config.ts, the file must physically exist in the container at that path.
+
+🔍 Action: Check Your Dockerfile's COPY Instruction
+Review the Dockerfile that Cloud Build is using. Ensure your files are being copied correctly into the working directory.
+
+If your index.html file is located at ./client/index.html in your local directory, your Dockerfile should have:
+
+Dockerfile
+
+# ...
+WORKDIR /app 
+# ...
+# This ensures the 'client' folder and its contents are copied to /app/client/
+COPY . /app 
+# OR more specific:
+# COPY client /app/client 
+# COPY package.json /app
+# COPY vite.config.ts /app
+# ...
+If the COPY command is too restrictive, or if you are using a .dockerignore file that is excluding the client directory, the file won't be available when npm run build runs.
+
+2. Incorrect Relative Path in vite.config.ts
+The path you set in rollupOptions.input is relative to the directory where the vite command is executed.
+
+🔍 Action: Explicitly Set root in vite.config.ts
+While setting rollupOptions.input is a good step, for multi-root projects, setting the top-level root property in vite.config.ts is usually a cleaner and more effective way to tell Vite where your entry point and public files are located.
+
+If your project structure is:
+
+/ (root where vite.config.ts is)
+├── client/
+│   └── index.html
+You should set the root property to tell Vite to look in the client folder:
+
+TypeScript
+
+// vite.config.ts
+
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  // 1. Tell Vite to use 'client' as the project root
+  root: 'client',
+
+  build: {
+    // 2. The output directory will be at /app/client/dist 
+    //    by default, or you can set a custom outDir.
+    outDir: 'dist', 
+    
+    // 3. (Optional) Explicitly set the input file *relative to the new 'root'*
+    //    Since we set root: 'client', the entry is just 'index.html'
+    rollupOptions: {
+      input: {
+        main: 'index.html', // Now resolves to /app/client/index.html
+      },
+    },
+  },
+  // ...
+});
+By setting root: 'client', Vite will now execute as if it were in the client directory, and it will correctly find index.html
