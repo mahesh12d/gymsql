@@ -7,17 +7,19 @@ Complete guide for deploying SQLGym backend on Google Cloud Run with frontend on
 ## 🚀 Prerequisites
 
 1. **Google Cloud Account**
+
    - Sign up at [cloud.google.com](https://cloud.google.com)
    - Free tier: $300 credit for 90 days
 
 2. **Install Google Cloud CLI**
+
    ```bash
    # macOS
    brew install google-cloud-sdk
-   
+
    # Windows
    # Download from https://cloud.google.com/sdk/docs/install
-   
+
    # Linux
    curl https://sdk.cloud.google.com | bash
    ```
@@ -54,7 +56,6 @@ gcloud services enable containerregistry.googleapis.com
 # Deploy to Cloud Run (builds and deploys in one command)
 gcloud run deploy sqlgym-backend \
   --source . \
-  --dockerfile Dockerfile.cloudrun \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -66,6 +67,7 @@ gcloud run deploy sqlgym-backend \
 ```
 
 **This will:**
+
 - Build your Docker image
 - Push to Google Container Registry
 - Deploy to Cloud Run
@@ -120,6 +122,7 @@ gcloud run services update sqlgym-backend \
 ### Step 2: Create Build Trigger
 
 1. **Configure Trigger**
+
    - Name: `sqlgym-backend-deploy`
    - Event: Push to branch
    - Branch: `^main$` or `^master$`
@@ -137,6 +140,7 @@ git push origin main
 ```
 
 Every push to `main` will automatically:
+
 - Build Docker image
 - Push to Container Registry
 - Deploy to Cloud Run
@@ -283,6 +287,7 @@ gcloud run services logs tail sqlgym-backend \
 ### Pricing Breakdown
 
 Cloud Run pricing (as of 2025):
+
 - **Free tier**: 2 million requests/month, 360,000 GB-seconds
 - **Requests**: $0.40 per million requests
 - **Memory**: $0.0000025 per GB-second
@@ -366,6 +371,7 @@ gcloud run services update-traffic sqlgym-backend \
 ### Update Frontend Environment Variable
 
 **Vercel:**
+
 ```bash
 vercel env add VITE_API_URL production
 # Enter: https://sqlgym-backend-xxxxx-uc.a.run.app
@@ -373,6 +379,7 @@ vercel env add VITE_API_URL production
 
 **Cloudflare:**
 Add in Pages settings:
+
 ```
 VITE_API_URL=https://sqlgym-backend-xxxxx-uc.a.run.app
 ```
@@ -400,6 +407,7 @@ gcloud run services update sqlgym-backend \
 **Problem**: Container restarts due to OOM
 
 **Solution**: Increase memory:
+
 ```bash
 gcloud run services update sqlgym-backend --memory 2Gi --region us-central1
 ```
@@ -409,6 +417,7 @@ gcloud run services update sqlgym-backend --memory 2Gi --region us-central1
 **Problem**: First request after inactivity is slow
 
 **Solutions**:
+
 - Set `--min-instances 1` (costs more)
 - Enable startup CPU boost: `--cpu-boost`
 - Optimize Docker image size
@@ -418,6 +427,7 @@ gcloud run services update sqlgym-backend --memory 2Gi --region us-central1
 **Problem**: Can't connect to Cloud SQL
 
 **Solution**: Ensure Cloud SQL connector is added:
+
 ```bash
 gcloud run services update sqlgym-backend \
   --add-cloudsql-instances=PROJECT:REGION:INSTANCE
