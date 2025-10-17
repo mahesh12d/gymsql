@@ -22,7 +22,7 @@ export default defineConfig({
     //   : []),
   ],
   optimizeDeps: {
-    include: ['framer-motion']
+    include: ["framer-motion"],
   },
   resolve: {
     alias: {
@@ -33,7 +33,7 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, "dist", "public"),
+    outDir: path.resolve(__dirname, "dist", "index.html"),
     emptyOutDir: true,
   },
   server: {
