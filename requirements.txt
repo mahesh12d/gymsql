@@ -47,3 +47,4 @@ httpx
 itsdangerous
 google-generativeai
 resend
+python-dotenv
