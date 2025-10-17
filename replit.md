@@ -83,43 +83,82 @@ Two workflows must run simultaneously:
 
 ## Deployment
 
-### Docker-Based Deployment
-The application uses a single Docker image for all environments. **All configuration is managed through environment variables** for enhanced security - no .env files are used.
+### CI/CD Pipeline - Two-Stage Deployment
+The application uses an automated CI/CD pipeline with Google Cloud Build for two separate environments:
+
+- **Staging** (`main` branch) → `sqlgym-staging` service
+- **Production** (`prod` branch) → `sqlgym-production` service
+
+**All configuration is managed through environment variables** and **Google Secret Manager** for enhanced security - no .env files are used.
 
 ### Configuration Management
 
 #### Centralized Configuration
 All configuration is managed through `api/config.py`, which provides:
-- Environment detection (dev, UAT, prod, local) via `ENV` variable
+- Environment detection (staging, prod, local) via `ENV` variable
 - Environment-specific settings
 - Configuration validation on startup
 - Security-first approach with required secrets
 - Direct environment variable reading (no .env files)
 
 #### Required Environment Variables
-Critical variables that must be set via Docker/Cloud Run:
-- `ENV` - Deployment environment (`dev`, `uat`, `prod`, or `local`)
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - JWT authentication secret (use strong random value)
-- `ADMIN_SECRET_KEY` - Admin access secret (use strong random value)
+Critical variables that must be set via Cloud Run Secret Manager:
 
-#### AWS S3 Configuration (Required if using S3 features)
-- `AWS_ACCESS_KEY_ID` - AWS access key
-- `AWS_SECRET_ACCESS_KEY` - AWS secret key
-- `AWS_REGION` - AWS region (e.g., `us-east-1`)
-- `S3_ALLOWED_BUCKETS` - Comma-separated list of allowed buckets
+**Staging Environment:**
+- `staging-database-url` - Neon Postgres connection string for staging
+- `staging-redis-url` - Redis connection string for staging
+- `staging-jwt-secret` - JWT authentication secret
+- `staging-admin-secret` - Admin access secret
 
-#### Optional Features
-- `REDIS_URL` - Redis connection string (caching and rate limiting)
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
-- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
-- `RESEND_API_KEY` - Email verification service
-- `GEMINI_API_KEY` - AI-powered hints
-- `FRONTEND_URLS` - Comma-separated list of allowed frontend URLs for CORS
+**Production Environment:**
+- `prod-database-url` - Neon Postgres connection string for production
+- `prod-redis-url` - Redis connection string for production
+- `prod-jwt-secret` - JWT authentication secret
+- `prod-admin-secret` - Admin access secret
 
-See `DOCKER_DEPLOYMENT.md` for complete deployment guide.
+#### Optional Features (via Secret Manager)
+- `google-client-id`, `google-client-secret` - Google OAuth
+- `github-client-id`, `github-client-secret` - GitHub OAuth
+- `resend-api-key` - Email verification service
+- `gemini-api-key` - AI-powered hints
+- `aws-access-key-id`, `aws-secret-access-key` - AWS S3
 
-### Docker Deployment
+See `CICD_SETUP.md` for complete CI/CD setup guide.
+
+### Automated Deployments
+
+#### Branch-Based Deployment Strategy
+- **Push to `main` branch** → Automatically builds and deploys to **Staging**
+- **Push to `prod` branch** → Automatically builds and deploys to **Production**
+
+#### Deployment Workflow
+1. Developer pushes code to `main` branch
+2. Cloud Build trigger activates automatically
+3. Docker image is built and pushed to Artifact Registry
+4. Application is deployed to `sqlgym-staging` on Cloud Run
+5. After testing in staging, merge `main` → `prod` for production deployment
+
+#### Environment Configuration
+
+**Staging Environment:**
+- Service: `sqlgym-staging`
+- Branch: `main`
+- Memory: 1Gi
+- CPU: 1
+- Max Instances: 5
+- Min Instances: 0 (scales to zero)
+- Config File: `cloudbuild.staging.yaml`
+
+**Production Environment:**
+- Service: `sqlgym-production`
+- Branch: `prod`
+- Memory: 2Gi
+- CPU: 2
+- Max Instances: 20
+- Min Instances: 1 (always available)
+- Config File: `cloudbuild.prod.yaml`
+
+### Manual Deployment
 
 #### Local Development
 ```bash
@@ -135,36 +174,47 @@ docker run -p 8080:8080 \
   sqlgym:latest
 ```
 
-#### Google Cloud Run Deployment
+#### One-Time Manual Deployment
 ```bash
-# Deploy using Cloud Build
-gcloud builds submit --config=cloudbuild.yaml
+# Deploy to staging
+gcloud builds submit --config=cloudbuild.staging.yaml
 
-# With custom parameters
-gcloud builds submit \
-  --config=cloudbuild.yaml \
-  --substitutions=_REGION=us-central1,_MEMORY=2Gi,_MAX_INSTANCES=20
-```
-
-#### Setting Environment Variables in Cloud Run
-```bash
-# Set environment variables
-gcloud run services update sqlgym \
-  --region=us-central1 \
-  --set-env-vars="ENV=prod,DATABASE_URL=...,JWT_SECRET=...,ADMIN_SECRET_KEY=..."
-
-# Using Cloud Secret Manager (Recommended)
-gcloud run services update sqlgym \
-  --region=us-central1 \
-  --set-secrets="DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest"
+# Deploy to production
+gcloud builds submit --config=cloudbuild.prod.yaml
 ```
 
 ### Security Features
-- **No .env Files**: All secrets injected via Docker/Cloud Run environment variables
-- **Secret Manager Integration**: Supports Cloud Secret Manager for sensitive data
+- **No .env Files**: All secrets stored in Google Secret Manager
+- **Environment Separation**: Separate secrets for staging and production
+- **Artifact Registry**: Secure Docker image storage
+- **IAM-Based Access**: Least-privilege service account permissions
 - **Bucket Allowlisting**: S3 bucket access restricted to configured buckets
 - **CORS Protection**: Environment-specific frontend URL allowlisting
 - **Configuration Validation**: Startup validation ensures required variables are set
+
+### Monitoring & Rollback
+
+#### View Deployment Logs
+```bash
+# View Cloud Build logs
+gcloud builds list --limit=10
+gcloud builds log BUILD_ID
+
+# View Cloud Run logs
+gcloud run services logs read sqlgym-staging --region=us-central1
+gcloud run services logs read sqlgym-production --region=us-central1
+```
+
+#### Rollback to Previous Version
+```bash
+# List revisions
+gcloud run revisions list --service=sqlgym-production --region=us-central1
+
+# Rollback to specific revision
+gcloud run services update-traffic sqlgym-production \
+  --region=us-central1 \
+  --to-revisions=REVISION_NAME=100
+```
 
 ### Health Check
 The application exposes a health check endpoint: `/api/health`
