@@ -50,17 +50,9 @@ coverage.xml
 *.swo
 *~
 
-# Environment variables (CRITICAL - never commit actual environment files)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Multi-stage environment files (dev, UAT, prod)
-.env.dev
-.env.uat
-.env.prod
+# Environment variables (CRITICAL - never commit secrets)
+# All environment variables should be set via Docker/Cloud Run, not .env files
+.env*
 
 # Logs
 logs

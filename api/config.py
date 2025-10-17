@@ -1,42 +1,12 @@
 """
-Centralized Configuration Management for Multi-Stage Deployment
-================================================================
-Supports dev, UAT, and prod environments with environment-based configuration.
-All secrets and configuration values should be stored in environment variables.
+Centralized Configuration Management for Docker Deployment
+=========================================================
+All configuration values are read directly from environment variables.
+Secrets should be injected via Docker/Cloud Run environment variables.
 """
 import os
 from typing import List, Optional
 from enum import Enum
-from dotenv import load_dotenv
-
-# Load environment variables from .env files BEFORE reading configuration
-# Strategy: Load files additively so overrides work correctly
-# Loading order: .env (base) → .env.{dev|uat|prod} (environment) → .env.local (overrides)
-
-import os.path
-
-# Step 1: Load base .env file if it exists (lowest priority)
-if os.path.exists(".env"):
-    load_dotenv(".env", override=False)
-
-# Step 2: Load environment-specific file based on ENV variable
-env = os.getenv("ENV", "").lower()
-if env in ["dev", "development"] and os.path.exists(".env.dev"):
-    load_dotenv(".env.dev", override=True)
-elif env in ["uat", "staging"] and os.path.exists(".env.uat"):
-    load_dotenv(".env.uat", override=True)
-elif env in ["prod", "production"] and os.path.exists(".env.prod"):
-    load_dotenv(".env.prod", override=True)
-elif not env:
-    # If ENV is not set, auto-detect by trying to load the first existing env-specific file
-    for env_file in [".env.dev", ".env.uat", ".env.prod"]:
-        if os.path.exists(env_file):
-            load_dotenv(env_file, override=True)
-            break
-
-# Step 3: Load .env.local last for local overrides (highest priority)
-if os.path.exists(".env.local"):
-    load_dotenv(".env.local", override=True)
 
 
 class Environment(str, Enum):

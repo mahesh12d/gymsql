@@ -83,51 +83,22 @@ Two workflows must run simultaneously:
 
 ## Deployment
 
-### Multi-Stage Deployment Pipeline
-The application now supports a three-stage deployment pipeline with environment-based configuration:
-- **Development (dev)**: Local development and testing
-- **UAT/Staging (uat)**: User acceptance testing and staging
-- **Production (prod)**: Production deployment
-
-**All configuration is managed through environment variables** - no hardcoded values for enhanced security and multi-environment support.
+### Docker-Based Deployment
+The application uses a single Docker image for all environments. **All configuration is managed through environment variables** for enhanced security - no .env files are used.
 
 ### Configuration Management
 
 #### Centralized Configuration
 All configuration is managed through `api/config.py`, which provides:
-- Environment detection (dev, UAT, prod, local)
+- Environment detection (dev, UAT, prod, local) via `ENV` variable
 - Environment-specific settings
 - Configuration validation on startup
 - Security-first approach with required secrets
-- **Additive .env file loading**: Files are loaded in priority order (.env → .env.{env} → .env.local) to support base configurations, environment-specific settings, and local overrides
+- Direct environment variable reading (no .env files)
 
-#### Environment Templates
-Environment-specific templates are provided:
-- `.env.dev.template` - Development configuration
-- `.env.uat.template` - UAT/staging configuration
-- `.env.prod.template` - Production configuration
-
-Copy the appropriate template and fill in actual values:
-```bash
-cp .env.dev.template .env.dev  # For development
-cp .env.uat.template .env.uat  # For UAT
-cp .env.prod.template .env.prod  # For production
-```
-
-#### Additive Environment File Loading
-The configuration system loads `.env` files additively in priority order:
-1. **`.env`** - Base configuration (lowest priority)
-2. **`.env.{dev|uat|prod}`** - Environment-specific configuration (overrides base)
-3. **`.env.local`** - Local overrides (highest priority)
-
-This allows developers to:
-- Use `.env.dev` as their primary configuration
-- Override specific values with `.env.local` without recreating the entire configuration
-- Share base configuration across environments with `.env`
-
-#### Required Environment Variables (All Environments)
-Critical variables that must be set:
-- `ENV` - Deployment environment (`dev`, `uat`, or `prod`)
+#### Required Environment Variables
+Critical variables that must be set via Docker/Cloud Run:
+- `ENV` - Deployment environment (`dev`, `uat`, `prod`, or `local`)
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - JWT authentication secret (use strong random value)
 - `ADMIN_SECRET_KEY` - Admin access secret (use strong random value)
@@ -136,7 +107,7 @@ Critical variables that must be set:
 - `AWS_ACCESS_KEY_ID` - AWS access key
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key
 - `AWS_REGION` - AWS region (e.g., `us-east-1`)
-- `S3_ALLOWED_BUCKETS` - Comma-separated list of allowed buckets (environment-specific)
+- `S3_ALLOWED_BUCKETS` - Comma-separated list of allowed buckets
 
 #### Optional Features
 - `REDIS_URL` - Redis connection string (caching and rate limiting)
@@ -144,96 +115,56 @@ Critical variables that must be set:
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
 - `RESEND_API_KEY` - Email verification service
 - `GEMINI_API_KEY` - AI-powered hints
-- `FRONTEND_URLS` - Comma-separated list of allowed frontend URLs
+- `FRONTEND_URLS` - Comma-separated list of allowed frontend URLs for CORS
 
-See `ENVIRONMENT_CONFIGURATION.md` for complete configuration guide.
+See `DOCKER_DEPLOYMENT.md` for complete deployment guide.
 
-### Google Cloud Run Deployment
+### Docker Deployment
 
-#### Environment-Specific Dockerfiles
-- `Dockerfile.dev` - Development (hot reload enabled)
-- `Dockerfile.uat` - UAT/staging (2 workers)
-- `Dockerfile.prod` - Production (4 workers, optimized)
-
-#### Environment-Specific Cloud Build Configurations
-- `cloudbuild.dev.yaml` - Dev deployment (512Mi RAM, 3 max instances)
-- `cloudbuild.uat.yaml` - UAT deployment (1Gi RAM, 5 max instances)
-- `cloudbuild.prod.yaml` - Prod deployment (2Gi RAM, 2 CPU, 20 max instances)
-
-#### Deployment Commands
-
-**Development:**
+#### Local Development
 ```bash
-gcloud builds submit --config=cloudbuild.dev.yaml
+# Build the image
+docker build -t sqlgym:latest .
+
+# Run with environment variables
+docker run -p 8080:8080 \
+  -e DATABASE_URL="your-database-url" \
+  -e JWT_SECRET="your-jwt-secret" \
+  -e ADMIN_SECRET_KEY="your-admin-secret" \
+  -e ENV="local" \
+  sqlgym:latest
 ```
 
-**UAT/Staging:**
+#### Google Cloud Run Deployment
 ```bash
-gcloud builds submit --config=cloudbuild.uat.yaml
+# Deploy using Cloud Build
+gcloud builds submit --config=cloudbuild.yaml
+
+# With custom parameters
+gcloud builds submit \
+  --config=cloudbuild.yaml \
+  --substitutions=_REGION=us-central1,_MEMORY=2Gi,_MAX_INSTANCES=20
 ```
 
-**Production:**
+#### Setting Environment Variables in Cloud Run
 ```bash
-gcloud builds submit --config=cloudbuild.prod.yaml
-```
-
-#### Setting Environment Variables
-After deployment, configure environment variables in Cloud Run:
-
-```bash
-# Example: Configure dev environment
-gcloud run services update sqlgym-backend-dev \
+# Set environment variables
+gcloud run services update sqlgym \
   --region=us-central1 \
-  --set-env-vars="ENV=dev,DATABASE_URL=postgresql://...,JWT_SECRET=..." \
-  --set-env-vars="AWS_ACCESS_KEY_ID=...,AWS_SECRET_ACCESS_KEY=..." \
-  --set-env-vars="S3_ALLOWED_BUCKETS=bucket1,bucket2"
-```
+  --set-env-vars="ENV=prod,DATABASE_URL=...,JWT_SECRET=...,ADMIN_SECRET_KEY=..."
 
-Or use an environment file:
-```bash
-gcloud run services update sqlgym-backend-dev \
+# Using Cloud Secret Manager (Recommended)
+gcloud run services update sqlgym \
   --region=us-central1 \
-  --env-vars-file=env.dev.yaml
+  --set-secrets="DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest"
 ```
-
-### GitHub Actions CI/CD Pipeline (Recommended)
-
-The project includes automated deployment workflows using GitHub Actions:
-
-#### Branch-Based Deployment Strategy
-- **`develop` branch** → Automatically deploys to Development environment
-- **`staging` branch** → Automatically deploys to UAT/Staging environment  
-- **`main` branch** → Automatically deploys to Production environment
-
-#### Automated Workflow
-1. Push code to a branch
-2. GitHub Actions automatically builds and deploys backend to Cloud Run
-3. GitHub Actions automatically builds and deploys frontend to Vercel
-4. Deployment URLs are posted as commit comments
-
-#### Setup Requirements
-Configure the following secrets in your GitHub repository:
-- `GCP_SERVICE_ACCOUNT_KEY` - Service account JSON for Cloud Run deployment
-- `GCP_PROJECT_ID` - Google Cloud Project ID
-- `VERCEL_TOKEN` - Vercel deployment token
-- `VERCEL_ORG_ID` - Vercel organization ID
-- `VERCEL_PROJECT_ID` - Vercel project ID
-
-See `GITHUB_ACTIONS_SETUP.md` for complete setup instructions.
-
-#### Benefits Over Manual Deployment
-- ✅ Fully automated - no manual commands needed
-- ✅ Branch-based deployment strategy
-- ✅ Deployment history and logs in GitHub UI
-- ✅ Works for entire team without local setup
-- ✅ Automatic deployment URLs in commit comments
 
 ### Security Features
-- **No Hardcoded Values**: All configuration via environment variables
-- **Environment-Specific Secrets**: Different secrets for dev, UAT, and prod
+- **No .env Files**: All secrets injected via Docker/Cloud Run environment variables
+- **Secret Manager Integration**: Supports Cloud Secret Manager for sensitive data
 - **Bucket Allowlisting**: S3 bucket access restricted to configured buckets
 - **CORS Protection**: Environment-specific frontend URL allowlisting
 - **Configuration Validation**: Startup validation ensures required variables are set
 
 ### Health Check
-All environments expose a health check endpoint: `/api/health`
+The application exposes a health check endpoint: `/api/health`
