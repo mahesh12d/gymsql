@@ -20,5 +20,6 @@ COPY . .
 # Expose port (Cloud Run uses dynamic PORT env var, defaults to 8080)
 EXPOSE 8080
 
-# Start backend (use shell form to support PORT env var)
-CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Start backend with Gunicorn + Uvicorn workers (production-ready)
+# Use shell form to support dynamic PORT env var from Cloud Run
+CMD gunicorn api.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8080} --timeout 120 --graceful-timeout 30

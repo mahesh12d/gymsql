@@ -36,6 +36,8 @@ steps:
       - '--max-instances=$_MAX_INSTANCES'
       - '--min-instances=$_MIN_INSTANCES'
       - '--concurrency=$_CONCURRENCY'
+      - '--port=8080'
+      - '--cpu-boost'
 
 images:
   - 'gcr.io/$PROJECT_ID/sqlgym:latest'

@@ -31,6 +31,7 @@ starlette==0.47.3
 typing-extensions==4.15.0
 typing-inspection==0.4.1
 uvicorn==0.35.0
+gunicorn==23.0.0
 
 # Data processing and cloud dependencies
 boto3==1.35.49

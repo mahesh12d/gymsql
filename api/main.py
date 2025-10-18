@@ -210,11 +210,18 @@ def format_console_output(execution_result):
 
 @app.on_event("startup")  
 async def startup_event():
+    """Initialize database tables on startup with timeout protection."""
     try:
+        # Add timeout to prevent blocking Cloud Run startup
         print("🚀 Starting database initialization...")
-        create_tables()  # Create all tables
-        print("✅ Database initialization completed")
         
+        # Run with timeout
+        async with asyncio.timeout(15):  # 15 second timeout
+            await asyncio.to_thread(create_tables)  # Run in thread to avoid blocking
+            print("✅ Database initialization completed")
+        
+    except asyncio.TimeoutError:
+        print(f"⚠️ Database initialization timed out - tables may already exist")
     except Exception as e:
         print(f"⚠️ Startup initialization failed, continuing anyway: {e}")
         # Continue startup even if initialization fails
