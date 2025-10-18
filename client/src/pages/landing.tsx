@@ -49,6 +49,9 @@ export default function Landing() {
   const { login } = useAuth();
   const { toast } = useToast();
 
+  // API Base URL for OAuth redirects
+  const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
   // Dynamic date formatting
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'short',
@@ -275,7 +278,7 @@ export default function Landing() {
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      (window.location.href = "/api/auth/google/login")
+                      (window.location.href = `${API_BASE_URL}/auth/google/login`)
                     }
                     data-testid="button-google-login"
                   >
@@ -417,7 +420,7 @@ export default function Landing() {
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      (window.location.href = "/api/auth/google/login")
+                      (window.location.href = `${API_BASE_URL}/auth/google/login`)
                     }
                     data-testid="button-google-register"
                   >
