@@ -21,6 +21,4 @@ COPY . .
 EXPOSE 8080
 
 # Start backend (use shell form to support PORT env var)
-# CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}
-
-CMD ["python3.11" ,"-m","uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD python3.11 -m uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}
