@@ -8,8 +8,6 @@ from typing import List, Optional, Dict
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from pydantic import EmailStr
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case, and_, desc, Boolean, Integer
 from datetime import timedelta, datetime
@@ -322,24 +320,17 @@ def sync_leaderboard(current_user: User = Depends(get_current_user),
         )
 
 
-# Root endpoint and SPA fallback
+# Root endpoint - API status
 @app.get("/")
 def read_root():
-    if os.path.exists("dist/public/index.html"):
-        return FileResponse("dist/public/index.html")
     return {
-        "message": "SQLGym FastAPI Backend - Please run 'npm run build' first"
+        "message": "SQLGym API",
+        "version": "1.0.0",
+        "status": "running",
+        "service": "FastAPI Backend"
     }
 
 
-# SPA fallback route will be defined at the very end of the file after all API routes
-
-
-# Mount static assets for production
-if os.path.exists("dist/public/assets"):
-    app.mount("/assets",
-              StaticFiles(directory="dist/public/assets"),
-              name="assets")
 
 
 # Authentication endpoints
