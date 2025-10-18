@@ -2465,29 +2465,6 @@ def simulate_query_execution(query: str, problem: Problem) -> bool:
     return "select" in normalized_query and "from" in normalized_query
 
 
-# SPA fallback route - handle all non-API routes (must be last)
-# SPA fallback route - handle all non-API routes (must be last)
-@app.get("/{full_path:path}")
-def spa_fallback(full_path: str):
-    # Don't handle API routes
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-
-    # Don't handle WebSocket routes
-    if full_path.startswith("ws/"):
-        raise HTTPException(status_code=404, detail="WebSocket endpoint not found")
-
-    # Don't handle asset files
-    if full_path.startswith("assets/") or "." in full_path.split("/")[-1]:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    # Serve SPA for all other routes
-    index_path = "dist/public/index.html"
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-
-    # Fallback if no built frontend
-    raise HTTPException(status_code=404, detail="Frontend not built")
 
 
 import os
