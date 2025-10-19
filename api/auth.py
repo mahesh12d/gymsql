@@ -220,7 +220,7 @@ def verify_admin_user_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access using either admin secret key or admin user token"""
+    """Verify admin access - requires authenticated user with is_admin=true"""
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -243,30 +243,11 @@ def verify_admin_user_access(
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin authentication required",
+            detail="Admin authentication required - please log in with an admin account",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # First, check if it's the admin secret key
-    if credentials.credentials == ADMIN_SECRET_KEY:
-        # For admin secret key, find or create an admin user
-        admin_user = db.query(User).filter(User.is_admin == True).first()
-        if admin_user is None:
-            # Create a default admin user if none exists
-            from uuid import uuid4
-            admin_user = User(
-                id=str(uuid4()),
-                username="admin",
-                email="admin@example.com",
-                is_admin=True,
-                premium=True
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-        return admin_user
-    
-    # Otherwise, verify it's a JWT token from an admin user
+    # Verify it's a JWT token from an admin user
     try:
         token_data = verify_token(credentials.credentials)
         user = db.query(User).filter(User.id == token_data.user_id).first()
@@ -281,7 +262,7 @@ def verify_admin_user_access(
         if not user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
+                detail="Admin access required - user does not have admin privileges"
             )
         
         return user
@@ -293,5 +274,5 @@ def verify_admin_user_access(
         # For any other error, return forbidden
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin credentials"
+            detail="Invalid authentication credentials"
         )

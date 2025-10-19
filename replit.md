@@ -19,6 +19,28 @@ PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used fo
 ### Authentication System
 Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials and all secrets are managed via environment variables with environment-specific configuration. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
 
+#### Admin Access
+Admin panel access is secured and requires user authentication with `is_admin=true`. Only logged-in users with admin privileges can access admin endpoints. To grant admin privileges to a user:
+
+**Using the Admin Script (Easiest):**
+```bash
+# Grant admin privileges to a user
+python scripts/make_admin.py admin@example.com
+# or by username
+python scripts/make_admin.py johndoe
+
+# List all admin users
+python scripts/make_admin.py --list
+```
+
+**Via Database (Alternative):**
+```sql
+UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
+```
+
+**Development Mode (DEV_ADMIN_BYPASS):**
+For local development, you can enable a temporary admin bypass by setting the environment variable `DEV_ADMIN_BYPASS=true`. This creates a temporary admin user without requiring database modifications. This bypass is disabled by default and should never be used in production.
+
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.
 -   **Problem Management**: Categorized SQL problems with hints and expected outputs.
@@ -27,7 +49,7 @@ Authentication supports traditional email/password login with JWT tokens, and OA
 -   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system, helpful resources sharing.
 -   **Progress Tracking**: User submission history, leaderboards, and dynamic profile statistics.
 -   **Responsive Design**: Mobile-friendly interface.
--   **Admin Panel**: Allows manual schema definition for problem data.
+-   **Admin Panel**: Allows manual schema definition for problem data. Access is restricted to authenticated users with admin privileges.
 
 ### System Design Choices
 -   PostgreSQL for all data persistence, complemented by Redis for caching and leaderboards.
