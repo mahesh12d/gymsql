@@ -2419,6 +2419,112 @@ def get_all_community_posts(
 
 
 
+def fuzzy_match_score(query: str, target: str) -> dict:
+    """
+    Advanced fuzzy matching with scoring
+    Returns: {matches: bool, score: float, position: int, consecutive: int}
+    """
+    query = query.lower()
+    target = target.lower()
+    
+    if not query or not target:
+        return {"matches": False, "score": 0, "position": -1, "consecutive": 0}
+    
+    # Exact match gets highest score
+    if query == target:
+        return {"matches": True, "score": 1000, "position": 0, "consecutive": len(query)}
+    
+    # Exact prefix match gets very high score
+    if target.startswith(query):
+        return {"matches": True, "score": 800, "position": 0, "consecutive": len(query)}
+    
+    # Sequential character matching with position and consecutive bonus
+    pattern_idx = 0
+    score = 0
+    consecutive_matches = 0
+    max_consecutive = 0
+    first_match_position = -1
+    
+    for i, char in enumerate(target):
+        if pattern_idx < len(query) and char == query[pattern_idx]:
+            if first_match_position == -1:
+                first_match_position = i
+            
+            # Score components:
+            # 1. Base score for match
+            score += 10
+            # 2. Consecutive bonus (exponential for better consecutive matches)
+            consecutive_matches += 1
+            score += consecutive_matches * 5
+            # 3. Position bonus (earlier is better)
+            position_bonus = 50 / (i + 1)
+            score += position_bonus
+            
+            max_consecutive = max(max_consecutive, consecutive_matches)
+            pattern_idx += 1
+        else:
+            consecutive_matches = 0
+    
+    matches = pattern_idx == len(query)
+    
+    if matches:
+        # Bonus for shorter target (more precise match)
+        length_ratio = len(query) / len(target)
+        score += length_ratio * 100
+        
+        # Penalty for large position offset
+        score -= first_match_position * 2
+    
+    return {
+        "matches": matches,
+        "score": max(0, score),
+        "position": first_match_position,
+        "consecutive": max_consecutive
+    }
+
+
+def calculate_user_search_score(query: str, user: User) -> float:
+    """
+    Calculate comprehensive search score for a user across all fields
+    Field weights: username (1.0), first_name (0.8), last_name (0.8), company (0.5)
+    """
+    query = query.strip()
+    
+    # Score each field
+    username_match = fuzzy_match_score(query, user.username or "")
+    first_name_match = fuzzy_match_score(query, user.first_name or "")
+    last_name_match = fuzzy_match_score(query, user.last_name or "")
+    company_match = fuzzy_match_score(query, user.company_name or "")
+    
+    # Full name matching (bonus for matching "john smith" when searching "john")
+    full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    full_name_match = fuzzy_match_score(query, full_name)
+    
+    # Calculate weighted score
+    total_score = 0
+    
+    if username_match["matches"]:
+        total_score += username_match["score"] * 1.0  # Highest weight
+    
+    if first_name_match["matches"]:
+        total_score += first_name_match["score"] * 0.8
+    
+    if last_name_match["matches"]:
+        total_score += last_name_match["score"] * 0.8
+    
+    if company_match["matches"]:
+        total_score += company_match["score"] * 0.5
+    
+    if full_name_match["matches"]:
+        total_score += full_name_match["score"] * 0.9
+    
+    # Popularity boost (users with more problems solved rank slightly higher)
+    popularity_boost = min(user.problems_solved * 0.5, 50)  # Cap at 50
+    total_score += popularity_boost
+    
+    return total_score
+
+
 @app.get("/api/users/search")
 def search_users(
     q: str = Query(..., min_length=1),
@@ -2426,22 +2532,54 @@ def search_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Search for users by username"""
+    """
+    Advanced fuzzy search for users across multiple fields
+    Searches: username, first_name, last_name, company_name
+    Returns ranked results based on relevance score
+    """
+    query = q.strip()
+    
+    # Fetch broader set of users for fuzzy matching
+    # Use OR conditions to get potential matches
     users = db.query(User).filter(
         and_(
-            User.username.ilike(f"%{q}%"),
-            User.id != current_user.id  # Exclude current user
+            User.id != current_user.id,  # Exclude current user
+            or_(
+                User.username.ilike(f"%{query}%"),
+                User.first_name.ilike(f"%{query}%"),
+                User.last_name.ilike(f"%{query}%"),
+                User.company_name.ilike(f"%{query}%")
+            )
         )
-    ).limit(limit).all()
+    ).limit(100).all()  # Get more candidates for better ranking
     
+    # Calculate fuzzy match score for each user
+    user_scores = []
+    for user in users:
+        score = calculate_user_search_score(query, user)
+        if score > 0:  # Only include users with positive scores
+            user_scores.append({
+                "user": user,
+                "score": score
+            })
+    
+    # Sort by score (highest first)
+    user_scores.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Return top results
     return [
         {
-            "id": user.id,
-            "username": user.username,
-            "profileImageUrl": user.profile_image_url,
-            "problemsSolved": user.problems_solved
+            "id": item["user"].id,
+            "username": item["user"].username,
+            "firstName": item["user"].first_name,
+            "lastName": item["user"].last_name,
+            "companyName": item["user"].company_name,
+            "linkedinUrl": item["user"].linkedin_url,
+            "profileImageUrl": item["user"].profile_image_url,
+            "problemsSolved": item["user"].problems_solved,
+            "relevanceScore": round(item["score"], 2)  # Include score for debugging
         }
-        for user in users
+        for item in user_scores[:limit]
     ]
 
 
