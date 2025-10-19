@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import ReactECharts from "echarts-for-react";
-import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building, ExternalLink, Trash2 } from "lucide-react";
+import { User, Trophy, Target, TrendingUp, Clock, Star, Award, BookOpen, Lightbulb, Users, Flag, Zap, Crown, Flame, Medal, Gauge, RocketIcon, Search, UserPlus, UserMinus, Pencil, Linkedin, Building, ExternalLink, Trash2, Loader2 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -463,9 +463,11 @@ interface HelpfulLink {
 function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isPremium: boolean }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FollowerUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const { toast } = useToast();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get follow status for current user
   const { data: followStatus } = useQuery<FollowStatus>({
@@ -552,19 +554,62 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
     },
   });
 
-  // Search users
+  // Real-time search with debouncing
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If search query is empty, clear results immediately
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Set searching state
+    setIsSearching(true);
+
+    // Debounce search - wait 400ms after user stops typing
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
+        const data = await response.json();
+        setSearchResults(data);
+      } catch (error: any) {
+        console.error("Failed to search users:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    // Cleanup timeout on unmount or when searchQuery changes
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Legacy search function for backward compatibility (if needed)
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
     }
 
+    setIsSearching(true);
     try {
       const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
       const data = await response.json();
       setSearchResults(data);
     } catch (error: any) {
       console.error("Failed to search users:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -636,24 +681,31 @@ function FriendsAndResourcesSection({ userId, isPremium }: { userId: string; isP
 
               {/* Search Tab */}
               <TabsContent value="search" className="space-y-4">
-                <div className="flex space-x-2">
+                <div className="relative">
                   <Input
-                    placeholder="Search users..."
+                    placeholder="Start typing to search users..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                     data-testid="input-search-users"
+                    className="pr-10"
                   />
-                  <Button onClick={handleSearch} data-testid="button-search">
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
-                  </Button>
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {searchResults.length === 0 ? (
+                  {isSearching && searchQuery.trim() ? (
+                    <div className="text-center py-8 text-muted-foreground" data-testid="text-searching">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      Searching users...
+                    </div>
+                  ) : searchResults.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground" data-testid="text-no-search-results">
-                      {searchQuery ? "No users found" : "Search for users to follow"}
+                      {searchQuery.trim() ? "No users found" : "Start typing to search for users"}
                     </div>
                   ) : (
                     searchResults.map((user) => (

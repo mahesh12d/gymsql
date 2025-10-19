@@ -46,7 +46,7 @@ For local development, you can enable a temporary admin bypass by setting the en
 -   **Problem Management**: Categorized SQL problems with hints and expected outputs.
 -   **Code Execution**: SQL query submission and validation with an anti-hardcode detection system.
 -   **AI-Powered Hints**: Google Gemini integration provides intelligent hints for failed submissions without revealing solutions. Rate limited to 5 hints per problem per hour per user.
--   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system, helpful resources sharing.
+-   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system with real-time user search (partial matching with debouncing), helpful resources sharing.
 -   **Progress Tracking**: User submission history, leaderboards, and dynamic profile statistics.
 -   **Responsive Design**: Mobile-friendly interface.
 -   **Admin Panel**: Allows manual schema definition for problem data. Access is restricted to authenticated users with admin privileges.
