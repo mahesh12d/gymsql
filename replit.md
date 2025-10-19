@@ -56,6 +56,7 @@ For local development, you can enable a temporary admin bypass by setting the en
 -   SQL query processing uses a Redis-based job queue with a background worker for asynchronous execution.
 -   **Redis Fallback Mechanism**: Submissions automatically fall back to PostgreSQL (`fallback_submissions` table) if Redis is unavailable, ensuring zero data loss. The worker recovers these submissions when Redis becomes available.
 -   **Worker Availability Detection**: A heartbeat mechanism detects worker availability; if the worker is down, submissions are executed directly to prevent jobs from getting stuck.
+-   **Privacy & Security**: Email addresses are kept confidential and never displayed in the UI - only usernames are shown publicly to protect user privacy.
 -   The architecture has been simplified by removing chat and friends functionality to reduce complexity.
 -   Data retention policies and worker availability mechanisms are in place to ensure system stability and performance.
 

@@ -327,7 +327,6 @@ function CompetitiveUserHeader({ basicInfo, performanceStats }: { basicInfo: Bas
             <Badge variant={basicInfo.premium ? "default" : "secondary"} data-testid="badge-premium" className="block">
               {basicInfo.premium ? "Premium Racer 🏎️" : "Free Rider 🚗"}
             </Badge>
-            <div className="text-sm text-muted-foreground" data-testid="text-email">{basicInfo.email}</div>
           </div>
         </div>
       </CardHeader>
