@@ -1,5 +1,5 @@
-// Use proxy for API calls - Vite will proxy /api to the backend
-export const API_BASE_URL = "/api";
+// API Base URL - Use environment variable in production, proxy in development
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface LoginCredentials {
   email: string;

@@ -65,7 +65,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         # Check for error parameter (user denied authorization)
         if request.query_params.get('error'):
             error_description = request.query_params.get('error_description', 'Authorization denied')
-            frontend_url = os.getenv('FRONTEND_URL', '/home')
+            frontend_urls = os.getenv('FRONTEND_URLS', '')
+            frontend_url = frontend_urls.split(',')[0] if frontend_urls else '/home'
             return RedirectResponse(url=f"{frontend_url}?auth=failed&error={error_description}")
 
         # Exchange authorization code for access token
@@ -148,19 +149,25 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             "isAdmin": user.is_admin
         })
 
-        # Redirect to frontend with secure HttpOnly cookie
-        frontend_url = os.getenv('FRONTEND_URL', '/home')
-        response = RedirectResponse(url=f"{frontend_url}?auth=success")
-
+        # Redirect to frontend with token
+        # For cross-domain setups (e.g., Vercel + Cloud Run), include token in URL
+        # Frontend will store it in localStorage
+        frontend_urls = os.getenv('FRONTEND_URLS', '')
+        frontend_url = frontend_urls.split(',')[0] if frontend_urls else '/home'
+        
         # Determine if we're in production (use secure cookies)
-        is_production = os.getenv('ENVIRONMENT') == 'production'
+        is_production = os.getenv('ENV') == 'production'
+        
+        # Include token in URL for cross-domain scenarios
+        response = RedirectResponse(url=f"{frontend_url}?auth=success&token={access_token}")
 
+        # Also set cookie for same-domain scenarios (with SameSite=None for cross-domain)
         response.set_cookie(
             key="auth_token",
             value=access_token,
             httponly=True,
-            secure=is_production,  # Only HTTPS in production
-            samesite="lax",  # CSRF protection
+            secure=True,  # Always use secure in production
+            samesite="none" if is_production else "lax",  # None for cross-domain
             max_age=86400,  # 24 hours
             path="/"  # Available across entire site
         )
@@ -174,5 +181,6 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         traceback.print_exc()
 
         # Redirect to frontend with error
-        frontend_url = os.getenv('FRONTEND_URL', '/home')
+        frontend_urls = os.getenv('FRONTEND_URLS', '')
+        frontend_url = frontend_urls.split(',')[0] if frontend_urls else '/home'
         return RedirectResponse(url=f"{frontend_url}?auth=failed&error=authentication_failed")
