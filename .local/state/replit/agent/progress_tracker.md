@@ -1,3 +1,6 @@
+# SQLGym Migration Progress Tracker
+
+## Completed Items
 [x] 1. Migration to Docker-only build strategy completed
 [x] 2. Removed GitHub Actions three-stage deployment workflows
 [x] 3. Removed all .env files for security
@@ -12,3 +15,8 @@
 [x] 12. Corrected rollupOptions.input to use relative path (index.html) since root is set to client/
 [x] 13. FINAL FIX: Removed explicit rollupOptions.input - Vite auto-detects index.html in root directory
 [x] 14. Verified build works locally - frontend compiles successfully to dist/public/
+
+## Current Tasks
+[ ] 15. Fix Google OAuth login error - need GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables
+[ ] 16. Test Google OAuth login functionality after credentials are added
+[ ] 17. Verify complete authentication flow works end-to-end
