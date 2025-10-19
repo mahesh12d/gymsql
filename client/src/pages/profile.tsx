@@ -170,28 +170,56 @@ function highlightMatches(text: string, query: string): JSX.Element {
   }
 
   const lowerText = text.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-  const parts: JSX.Element[] = [];
-  let lastIndex = 0;
-  let queryIndex = 0;
-
-  for (let i = 0; i < text.length && queryIndex < lowerQuery.length; i++) {
-    if (lowerText[i] === lowerQuery[queryIndex]) {
-      if (i > lastIndex) {
-        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, i)}</span>);
+  const queryTokens = query.toLowerCase().trim().split(/\s+/);
+  
+  // Build a set of character positions that should be highlighted
+  const highlightPositions = new Set<number>();
+  
+  // For each query token, find matching characters in the text
+  for (const token of queryTokens) {
+    let tokenIndex = 0;
+    
+    for (let i = 0; i < lowerText.length && tokenIndex < token.length; i++) {
+      if (lowerText[i] === token[tokenIndex]) {
+        highlightPositions.add(i);
+        tokenIndex++;
       }
+    }
+  }
+
+  // Build the highlighted result
+  const parts: JSX.Element[] = [];
+  let currentSegmentStart = 0;
+  
+  for (let i = 0; i < text.length; i++) {
+    if (highlightPositions.has(i)) {
+      // Add non-highlighted text before this position
+      if (i > currentSegmentStart) {
+        parts.push(
+          <span key={`text-${currentSegmentStart}-${i}`}>
+            {text.substring(currentSegmentStart, i)}
+          </span>
+        );
+      }
+      
+      // Add highlighted character
       parts.push(
         <span key={`match-${i}`} className="bg-yellow-200 dark:bg-yellow-800 font-semibold">
           {text[i]}
         </span>
       );
-      lastIndex = i + 1;
-      queryIndex++;
+      
+      currentSegmentStart = i + 1;
     }
   }
-
-  if (lastIndex < text.length) {
-    parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+  
+  // Add any remaining non-highlighted text
+  if (currentSegmentStart < text.length) {
+    parts.push(
+      <span key={`text-${currentSegmentStart}`}>
+        {text.substring(currentSegmentStart)}
+      </span>
+    );
   }
 
   return <>{parts}</>;
