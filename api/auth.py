@@ -4,7 +4,8 @@ Authentication utilities for FastAPI
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -74,7 +75,7 @@ def verify_token(token: str) -> TokenData:
         
         token_data = TokenData(user_id=user_id, username=username, is_admin=is_admin)
         return token_data
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

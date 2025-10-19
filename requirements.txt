@@ -6,7 +6,6 @@ asyncpg==0.30.0
 bcrypt==4.3.0
 click==8.2.1
 dnspython==2.8.0
-ecdsa==0.19.1
 email-validator==2.3.0
 fastapi==0.116.1
 greenlet==3.2.4
@@ -19,7 +18,7 @@ psycopg2-binary==2.9.10
 pyasn1==0.6.1
 pydantic==2.11.7
 pydantic-core==2.33.2
-python-jose==3.5.0
+PyJWT==2.10.1
 python-multipart==0.0.20
 redis==6.4.0
 rsa==4.9.1
