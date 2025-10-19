@@ -139,6 +139,7 @@ interface FollowerUser {
   linkedinUrl: string | null;
   profileImageUrl: string | null;
   problemsSolved: number;
+  relevanceScore?: number;
 }
 
 interface FollowStatus {
@@ -159,6 +160,42 @@ const RARITY_COLORS = {
   epic: "#8b5cf6",
   legendary: "#f59e0b",
 };
+
+// ============================================
+// HIGHLIGHT MATCHING CHARACTERS IN SEARCH
+// ============================================
+function highlightMatches(text: string, query: string): JSX.Element {
+  if (!query.trim() || !text) {
+    return <span>{text}</span>;
+  }
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const parts: JSX.Element[] = [];
+  let lastIndex = 0;
+  let queryIndex = 0;
+
+  for (let i = 0; i < text.length && queryIndex < lowerQuery.length; i++) {
+    if (lowerText[i] === lowerQuery[queryIndex]) {
+      if (i > lastIndex) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, i)}</span>);
+      }
+      parts.push(
+        <span key={`match-${i}`} className="bg-yellow-200 dark:bg-yellow-800 font-semibold">
+          {text[i]}
+        </span>
+      );
+      lastIndex = i + 1;
+      queryIndex++;
+    }
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+  }
+
+  return <>{parts}</>;
+}
 
 // ✏️ Edit Profile Dialog
 function EditProfileDialog({ basicInfo }: { basicInfo: BasicInfo }) {
@@ -860,13 +897,14 @@ function FriendsAndResourcesSection({
               {/* Search Tab */}
               <TabsContent value="search" className="space-y-4">
                 <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Start typing to search users..."
+                    placeholder="Search by name, username, or company..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                     data-testid="input-search-users"
-                    className="pr-10"
+                    className="pl-10 pr-10"
                   />
                   {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -874,6 +912,11 @@ function FriendsAndResourcesSection({
                     </div>
                   )}
                 </div>
+                {searchQuery.trim() && !isSearching && searchResults.length > 0 && (
+                  <div className="text-xs text-muted-foreground px-1">
+                    Found {searchResults.length} user{searchResults.length !== 1 ? 's' : ''} • Sorted by relevance
+                  </div>
+                )}
 
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {isSearching && searchQuery.trim() ? (
@@ -894,63 +937,94 @@ function FriendsAndResourcesSection({
                         : "Start typing to search for users"}
                     </div>
                   ) : (
-                    searchResults.map((user) => (
-                      <div
-                        key={user.id}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent"
-                        data-testid={`user-search-result-${user.id}`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage
-                              src={user.profileImageUrl || undefined}
-                            />
-                            <AvatarFallback>
-                              {user.username.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{user.username}</div>
-                            {(user.firstName || user.lastName) && (
-                              <div className="text-sm text-muted-foreground">
-                                {user.firstName} {user.lastName}
+                    searchResults.map((user, index) => {
+                      const displayName = user.firstName && user.lastName 
+                        ? `${user.firstName} ${user.lastName}`
+                        : "";
+                      
+                      return (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent transition-all hover:shadow-md"
+                          data-testid={`user-search-result-${user.id}`}
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            <Avatar className="h-12 w-12 border-2 border-primary/20">
+                              <AvatarImage
+                                src={user.profileImageUrl || undefined}
+                              />
+                              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white">
+                                {user.username.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <div className="font-semibold text-base">
+                                  {highlightMatches(user.username, searchQuery)}
+                                </div>
+                                {index === 0 && searchResults.length > 1 && (
+                                  <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-700 dark:text-yellow-300">
+                                    <Star className="h-3 w-3 mr-1" />
+                                    Best Match
+                                  </Badge>
+                                )}
                               </div>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              {user.problemsSolved} problems solved
+                              {displayName && (
+                                <div className="text-sm text-muted-foreground mb-1">
+                                  {highlightMatches(displayName, searchQuery)}
+                                </div>
+                              )}
+                              <div className="flex items-center space-x-3 text-xs text-muted-foreground flex-wrap gap-1">
+                                <div className="flex items-center">
+                                  <Target className="h-3 w-3 mr-1" />
+                                  {user.problemsSolved} solved
+                                </div>
+                                {user.companyName && (
+                                  <div className="flex items-center">
+                                    <Building className="h-3 w-3 mr-1" />
+                                    {highlightMatches(user.companyName, searchQuery)}
+                                  </div>
+                                )}
+                                {user.relevanceScore && user.relevanceScore > 0 && (
+                                  <div className="flex items-center text-blue-600 dark:text-blue-400">
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                    {Math.round(user.relevanceScore)}% match
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <Button
+                            size="sm"
+                            variant={
+                              isFollowingUser(user.id) ? "outline" : "default"
+                            }
+                            onClick={() =>
+                              isFollowingUser(user.id)
+                                ? handleUnfollow(user.id)
+                                : handleFollow(user.id)
+                            }
+                            disabled={
+                              followMutation.isPending ||
+                              unfollowMutation.isPending
+                            }
+                            data-testid={`button-follow-${user.id}`}
+                          >
+                            {isFollowingUser(user.id) ? (
+                              <>
+                                <UserMinus className="h-4 w-4 mr-1" />
+                                Unfollow
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-4 w-4 mr-1" />
+                                Follow
+                              </>
+                            )}
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          variant={
-                            isFollowingUser(user.id) ? "outline" : "default"
-                          }
-                          onClick={() =>
-                            isFollowingUser(user.id)
-                              ? handleUnfollow(user.id)
-                              : handleFollow(user.id)
-                          }
-                          disabled={
-                            followMutation.isPending ||
-                            unfollowMutation.isPending
-                          }
-                          data-testid={`button-follow-${user.id}`}
-                        >
-                          {isFollowingUser(user.id) ? (
-                            <>
-                              <UserMinus className="h-4 w-4 mr-1" />
-                              Unfollow
-                            </>
-                          ) : (
-                            <>
-                              <UserPlus className="h-4 w-4 mr-1" />
-                              Follow
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </TabsContent>
