@@ -66,23 +66,25 @@ export default function Landing() {
 
     if (token) {
       localStorage.setItem("auth_token", token);
-      window.history.replaceState({}, document.title, "/");
+      window.history.replaceState({}, document.title, "/home");
 
       authApi
         .getCurrentUser()
         .then((user) => {
           login(token, user);
+          setLocation("/home");
         })
         .catch((error) => {
           console.error("Authentication failed:", error);
         });
     } else if (authStatus === "success") {
-      window.history.replaceState({}, document.title, "/");
+      window.history.replaceState({}, document.title, "/home");
 
       authApi
         .getCurrentUser()
         .then((user) => {
           login("cookie-based", user);
+          setLocation("/home");
         })
         .catch((error) => {
           console.error("Authentication failed:", error);

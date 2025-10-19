@@ -65,7 +65,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         # Check for error parameter (user denied authorization)
         if request.query_params.get('error'):
             error_description = request.query_params.get('error_description', 'Authorization denied')
-            frontend_url = os.getenv('FRONTEND_URL', '/')
+            frontend_url = os.getenv('FRONTEND_URL', '/home')
             return RedirectResponse(url=f"{frontend_url}?auth=failed&error={error_description}")
 
         # Exchange authorization code for access token
@@ -149,7 +149,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         })
 
         # Redirect to frontend with secure HttpOnly cookie
-        frontend_url = os.getenv('FRONTEND_URL', '/')
+        frontend_url = os.getenv('FRONTEND_URL', '/home')
         response = RedirectResponse(url=f"{frontend_url}?auth=success")
 
         # Determine if we're in production (use secure cookies)
@@ -174,5 +174,5 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         traceback.print_exc()
 
         # Redirect to frontend with error
-        frontend_url = os.getenv('FRONTEND_URL', '/')
+        frontend_url = os.getenv('FRONTEND_URL', '/home')
         return RedirectResponse(url=f"{frontend_url}?auth=failed&error=authentication_failed")
