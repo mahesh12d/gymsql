@@ -139,7 +139,7 @@ class MultiTableValidationResponse(BaseModel):
 
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
-    _: bool = Depends(verify_admin_user_access),
+    _: bool = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """Get the exact schema structure and example for creating problems"""
@@ -712,7 +712,7 @@ class NeonVerificationResponse(BaseModel):
 @admin_router.post("/verify-neon-solution", response_model=NeonVerificationResponse)
 def verify_neon_solution(
     request: NeonVerificationRequest,
-    _: bool = Depends(verify_admin_user_access),
+    _: bool = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """
@@ -1384,7 +1384,7 @@ def create_question_enhanced(
 @admin_router.post("/validate-multitable-s3", response_model=MultiTableValidationResponse)
 async def validate_multitable_s3(
     request: MultiTableValidationRequest,
-    _: bool = Depends(verify_admin_user_access)
+    _: bool = Depends(verify_admin_access)
 ):
     """Validate multiple S3 datasets for multi-table questions"""
     logger = logging.getLogger(__name__)
