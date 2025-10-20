@@ -15,7 +15,7 @@ from .models import User
 from .schemas import TokenData
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_SECRET = os.getenv("JWT_SECRET", "").strip() or None
 if not JWT_SECRET:
     raise ValueError("SECURITY ERROR: JWT_SECRET environment variable is required. Set it to a cryptographically secure random value.")
 if JWT_SECRET in ["your-jwt-secret-key", "dev-secret", "test-secret", "secret", "jwt-secret"]:
@@ -25,7 +25,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
 # Admin Configuration  
-ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY")
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "").strip() or None
 if not ADMIN_SECRET_KEY:
     raise ValueError("SECURITY ERROR: ADMIN_SECRET_KEY environment variable is required. Set it to a cryptographically secure random value.")
 if ADMIN_SECRET_KEY in ["admin-dev-key-123", "admin", "admin123", "password", "secret"]:

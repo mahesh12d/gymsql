@@ -78,14 +78,14 @@ class Config:
     S3_DATASET_MAX_ROWS: int = int(os.getenv("S3_DATASET_MAX_ROWS", "1000000"))
     
     # ==================== AUTHENTICATION & SECURITY ====================
-    JWT_SECRET: str = os.getenv("JWT_SECRET")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "").strip() or None
     if not JWT_SECRET:
         raise ValueError("JWT_SECRET environment variable is required")
     
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", "720"))  # 30 days default
     
-    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY")
+    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "").strip() or None
     if not ADMIN_SECRET_KEY:
         raise ValueError("ADMIN_SECRET_KEY environment variable is required")
     
