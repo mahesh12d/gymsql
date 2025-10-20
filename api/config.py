@@ -53,9 +53,10 @@ class Config:
     
     # ==================== AWS S3 CONFIGURATION ====================
     # AWS credentials (automatically used by boto3)
-    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
+    # Strip whitespace to handle Google Cloud Secret Manager formatting
+    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID", "").strip() or None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip() or None
+    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1").strip()
     
     # S3 bucket configuration (environment-specific)
     S3_ALLOWED_BUCKETS: List[str] = [
