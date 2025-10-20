@@ -6,8 +6,8 @@ This guide sets up a two-stage CI/CD pipeline for SQLGym using Google Cloud Buil
 
 - **main branch** → Staging environment (`sqlgym-staging`)
 - **prod branch** → Production environment (`sqlgym-production`)
-
-Both environments use Docker containers pushed to Artifact Registry and deployed to Cloud Run with environment-specific configurations.
+  Fsec
+  Both environments use Docker containers pushed to Artifact Registry and deployed to Cloud Run with environment-specific configurations.
 
 ---
 
@@ -214,6 +214,7 @@ gcloud builds triggers create github \
 2. Click **Create Trigger**
 
 **For Staging:**
+
 - Name: `deploy-staging`
 - Event: Push to a branch
 - Repository: Your GitHub repo
@@ -221,6 +222,7 @@ gcloud builds triggers create github \
 - Cloud Build configuration file: `cloudbuild.staging.yaml`
 
 **For Production:**
+
 - Name: `deploy-production`
 - Event: Push to a branch
 - Repository: Your GitHub repo
@@ -236,8 +238,8 @@ If you need to add more environment variables (non-secret), update the cloudbuil
 ### Edit `cloudbuild.staging.yaml` or `cloudbuild.prod.yaml`:
 
 ```yaml
-- '--set-env-vars=ENV=staging,FRONTEND_URLS=https://staging.example.com'
-- '--update-secrets=DATABASE_URL=staging-database-url:latest,...'
+- "--set-env-vars=ENV=staging,FRONTEND_URLS=https://staging.example.com"
+- "--update-secrets=DATABASE_URL=staging-database-url:latest,..."
 ```
 
 Or update via command line after deployment:
@@ -282,6 +284,7 @@ Once triggers are configured:
 ## Environment Configuration Reference
 
 ### Staging Environment
+
 - **Service Name:** `sqlgym-staging`
 - **Branch:** `main`
 - **Memory:** 1Gi
@@ -295,6 +298,7 @@ Once triggers are configured:
   - `staging-admin-secret`
 
 ### Production Environment
+
 - **Service Name:** `sqlgym-production`
 - **Branch:** `prod`
 - **Memory:** 2Gi
@@ -312,6 +316,7 @@ Once triggers are configured:
 ## Monitoring and Logs
 
 ### View Build Logs
+
 ```bash
 # List recent builds
 gcloud builds list --limit=10
@@ -321,6 +326,7 @@ gcloud builds log BUILD_ID
 ```
 
 ### View Cloud Run Logs
+
 ```bash
 # Staging logs
 gcloud run services logs read sqlgym-staging --region=us-central1 --limit=50
@@ -330,6 +336,7 @@ gcloud run services logs read sqlgym-production --region=us-central1 --limit=50
 ```
 
 ### Stream Logs in Real-Time
+
 ```bash
 # Staging
 gcloud run services logs tail sqlgym-staging --region=us-central1
@@ -345,6 +352,7 @@ gcloud run services logs tail sqlgym-production --region=us-central1
 ### Typical Development Workflow
 
 1. **Feature Development:**
+
    ```bash
    git checkout -b feature/new-feature
    # Make changes
@@ -354,6 +362,7 @@ gcloud run services logs tail sqlgym-production --region=us-central1
    ```
 
 2. **Staging Deployment:**
+
    ```bash
    # After PR is merged to main
    # Cloud Build automatically builds and deploys to staging
@@ -397,16 +406,19 @@ git push origin prod
 ## Troubleshooting
 
 ### Build Fails
+
 1. Check Cloud Build logs: `gcloud builds log BUILD_ID`
 2. Verify Dockerfile builds locally: `docker build -t test .`
 3. Check Cloud Build service account permissions
 
 ### Deployment Fails
+
 1. Check secrets are created: `gcloud secrets list`
 2. Verify IAM permissions: `gcloud secrets get-iam-policy SECRET_NAME`
 3. Check Cloud Run logs for startup errors
 
 ### Application Errors
+
 1. Check environment variables: `gcloud run services describe sqlgym-staging`
 2. Verify database connectivity from Cloud Run
 3. Check Secret Manager for correct values

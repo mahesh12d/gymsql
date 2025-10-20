@@ -399,7 +399,7 @@ def _types_compatible(type1: str, type2: str) -> bool:
 @admin_router.post("/problems")
 def create_problem(
     problem_data: AdminProblemCreate,
-    _: bool = Depends(verify_admin_user_access),
+    _: bool = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """Create a new problem with the provided data"""
@@ -557,7 +557,7 @@ def validate_problem_json(
 def create_or_update_solution(
     problem_id: str,
     solution_data: SolutionCreate,
-    current_user: User = Depends(verify_admin_user_access),
+    current_user: User = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """Create or update the solution for a problem (one solution per problem)"""
@@ -649,7 +649,7 @@ def get_problem_solutions(
 def update_solution(
     solution_id: str,
     solution_data: SolutionCreate,
-    current_user: User = Depends(verify_admin_user_access),
+    current_user: User = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """Update an existing solution"""
@@ -844,7 +844,7 @@ class S3ValidationResponse(BaseModel):
 @admin_router.post("/s3/upload-url", response_model=S3UploadResponse)
 def generate_s3_upload_url(
     request: S3UploadRequest,
-    _: bool = Depends(verify_admin_user_access)
+    _: bool = Depends(verify_admin_access)
 ):
     """Generate presigned URL for uploading answer files to S3"""
     try:
@@ -900,7 +900,7 @@ def generate_s3_upload_url(
 @admin_router.post("/s3/validate", response_model=S3ValidationResponse)
 def validate_s3_configuration(
     s3_config: S3AnswerSource,
-    _: bool = Depends(verify_admin_user_access)
+    _: bool = Depends(verify_admin_access)
 ):
     """Validate S3 configuration and preview file content"""
     try:
@@ -1132,7 +1132,7 @@ def validate_s3_dataset(
 @admin_router.post("/create_question", response_model=EnhancedQuestionCreateResponse)
 def create_question_enhanced(
     request: EnhancedQuestionCreateRequest,
-    _: bool = Depends(verify_admin_user_access),
+    _: bool = Depends(verify_admin_access),
     db: Session = Depends(get_db)
 ):
     """
@@ -1461,7 +1461,7 @@ async def validate_multitable_s3(
 async def create_multitable_question(
     request: MultiTableQuestionCreateRequest,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin_user_access)
+    _: bool = Depends(verify_admin_access)
 ):
     """Create a question with multiple S3 datasets"""
     logger = logging.getLogger(__name__)
