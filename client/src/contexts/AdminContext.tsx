@@ -393,11 +393,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         try {
           dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: null });
           
+          const authToken = localStorage.getItem('auth_token');
           // Make API call to verify Neon solution
           const response = await fetch('/api/admin/verify-neon-solution', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
               'X-Admin-Key': state.adminKey
             },
             body: JSON.stringify({
@@ -454,9 +456,23 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
+        // Get user's JWT token from localStorage or cookies
+        const authToken = localStorage.getItem('auth_token');
+        
+        if (!authToken) {
+          toast({
+            title: "Authentication Required",
+            description: "Please login first before accessing the admin panel",
+            variant: "destructive",
+          });
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
+
         const response = await fetch('/api/admin/schema-info', {
           headers: {
-            'Authorization': `Bearer ${key}`,
+            'Authorization': `Bearer ${authToken}`,  // User's JWT token
+            'X-Admin-Key': key,  // ADMIN_SECRET_KEY
           },
         });
 
@@ -471,9 +487,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             description: "Admin access granted!",
           });
         } else {
+          const errorData = await response.json().catch(() => ({}));
           toast({
             title: "Authentication Failed",
-            description: "Invalid admin key",
+            description: errorData.detail || "Invalid admin key or insufficient permissions",
             variant: "destructive",
           });
         }
@@ -502,11 +519,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_S3_VALIDATION', payload: null });
 
       try {
+        const authToken = localStorage.getItem('auth_token');
         const response = await fetch('/api/admin/validate-dataset-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            'Authorization': `Bearer ${authToken}`,
+            'X-Admin-Key': state.adminKey,
           },
           body: JSON.stringify(state.s3Source),
         });
@@ -542,11 +561,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_MULTI_TABLE_VALIDATION', payload: null });
 
       try {
+        const authToken = localStorage.getItem('auth_token');
         const response = await fetch('/api/admin/validate-multitable-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            'Authorization': `Bearer ${authToken}`,
+            'X-Admin-Key': state.adminKey,
           },
           body: JSON.stringify({
             datasets: state.multiTableDatasets,
@@ -585,11 +606,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_DATASET_VALIDATION', payload: null });
 
       try {
+        const authToken = localStorage.getItem('auth_token');
         const response = await fetch('/api/admin/validate-multitable-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            'Authorization': `Bearer ${authToken}`,
+            'X-Admin-Key': state.adminKey,
           },
           body: JSON.stringify({
             datasets: state.datasets,

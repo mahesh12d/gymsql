@@ -217,10 +217,11 @@ def verify_admin_access(
     return True
 
 def verify_admin_user_access(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access using ADMIN_SECRET_KEY only - creates/returns admin user with is_admin=True"""
+    """Verify admin access - requires user JWT token with is_admin=True AND ADMIN_SECRET_KEY in X-Admin-Key header"""
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -240,36 +241,58 @@ def verify_admin_user_access(
             db.refresh(admin_user)
         return admin_user
     
-    if not credentials:
+    # Step 1: Verify ADMIN_SECRET_KEY from X-Admin-Key header
+    admin_key = request.headers.get("X-Admin-Key")
+    if not admin_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin authentication required",
+            detail="Admin key required - provide ADMIN_SECRET_KEY in X-Admin-Key header",
+        )
+    
+    if admin_key.strip() != ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin key"
+        )
+    
+    # Step 2: Verify user JWT token
+    token = credentials.credentials if credentials else None
+    
+    # If no Authorization header, try to get from cookie
+    if not token:
+        token = request.cookies.get("auth_token")
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User authentication required - please login first",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Only accept ADMIN_SECRET_KEY (no JWT token verification)
-    if credentials.credentials != ADMIN_SECRET_KEY:
+    # Verify JWT token
+    try:
+        token_data = verify_token(token)
+        user = db.query(User).filter(User.id == token_data.user_id).first()
+        
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Step 3: Verify user has is_admin=True
+        if not user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied - user does not have admin privileges. Contact a developer to set is_admin=true for your account."
+            )
+        
+        return user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin credentials"
+            detail="Invalid authentication credentials"
         )
-    
-    # Create/find a system admin user for admin panel operations
-    admin_user = db.query(User).filter(User.username == "admin_panel").first()
-    if admin_user is None:
-        from uuid import uuid4
-        admin_user = User(
-            id=str(uuid4()),
-            username="admin_panel",
-            email="admin@system.local",
-            first_name="Admin",
-            last_name="Panel",
-            is_admin=True,
-            premium=True,
-            auth_provider="admin_key"
-        )
-        db.add(admin_user)
-        db.commit()
-        db.refresh(admin_user)
-    
-    return admin_user
