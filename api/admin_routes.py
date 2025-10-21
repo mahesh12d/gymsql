@@ -557,7 +557,7 @@ def validate_problem_json(
 def create_or_update_solution(
     problem_id: str,
     solution_data: SolutionCreate,
-    current_user: User = Depends(verify_admin_access),
+    current_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Create or update the solution for a problem (one solution per problem)"""
@@ -649,7 +649,7 @@ def get_problem_solutions(
 def update_solution(
     solution_id: str,
     solution_data: SolutionCreate,
-    current_user: User = Depends(verify_admin_access),
+    current_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Update an existing solution"""
@@ -1781,7 +1781,7 @@ class CleanupResponse(BaseModel):
 @admin_router.get("/data-retention/stats", response_model=DataRetentionStats)
 async def get_data_retention_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(verify_admin_access)
+    current_user: User = Depends(verify_admin_user_access)
 ):
     """
     Get statistics about execution_results storage and retention policy.
@@ -1796,7 +1796,7 @@ async def get_data_retention_stats(
 async def cleanup_execution_results(
     retention_days: int = Query(default=180, description="Number of days to retain (default: 180 days / 6 months)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(verify_admin_access)
+    current_user: User = Depends(verify_admin_user_access)
 ):
     """
     Manually trigger cleanup of old execution_results.
