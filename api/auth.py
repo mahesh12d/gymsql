@@ -220,7 +220,7 @@ def verify_admin_user_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access - requires authenticated user with is_admin=true"""
+    """Verify admin access - accepts either ADMIN_SECRET_KEY or JWT from admin user"""
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -243,11 +243,32 @@ def verify_admin_user_access(
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin authentication required - please log in with an admin account",
+            detail="Admin authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Verify it's a JWT token from an admin user
+    # Check if token is the ADMIN_SECRET_KEY (for admin panel)
+    if credentials.credentials == ADMIN_SECRET_KEY:
+        # Create/find a system admin user for admin panel operations
+        admin_user = db.query(User).filter(User.username == "admin_panel").first()
+        if admin_user is None:
+            from uuid import uuid4
+            admin_user = User(
+                id=str(uuid4()),
+                username="admin_panel",
+                email="admin@system.local",
+                first_name="Admin",
+                last_name="Panel",
+                is_admin=True,
+                premium=True,
+                auth_provider="admin_key"
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+        return admin_user
+    
+    # Otherwise, verify it's a JWT token from an admin user
     try:
         token_data = verify_token(credentials.credentials)
         user = db.query(User).filter(User.id == token_data.user_id).first()
