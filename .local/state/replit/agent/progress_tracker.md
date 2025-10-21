@@ -23,7 +23,14 @@
 [x] 20. Updated frontend routing to support /home as the authenticated home page
 [x] 21. Updated landing page to navigate to /home after successful login
 [x] 22. Fixed S3 endpoint error in Google Cloud Run - stripped whitespace from AWS environment variables
-[x] 23. Simplified admin authentication to use ADMIN_SECRET_KEY only (removed JWT token verification from verify_admin_user_access)
+[x] 23. CORRECTED: Implemented two-factor admin authentication requiring BOTH JWT token AND ADMIN_SECRET_KEY
+  - Backend verify_admin_user_access now validates user's JWT token (from Authorization header or cookie)
+  - Validates ADMIN_SECRET_KEY from X-Admin-Key header
+  - Checks user has is_admin=true in database
+  - No automatic admin user creation
+  - Frontend AdminContext updated to send both Authorization header (JWT) and X-Admin-Key header (admin secret)
+  - All admin API calls in SolutionsTab updated to include both headers
+  - Other admin components (DataSourceTab, SchemaInfoTab, CreateQuestionTab) use AdminContext functions
 
 ## Summary
 ✅ All migration and authentication tasks completed
@@ -31,8 +38,9 @@
 ✅ Users now redirected to /home after successful login
 ✅ Application running successfully on Replit environment
 ✅ Fixed S3 endpoint construction error caused by whitespace in Google Cloud Secret Manager variables
-✅ **NEW:** Admin panel authentication simplified - now uses ADMIN_SECRET_KEY exclusively for admin access
-  - Removed JWT token verification complexity from verify_admin_user_access
-  - Admin users with ADMIN_SECRET_KEY automatically get is_admin=true
-  - Fixes Google Cloud Run issues when creating problems or submitting solutions
-  - Perfect for small admin teams (<10 users) using a shared secret key
+✅ **CORRECTED:** Admin panel authentication now properly enforces two-factor security
+  - Users must be logged in (JWT token) AND provide ADMIN_SECRET_KEY
+  - User must have is_admin=true set manually in database
+  - No automatic admin user creation when admin key is provided
+  - Fixes Google Cloud Run admin access control issues
+  - Ensures only authorized users with admin privileges can access admin panel
