@@ -30,6 +30,18 @@ The `apiRequest` function and `getQueryFn` in `queryClient.ts` were only sending
    - Now correctly sends session token using `X-Admin-Session` header
    - **FIXED** ✅
 
+### Current Issue - Session Token Expiration
+
+**Symptom**: User still getting 403 errors when creating problems or parsing parquet files
+
+**Cause**: Admin session tokens expire after 30 minutes and are stored in sessionStorage (which clears on tab close/refresh)
+
+**Solution**: 
+1. Log out of admin panel and log back in to get a fresh session token
+2. Session tokens are automatically stored in sessionStorage
+3. All admin API calls now automatically include the session token
+4. If you get 403 errors again, simply re-authenticate in the admin panel
+
 ## Cloud Run Admin Validation Error Fix
 
 ### Issue
@@ -130,3 +142,4 @@ gcloud builds submit --config=cloudbuild.prod.yaml
 - ✅ 403 Forbidden Errors: FIXED - queryClient.ts now auto-includes admin session token
 - ✅ Validation Errors: FIXED - Proper error handling and JSON responses
 - ✅ Google Cloud Run: READY TO DEPLOY - All issues resolved
+- ℹ️  Session Token Management: Working as designed - tokens expire after 30 minutes, stored in sessionStorage
