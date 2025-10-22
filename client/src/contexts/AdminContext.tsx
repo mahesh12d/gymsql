@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, ReactNode } from 'react';
+import { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 // Types and interfaces
@@ -361,6 +361,73 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(adminReducer, initialState);
   const { toast } = useToast();
 
+  // Restore admin session from sessionStorage on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      const sessionToken = sessionStorage.getItem('admin_session_token');
+      const expiresAt = sessionStorage.getItem('admin_session_expires');
+      
+      // Check if we have a valid session token
+      if (sessionToken && expiresAt) {
+        const now = Date.now();
+        const expiry = Number(expiresAt);
+        
+        // Check if token is still valid (not expired)
+        if (now < expiry) {
+          try {
+            // Verify token is still valid with a lightweight API call
+            const response = await fetch('/api/admin/schema-info', {
+              headers: { 'X-Admin-Session': sessionToken },
+            });
+            
+            if (response.ok) {
+              // Token is valid - restore session
+              const schema = await response.json();
+              dispatch({ type: 'SET_SCHEMA_INFO', payload: schema });
+              dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+              dispatch({ type: 'SET_ADMIN_KEY', payload: sessionToken });
+              dispatch({ type: 'UPDATE_PROBLEM_DRAFT', payload: schema.example_problem });
+            } else {
+              // Token is invalid - clear session
+              sessionStorage.removeItem('admin_session_token');
+              sessionStorage.removeItem('admin_session_expires');
+            }
+          } catch (error) {
+            // Error verifying token - clear session
+            sessionStorage.removeItem('admin_session_token');
+            sessionStorage.removeItem('admin_session_expires');
+          }
+        } else {
+          // Token expired - clear session
+          sessionStorage.removeItem('admin_session_token');
+          sessionStorage.removeItem('admin_session_expires');
+        }
+      }
+    };
+    
+    restoreSession();
+  }, []);
+
+  // Helper function to get admin session token
+  const getAdminHeaders = (): HeadersInit => {
+    const sessionToken = sessionStorage.getItem('admin_session_token');
+    if (!sessionToken) {
+      throw new Error('Admin session expired. Please re-enter admin key.');
+    }
+    
+    // Check if session is expired
+    const expiresAt = sessionStorage.getItem('admin_session_expires');
+    if (expiresAt && Date.now() > Number(expiresAt)) {
+      // Clear expired session
+      sessionStorage.removeItem('admin_session_token');
+      sessionStorage.removeItem('admin_session_expires');
+      dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+      throw new Error('Admin session expired. Please re-enter admin key.');
+    }
+    
+    return { 'X-Admin-Session': sessionToken };
+  };
+
   const actions = {
     // Setter actions  
     setS3Source: (source: S3DatasetSource) => {
@@ -393,12 +460,13 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         try {
           dispatch({ type: 'SET_SOLUTION_VERIFICATION', payload: null });
           
+          const adminHeaders = getAdminHeaders();
           // Make API call to verify Neon solution
           const response = await fetch('/api/admin/verify-neon-solution', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Admin-Key': state.adminKey
+              ...adminHeaders
             },
             body: JSON.stringify({
               problem_id: state.selectedProblemId
@@ -423,11 +491,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           
         } catch (error) {
           console.error('Failed to verify Neon solution:', error);
-          toast({
-            title: "Verification Failed",
-            description: `Failed to verify Neon solution: ${error instanceof Error ? error.message : String(error)}`,
-            variant: "destructive"
-          });
+          if (error instanceof Error && error.message.includes('session expired')) {
+            toast({ title: "Session Expired", description: error.message, variant: "destructive" });
+            dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+          } else {
+            toast({
+              title: "Verification Failed",
+              description: `Failed to verify Neon solution: ${error instanceof Error ? error.message : String(error)}`,
+              variant: "destructive"
+            });
+          }
           
           // Set failed verification
           dispatch({ 
@@ -454,33 +527,76 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
-        const response = await fetch('/api/admin/schema-info', {
+        // Get user's JWT token from localStorage or cookies
+        const authToken = localStorage.getItem('auth_token');
+        
+        if (!authToken) {
+          toast({
+            title: "Authentication Required",
+            description: "Please login first before accessing the admin panel",
+            variant: "destructive",
+          });
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
+
+        // Step 1: Validate admin key and get session token
+        const sessionResponse = await fetch('/api/admin/session', {
+          method: 'POST',
           headers: {
-            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ admin_key: key }),
+        });
+
+        if (!sessionResponse.ok) {
+          const errorData = await sessionResponse.json().catch(() => ({}));
+          toast({
+            title: "Authentication Failed",
+            description: errorData.detail || "Invalid admin key or insufficient permissions",
+            variant: "destructive",
+          });
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
+
+        const sessionData = await sessionResponse.json();
+        const sessionToken = sessionData.session_token;
+        
+        // Store session token in sessionStorage (clears on tab close)
+        sessionStorage.setItem('admin_session_token', sessionToken);
+        sessionStorage.setItem('admin_session_expires', String(Date.now() + (sessionData.expires_in * 60 * 1000)));
+
+        // Step 2: Fetch schema info using session token
+        const schemaResponse = await fetch('/api/admin/schema-info', {
+          headers: {
+            'X-Admin-Session': sessionToken,
           },
         });
 
-        if (response.ok) {
-          const schema = await response.json();
+        if (schemaResponse.ok) {
+          const schema = await schemaResponse.json();
           dispatch({ type: 'SET_SCHEMA_INFO', payload: schema });
           dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-          dispatch({ type: 'SET_ADMIN_KEY', payload: key });
+          dispatch({ type: 'SET_ADMIN_KEY', payload: sessionToken }); // Store session token instead of key
           dispatch({ type: 'UPDATE_PROBLEM_DRAFT', payload: schema.example_problem });
           toast({
             title: "Success",
-            description: "Admin access granted!",
+            description: `Admin access granted! Session expires in ${sessionData.expires_in} minutes.`,
           });
         } else {
+          const errorData = await schemaResponse.json().catch(() => ({}));
           toast({
-            title: "Authentication Failed",
-            description: "Invalid admin key",
+            title: "Error",
+            description: errorData.detail || "Failed to load schema info",
             variant: "destructive",
           });
         }
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to authenticate",
+          description: "Failed to authenticate: " + (error instanceof Error ? error.message : String(error)),
           variant: "destructive",
         });
       } finally {
@@ -502,11 +618,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_S3_VALIDATION', payload: null });
 
       try {
+        const adminHeaders = getAdminHeaders();
         const response = await fetch('/api/admin/validate-dataset-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            ...adminHeaders,
           },
           body: JSON.stringify(state.s3Source),
         });
@@ -527,11 +644,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           });
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to validate S3 dataset",
-          variant: "destructive",
-        });
+        if (error instanceof Error && error.message.includes('session expired')) {
+          toast({
+            title: "Session Expired",
+            description: error.message,
+            variant: "destructive",
+          });
+          dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to validate S3 dataset",
+            variant: "destructive",
+          });
+        }
       } finally {
         dispatch({ type: 'SET_VALIDATING_S3', payload: false });
       }
@@ -542,11 +668,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_MULTI_TABLE_VALIDATION', payload: null });
 
       try {
+        const adminHeaders = getAdminHeaders();
         const response = await fetch('/api/admin/validate-multitable-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            ...adminHeaders,
           },
           body: JSON.stringify({
             datasets: state.multiTableDatasets,
@@ -570,11 +697,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           });
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to validate multi-table datasets",
-          variant: "destructive",
-        });
+        if (error instanceof Error && error.message.includes('session expired')) {
+          toast({ title: "Session Expired", description: error.message, variant: "destructive" });
+          dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+        } else {
+          toast({ title: "Error", description: "Failed to validate multi-table datasets", variant: "destructive" });
+        }
       } finally {
         dispatch({ type: 'SET_VALIDATING_MULTI_TABLE', payload: false });
       }
@@ -585,11 +713,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_DATASET_VALIDATION', payload: null });
 
       try {
+        const adminHeaders = getAdminHeaders();
         const response = await fetch('/api/admin/validate-multitable-s3', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.adminKey}`,
+            ...adminHeaders,
           },
           body: JSON.stringify({
             datasets: state.datasets,
@@ -613,11 +742,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           });
         }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to validate datasets",
-          variant: "destructive",
-        });
+        if (error instanceof Error && error.message.includes('session expired')) {
+          toast({ title: "Session Expired", description: error.message, variant: "destructive" });
+          dispatch({ type: 'SET_AUTHENTICATED', payload: false });
+        } else {
+          toast({ title: "Error", description: "Failed to validate datasets", variant: "destructive" });
+        }
       } finally {
         dispatch({ type: 'SET_VALIDATING_DATASETS', payload: false });
       }

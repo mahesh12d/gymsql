@@ -35,14 +35,18 @@ async def scheduled_cleanup_task():
             # Continue running even if there's an error
 
 async def run_initial_cleanup():
-    """Run cleanup once on startup."""
+    """Run cleanup once on startup with timeout to prevent blocking."""
     try:
-        db = SessionLocal()
-        try:
-            deleted_count = cleanup_old_execution_results(db, RETENTION_DAYS)
-            logger.info(f"Initial startup cleanup completed: Deleted {deleted_count} old execution_results")
-        finally:
-            db.close()
+        # Add timeout to prevent blocking Cloud Run startup
+        async with asyncio.timeout(10):  # 10 second timeout
+            db = SessionLocal()
+            try:
+                deleted_count = cleanup_old_execution_results(db, RETENTION_DAYS)
+                logger.info(f"Initial startup cleanup completed: Deleted {deleted_count} old execution_results")
+            finally:
+                db.close()
+    except asyncio.TimeoutError:
+        logger.warning(f"Initial cleanup timed out - will retry in next scheduled run")
     except Exception as e:
         logger.error(f"Error in initial cleanup: {str(e)}")
 
@@ -53,7 +57,12 @@ async def lifespan_with_scheduler(app):
     Use this with FastAPI's lifespan parameter.
     """
     # Startup: Run initial cleanup and start background task
-    await run_initial_cleanup()
+    # Make cleanup non-blocking to prevent Cloud Run startup timeout
+    try:
+        await run_initial_cleanup()
+    except Exception as e:
+        logger.warning(f"Skipping initial cleanup due to error: {e}")
+    
     cleanup_task = asyncio.create_task(scheduled_cleanup_task())
     
     logger.info(f"Data retention scheduler started. Cleanup runs every {CLEANUP_INTERVAL_HOURS} hours, retaining {RETENTION_DAYS} days of data.")

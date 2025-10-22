@@ -4,7 +4,8 @@ Authentication utilities for FastAPI
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -14,7 +15,7 @@ from .models import User
 from .schemas import TokenData
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_SECRET = os.getenv("JWT_SECRET", "").strip() or None
 if not JWT_SECRET:
     raise ValueError("SECURITY ERROR: JWT_SECRET environment variable is required. Set it to a cryptographically secure random value.")
 if JWT_SECRET in ["your-jwt-secret-key", "dev-secret", "test-secret", "secret", "jwt-secret"]:
@@ -24,7 +25,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
 # Admin Configuration  
-ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY")
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "").strip() or None
 if not ADMIN_SECRET_KEY:
     raise ValueError("SECURITY ERROR: ADMIN_SECRET_KEY environment variable is required. Set it to a cryptographically secure random value.")
 if ADMIN_SECRET_KEY in ["admin-dev-key-123", "admin", "admin123", "password", "secret"]:
@@ -57,6 +58,36 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_admin_session_token(user_id: str, expires_minutes: int = 30):
+    """Create a short-lived admin session token"""
+    to_encode = {
+        "userId": user_id,
+        "adminSession": True,
+        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes)
+    }
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_admin_session_token(token: str) -> str:
+    """Verify admin session token and return user_id"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        user_id: str = payload.get("userId")
+        is_admin_session: bool = payload.get("adminSession", False)
+        
+        if not user_id or not is_admin_session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin session token"
+            )
+        
+        return user_id
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin session expired or invalid"
+        )
+
 def verify_token(token: str) -> TokenData:
     """Verify and decode a JWT token"""
     try:
@@ -74,7 +105,7 @@ def verify_token(token: str) -> TokenData:
         
         token_data = TokenData(user_id=user_id, username=username, is_admin=is_admin)
         return token_data
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -216,10 +247,11 @@ def verify_admin_access(
     return True
 
 def verify_admin_user_access(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access using either admin secret key or admin user token"""
+    """Verify admin access - accepts either X-Admin-Session token (new) or X-Admin-Key + JWT (legacy)"""
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -239,35 +271,60 @@ def verify_admin_user_access(
             db.refresh(admin_user)
         return admin_user
     
-    if not credentials:
+    # NEW: Check for admin session token first (simpler flow)
+    admin_session_token = request.headers.get("X-Admin-Session")
+    if admin_session_token:
+        try:
+            user_id = verify_admin_session_token(admin_session_token)
+            user = db.query(User).filter(User.id == user_id).first()
+            
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            if not user.is_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied - admin privileges revoked"
+                )
+            
+            return user
+        except HTTPException:
+            raise
+    
+    # LEGACY: Fall back to X-Admin-Key + JWT verification for backward compatibility
+    admin_key = request.headers.get("X-Admin-Key")
+    if not admin_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin authentication required",
+            detail="Admin authentication required - provide X-Admin-Session token or X-Admin-Key header",
+        )
+    
+    if admin_key.strip() != ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin key"
+        )
+    
+    # Verify user JWT token
+    token = credentials.credentials if credentials else None
+    
+    # If no Authorization header, try to get from cookie
+    if not token:
+        token = request.cookies.get("auth_token")
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User authentication required - please login first",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # First, check if it's the admin secret key
-    if credentials.credentials == ADMIN_SECRET_KEY:
-        # For admin secret key, find or create an admin user
-        admin_user = db.query(User).filter(User.is_admin == True).first()
-        if admin_user is None:
-            # Create a default admin user if none exists
-            from uuid import uuid4
-            admin_user = User(
-                id=str(uuid4()),
-                username="admin",
-                email="admin@example.com",
-                is_admin=True,
-                premium=True
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-        return admin_user
-    
-    # Otherwise, verify it's a JWT token from an admin user
+    # Verify JWT token
     try:
-        token_data = verify_token(credentials.credentials)
+        token_data = verify_token(token)
         user = db.query(User).filter(User.id == token_data.user_id).first()
         
         if user is None:
@@ -276,21 +333,19 @@ def verify_admin_user_access(
                 detail="User not found"
             )
         
-        # Check if user is admin
+        # Verify user has is_admin=True
         if not user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
+                detail="Access denied - user does not have admin privileges. Contact a developer to set is_admin=true for your account."
             )
         
         return user
         
     except HTTPException:
-        # If JWT verification fails, re-raise the exception
         raise
-    except Exception:
-        # For any other error, return forbidden
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin credentials"
+            detail="Invalid authentication credentials"
         )

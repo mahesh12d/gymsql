@@ -49,6 +49,9 @@ export default function Landing() {
   const { login } = useAuth();
   const { toast } = useToast();
 
+  // API Base URL for OAuth redirects
+  const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
   // Dynamic date formatting
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'short',
@@ -63,23 +66,25 @@ export default function Landing() {
 
     if (token) {
       localStorage.setItem("auth_token", token);
-      window.history.replaceState({}, document.title, "/");
+      window.history.replaceState({}, document.title, "/home");
 
       authApi
         .getCurrentUser()
         .then((user) => {
           login(token, user);
+          setLocation("/home");
         })
         .catch((error) => {
           console.error("Authentication failed:", error);
         });
     } else if (authStatus === "success") {
-      window.history.replaceState({}, document.title, "/");
+      window.history.replaceState({}, document.title, "/home");
 
       authApi
         .getCurrentUser()
         .then((user) => {
           login("cookie-based", user);
+          setLocation("/home");
         })
         .catch((error) => {
           console.error("Authentication failed:", error);
@@ -275,7 +280,7 @@ export default function Landing() {
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      (window.location.href = "/api/auth/google/login")
+                      (window.location.href = `${API_BASE_URL}/auth/google/login`)
                     }
                     data-testid="button-google-login"
                   >
@@ -417,7 +422,7 @@ export default function Landing() {
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      (window.location.href = "/api/auth/google/login")
+                      (window.location.href = `${API_BASE_URL}/auth/google/login`)
                     }
                     data-testid="button-google-register"
                   >

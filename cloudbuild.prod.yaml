@@ -1,41 +1,53 @@
-# Google Cloud Build configuration for SQLGym - PRODUCTION Environment
-# This enables automatic deployments to production environment
+# Google Cloud Build - Production Environment
+# Triggered by: prod branch
+# Deploys to: sqlgym-production on Cloud Run
 
 steps:
-  # Build the container image using production Dockerfile
+  # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: 
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/sqlgym-backend-prod:latest'
-      - '-f'
-      - 'Dockerfile.prod'
+      - '$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production:$COMMIT_SHA'
+      - '-t'
+      - '$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production:latest'
       - '.'
 
-  # Deploy to Cloud Run - PRODUCTION
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production'
+
+  # Deploy to Cloud Run - Production
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - 'run'
       - 'deploy'
-      - 'sqlgym-backend-prod'
-      - '--image=gcr.io/$PROJECT_ID/sqlgym-backend-prod:latest'
-      - '--region=${_REGION}'
+      - 'sqlgym-production'
+      - '--image=$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production:$COMMIT_SHA'
+      - '--region=$_REGION'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--memory=${_MEMORY}'
-      - '--cpu=${_CPU}'
-      - '--timeout=${_TIMEOUT}'
-      - '--max-instances=${_MAX_INSTANCES}'
-      - '--min-instances=${_MIN_INSTANCES}'
-      - '--concurrency=${_CONCURRENCY}'
+      - '--memory=$_MEMORY'
+      - '--cpu=$_CPU'
+      - '--timeout=$_TIMEOUT'
+      - '--max-instances=$_MAX_INSTANCES'
+      - '--min-instances=$_MIN_INSTANCES'
+      - '--concurrency=$_CONCURRENCY'
       - '--set-env-vars=ENV=prod'
+      - '--update-secrets=DATABASE_URL=prod-database-url:latest,JWT_SECRET=prod-jwt-secret:latest,ADMIN_SECRET_KEY=prod-admin-secret:latest,REDIS_URL=prod-redis-url:latest'
 
 images:
-  - 'gcr.io/$PROJECT_ID/sqlgym-backend-prod:latest'
+  - '$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production:latest'
+  - '$_ARTIFACT_REGISTRY_LOCATION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/sqlgym-production:$COMMIT_SHA'
 
-# Environment-specific substitutions for PRODUCTION
+# Substitution variables for production
 substitutions:
+  _ARTIFACT_REGISTRY_LOCATION: 'us-central1'
+  _ARTIFACT_REGISTRY_REPO: 'sqlgym'
   _REGION: 'us-central1'
   _MEMORY: '2Gi'
   _CPU: '2'
@@ -46,3 +58,4 @@ substitutions:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'

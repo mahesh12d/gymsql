@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -44,11 +44,13 @@ function AppRouter() {
         {!isAuthenticated ? (
           <>
             <Route path="/" component={Landing} />
+            <Route path="/home" component={Landing} />
             <Route path="/verify-email" component={VerifyEmail} />
           </>
         ) : (
           <>
-            <Route path="/" component={Home} />
+            <Route path="/">{() => <Redirect to="/home" />}</Route>
+            <Route path="/home" component={Home} />
             <Route path="/problems" component={Problems} />
             <Route path="/problems/:id" component={ProblemDetail} />
             <Route path="/leaderboard" component={Leaderboard} />

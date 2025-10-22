@@ -5,9 +5,9 @@
 I've configured everything that can be done automatically:
 
 1. ✅ **GitHub Actions Workflows** - 3 workflow files created
-   - `.github/workflows/deploy-dev.yml` (develop branch → dev environment)
+   - `.github/workflows/deploy-dev.yml` (main branch → dev environment)
    - `.github/workflows/deploy-uat.yml` (staging branch → uat environment)
-   - `.github/workflows/deploy-prod.yml` (main branch → prod environment)
+   - `.github/workflows/deploy-prod.yml` (production branch → prod environment)
 
 2. ✅ **Environment Templates** - Already exist
    - `.env.dev.template`
@@ -25,13 +25,9 @@ I've configured everything that can be done automatically:
 
 ### Quick Version (15 minutes)
 
-**1. Create branches** (if they don't exist):
-```bash
-git branch develop
-git branch staging
-git push origin develop
-git push origin staging
-```
+**1. You're already on the right branch!**
+- `main` branch → deploys to **development** (you're here now!)
+- Create `staging` and `production` branches only when you need them
 
 **2. Add 5 GitHub Secrets** to https://github.com/mahesh12d/gymsql/settings/secrets/actions:
 - `GCP_SERVICE_ACCOUNT_KEY` - Get from Google Cloud (see below)
@@ -85,20 +81,19 @@ Copy the entire JSON content as `GCP_SERVICE_ACCOUNT_KEY` in GitHub Secrets.
 Once set up, deployment is automatic:
 
 ```bash
-# Deploy to Development
-git checkout develop
+# Deploy to Development (you're already on main!)
 git commit -am "Your changes"
-git push origin develop  # ← Automatic deployment!
+git push origin main  # ← Automatic dev deployment!
 
-# Deploy to UAT
-git checkout staging
-git merge develop
-git push origin staging  # ← Automatic deployment!
+# Deploy to UAT (when ready)
+git checkout staging  # or: git checkout -b staging main (first time)
+git merge main
+git push origin staging  # ← Automatic UAT deployment!
 
-# Deploy to Production
-git checkout main
+# Deploy to Production (when UAT passes)
+git checkout production  # or: git checkout -b production staging (first time)
 git merge staging
-git push origin main  # ← Automatic deployment!
+git push origin production  # ← Automatic prod deployment!
 ```
 
 GitHub Actions will:

@@ -1,42 +1,12 @@
 """
-Centralized Configuration Management for Multi-Stage Deployment
-================================================================
-Supports dev, UAT, and prod environments with environment-based configuration.
-All secrets and configuration values should be stored in environment variables.
+Centralized Configuration Management for Docker Deployment
+=========================================================
+All configuration values are read directly from environment variables.
+Secrets should be injected via Docker/Cloud Run environment variables.
 """
 import os
 from typing import List, Optional
 from enum import Enum
-from dotenv import load_dotenv
-
-# Load environment variables from .env files BEFORE reading configuration
-# Strategy: Load files additively so overrides work correctly
-# Loading order: .env (base) → .env.{dev|uat|prod} (environment) → .env.local (overrides)
-
-import os.path
-
-# Step 1: Load base .env file if it exists (lowest priority)
-if os.path.exists(".env"):
-    load_dotenv(".env", override=False)
-
-# Step 2: Load environment-specific file based on ENV variable
-env = os.getenv("ENV", "").lower()
-if env in ["dev", "development"] and os.path.exists(".env.dev"):
-    load_dotenv(".env.dev", override=True)
-elif env in ["uat", "staging"] and os.path.exists(".env.uat"):
-    load_dotenv(".env.uat", override=True)
-elif env in ["prod", "production"] and os.path.exists(".env.prod"):
-    load_dotenv(".env.prod", override=True)
-elif not env:
-    # If ENV is not set, auto-detect by trying to load the first existing env-specific file
-    for env_file in [".env.dev", ".env.uat", ".env.prod"]:
-        if os.path.exists(env_file):
-            load_dotenv(env_file, override=True)
-            break
-
-# Step 3: Load .env.local last for local overrides (highest priority)
-if os.path.exists(".env.local"):
-    load_dotenv(".env.local", override=True)
 
 
 class Environment(str, Enum):
@@ -83,9 +53,10 @@ class Config:
     
     # ==================== AWS S3 CONFIGURATION ====================
     # AWS credentials (automatically used by boto3)
-    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
+    # Strip whitespace to handle Google Cloud Secret Manager formatting
+    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID", "").strip() or None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip() or None
+    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1").strip()
     
     # S3 bucket configuration (environment-specific)
     S3_ALLOWED_BUCKETS: List[str] = [
@@ -107,14 +78,14 @@ class Config:
     S3_DATASET_MAX_ROWS: int = int(os.getenv("S3_DATASET_MAX_ROWS", "1000000"))
     
     # ==================== AUTHENTICATION & SECURITY ====================
-    JWT_SECRET: str = os.getenv("JWT_SECRET")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "").strip() or None
     if not JWT_SECRET:
         raise ValueError("JWT_SECRET environment variable is required")
     
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", "720"))  # 30 days default
     
-    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY")
+    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "").strip() or None
     if not ADMIN_SECRET_KEY:
         raise ValueError("ADMIN_SECRET_KEY environment variable is required")
     

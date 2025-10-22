@@ -19,21 +19,69 @@ PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used fo
 ### Authentication System
 Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials and all secrets are managed via environment variables with environment-specific configuration. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
 
+#### Admin Access
+Admin panel access uses a simplified session-based authentication designed for small teams (<10 administrators). The system maintains two-factor security while improving user experience.
+
+**Authentication Flow:**
+1. User must be logged in with `is_admin=true` flag
+2. On first admin panel access, user enters `ADMIN_SECRET_KEY` once
+3. Backend issues a JWT-signed session token (30-minute expiry)
+4. Session token is stored in `sessionStorage` (cleared when tab closes)
+5. All subsequent admin API calls use the session token via `X-Admin-Session` header
+6. Session automatically restores on page reload if token is still valid
+7. User is prompted to re-enter key only when:
+   - Session expires (after 30 minutes)
+   - Browser tab/window is closed
+   - User logs out
+
+**Backend Implementation:**
+- `/api/admin/session` endpoint validates `ADMIN_SECRET_KEY` and issues session token
+- `verify_admin_user_access` middleware validates both user JWT token and admin session token
+- Legacy `verify_admin_access` remains for backward compatibility (requires `ADMIN_SECRET_KEY` on each request)
+- Admin session tokens are JWT-signed with 30-minute expiration
+
+**Setting the Admin Secret Key:**
+The `ADMIN_SECRET_KEY` must be set as an environment variable or in Google Secret Manager for production deployments:
+
+```bash
+# Local development (.env file or export)
+export ADMIN_SECRET_KEY="your-secure-random-key"
+
+# Google Cloud Run (via Secret Manager)
+# Create secret: gcloud secrets create prod-admin-secret --data-file=-
+# Reference in deployment configs (cloudbuild.staging.yaml / cloudbuild.prod.yaml)
+```
+
+**Granting Admin Privileges to Users:**
+To allow a user to access the admin panel, set their `is_admin` flag to true:
+
+```bash
+# Using the Admin Script
+python scripts/make_admin.py admin@example.com
+
+# Via Database
+UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
+```
+
+**Development Mode (DEV_ADMIN_BYPASS):**
+For local development, you can enable a temporary admin bypass by setting the environment variable `DEV_ADMIN_BYPASS=true`. This bypasses all admin authentication checks. This bypass is disabled by default and should **never** be used in production.
+
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.
 -   **Problem Management**: Categorized SQL problems with hints and expected outputs.
 -   **Code Execution**: SQL query submission and validation with an anti-hardcode detection system.
 -   **AI-Powered Hints**: Google Gemini integration provides intelligent hints for failed submissions without revealing solutions. Rate limited to 5 hints per problem per hour per user.
--   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system, helpful resources sharing.
+-   **Social Features**: Community posts with likes and comments, rich text editor with markdown and syntax-highlighted code blocks, follower system with real-time user search (partial matching with debouncing), helpful resources sharing.
 -   **Progress Tracking**: User submission history, leaderboards, and dynamic profile statistics.
 -   **Responsive Design**: Mobile-friendly interface.
--   **Admin Panel**: Allows manual schema definition for problem data.
+-   **Admin Panel**: Allows manual schema definition for problem data. Access is restricted to authenticated users with admin privileges.
 
 ### System Design Choices
 -   PostgreSQL for all data persistence, complemented by Redis for caching and leaderboards.
 -   SQL query processing uses a Redis-based job queue with a background worker for asynchronous execution.
 -   **Redis Fallback Mechanism**: Submissions automatically fall back to PostgreSQL (`fallback_submissions` table) if Redis is unavailable, ensuring zero data loss. The worker recovers these submissions when Redis becomes available.
 -   **Worker Availability Detection**: A heartbeat mechanism detects worker availability; if the worker is down, submissions are executed directly to prevent jobs from getting stuck.
+-   **Privacy & Security**: Email addresses are kept confidential and never displayed in the UI - only usernames are shown publicly to protect user privacy.
 -   The architecture has been simplified by removing chat and friends functionality to reduce complexity.
 -   Data retention policies and worker availability mechanisms are in place to ensure system stability and performance.
 
@@ -83,157 +131,138 @@ Two workflows must run simultaneously:
 
 ## Deployment
 
-### Multi-Stage Deployment Pipeline
-The application now supports a three-stage deployment pipeline with environment-based configuration:
-- **Development (dev)**: Local development and testing
-- **UAT/Staging (uat)**: User acceptance testing and staging
-- **Production (prod)**: Production deployment
+### CI/CD Pipeline - Two-Stage Deployment
+The application uses an automated CI/CD pipeline with Google Cloud Build for two separate environments:
 
-**All configuration is managed through environment variables** - no hardcoded values for enhanced security and multi-environment support.
+- **Staging** (`main` branch) → `sqlgym-staging` service
+- **Production** (`prod` branch) → `sqlgym-production` service
+
+**All configuration is managed through environment variables** and **Google Secret Manager** for enhanced security - no .env files are used.
 
 ### Configuration Management
 
 #### Centralized Configuration
 All configuration is managed through `api/config.py`, which provides:
-- Environment detection (dev, UAT, prod, local)
+- Environment detection (staging, prod, local) via `ENV` variable
 - Environment-specific settings
 - Configuration validation on startup
 - Security-first approach with required secrets
-- **Additive .env file loading**: Files are loaded in priority order (.env → .env.{env} → .env.local) to support base configurations, environment-specific settings, and local overrides
+- Direct environment variable reading (no .env files)
 
-#### Environment Templates
-Environment-specific templates are provided:
-- `.env.dev.template` - Development configuration
-- `.env.uat.template` - UAT/staging configuration
-- `.env.prod.template` - Production configuration
+#### Required Environment Variables
+Critical variables that must be set via Cloud Run Secret Manager:
 
-Copy the appropriate template and fill in actual values:
+**Staging Environment:**
+- `staging-database-url` - Neon Postgres connection string for staging
+- `staging-redis-url` - Redis connection string for staging
+- `staging-jwt-secret` - JWT authentication secret
+- `staging-admin-secret` - Admin access secret
+
+**Production Environment:**
+- `prod-database-url` - Neon Postgres connection string for production
+- `prod-redis-url` - Redis connection string for production
+- `prod-jwt-secret` - JWT authentication secret
+- `prod-admin-secret` - Admin access secret
+
+#### Optional Features (via Secret Manager)
+- `google-client-id`, `google-client-secret` - Google OAuth
+- `github-client-id`, `github-client-secret` - GitHub OAuth
+- `resend-api-key` - Email verification service
+- `gemini-api-key` - AI-powered hints
+- `aws-access-key-id`, `aws-secret-access-key` - AWS S3
+
+See `CICD_SETUP.md` for complete CI/CD setup guide.
+
+### Automated Deployments
+
+#### Branch-Based Deployment Strategy
+- **Push to `main` branch** → Automatically builds and deploys to **Staging**
+- **Push to `prod` branch** → Automatically builds and deploys to **Production**
+
+#### Deployment Workflow
+1. Developer pushes code to `main` branch
+2. Cloud Build trigger activates automatically
+3. Docker image is built and pushed to Artifact Registry
+4. Application is deployed to `sqlgym-staging` on Cloud Run
+5. After testing in staging, merge `main` → `prod` for production deployment
+
+#### Environment Configuration
+
+**Staging Environment:**
+- Service: `sqlgym-staging`
+- Branch: `main`
+- Memory: 1Gi
+- CPU: 1
+- Max Instances: 5
+- Min Instances: 0 (scales to zero)
+- Config File: `cloudbuild.staging.yaml`
+
+**Production Environment:**
+- Service: `sqlgym-production`
+- Branch: `prod`
+- Memory: 2Gi
+- CPU: 2
+- Max Instances: 20
+- Min Instances: 1 (always available)
+- Config File: `cloudbuild.prod.yaml`
+
+### Manual Deployment
+
+#### Local Development
 ```bash
-cp .env.dev.template .env.dev  # For development
-cp .env.uat.template .env.uat  # For UAT
-cp .env.prod.template .env.prod  # For production
+# Build the image
+docker build -t sqlgym:latest .
+
+# Run with environment variables
+docker run -p 8080:8080 \
+  -e DATABASE_URL="your-database-url" \
+  -e JWT_SECRET="your-jwt-secret" \
+  -e ADMIN_SECRET_KEY="your-admin-secret" \
+  -e ENV="local" \
+  sqlgym:latest
 ```
 
-#### Additive Environment File Loading
-The configuration system loads `.env` files additively in priority order:
-1. **`.env`** - Base configuration (lowest priority)
-2. **`.env.{dev|uat|prod}`** - Environment-specific configuration (overrides base)
-3. **`.env.local`** - Local overrides (highest priority)
-
-This allows developers to:
-- Use `.env.dev` as their primary configuration
-- Override specific values with `.env.local` without recreating the entire configuration
-- Share base configuration across environments with `.env`
-
-#### Required Environment Variables (All Environments)
-Critical variables that must be set:
-- `ENV` - Deployment environment (`dev`, `uat`, or `prod`)
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - JWT authentication secret (use strong random value)
-- `ADMIN_SECRET_KEY` - Admin access secret (use strong random value)
-
-#### AWS S3 Configuration (Required if using S3 features)
-- `AWS_ACCESS_KEY_ID` - AWS access key
-- `AWS_SECRET_ACCESS_KEY` - AWS secret key
-- `AWS_REGION` - AWS region (e.g., `us-east-1`)
-- `S3_ALLOWED_BUCKETS` - Comma-separated list of allowed buckets (environment-specific)
-
-#### Optional Features
-- `REDIS_URL` - Redis connection string (caching and rate limiting)
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
-- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth
-- `RESEND_API_KEY` - Email verification service
-- `GEMINI_API_KEY` - AI-powered hints
-- `FRONTEND_URLS` - Comma-separated list of allowed frontend URLs
-
-See `ENVIRONMENT_CONFIGURATION.md` for complete configuration guide.
-
-### Google Cloud Run Deployment
-
-#### Environment-Specific Dockerfiles
-- `Dockerfile.dev` - Development (hot reload enabled)
-- `Dockerfile.uat` - UAT/staging (2 workers)
-- `Dockerfile.prod` - Production (4 workers, optimized)
-
-#### Environment-Specific Cloud Build Configurations
-- `cloudbuild.dev.yaml` - Dev deployment (512Mi RAM, 3 max instances)
-- `cloudbuild.uat.yaml` - UAT deployment (1Gi RAM, 5 max instances)
-- `cloudbuild.prod.yaml` - Prod deployment (2Gi RAM, 2 CPU, 20 max instances)
-
-#### Deployment Commands
-
-**Development:**
+#### One-Time Manual Deployment
 ```bash
-gcloud builds submit --config=cloudbuild.dev.yaml
-```
+# Deploy to staging
+gcloud builds submit --config=cloudbuild.staging.yaml
 
-**UAT/Staging:**
-```bash
-gcloud builds submit --config=cloudbuild.uat.yaml
-```
-
-**Production:**
-```bash
+# Deploy to production
 gcloud builds submit --config=cloudbuild.prod.yaml
 ```
 
-#### Setting Environment Variables
-After deployment, configure environment variables in Cloud Run:
-
-```bash
-# Example: Configure dev environment
-gcloud run services update sqlgym-backend-dev \
-  --region=us-central1 \
-  --set-env-vars="ENV=dev,DATABASE_URL=postgresql://...,JWT_SECRET=..." \
-  --set-env-vars="AWS_ACCESS_KEY_ID=...,AWS_SECRET_ACCESS_KEY=..." \
-  --set-env-vars="S3_ALLOWED_BUCKETS=bucket1,bucket2"
-```
-
-Or use an environment file:
-```bash
-gcloud run services update sqlgym-backend-dev \
-  --region=us-central1 \
-  --env-vars-file=env.dev.yaml
-```
-
-### GitHub Actions CI/CD Pipeline (Recommended)
-
-The project includes automated deployment workflows using GitHub Actions:
-
-#### Branch-Based Deployment Strategy
-- **`develop` branch** → Automatically deploys to Development environment
-- **`staging` branch** → Automatically deploys to UAT/Staging environment  
-- **`main` branch** → Automatically deploys to Production environment
-
-#### Automated Workflow
-1. Push code to a branch
-2. GitHub Actions automatically builds and deploys backend to Cloud Run
-3. GitHub Actions automatically builds and deploys frontend to Vercel
-4. Deployment URLs are posted as commit comments
-
-#### Setup Requirements
-Configure the following secrets in your GitHub repository:
-- `GCP_SERVICE_ACCOUNT_KEY` - Service account JSON for Cloud Run deployment
-- `GCP_PROJECT_ID` - Google Cloud Project ID
-- `VERCEL_TOKEN` - Vercel deployment token
-- `VERCEL_ORG_ID` - Vercel organization ID
-- `VERCEL_PROJECT_ID` - Vercel project ID
-
-See `GITHUB_ACTIONS_SETUP.md` for complete setup instructions.
-
-#### Benefits Over Manual Deployment
-- ✅ Fully automated - no manual commands needed
-- ✅ Branch-based deployment strategy
-- ✅ Deployment history and logs in GitHub UI
-- ✅ Works for entire team without local setup
-- ✅ Automatic deployment URLs in commit comments
-
 ### Security Features
-- **No Hardcoded Values**: All configuration via environment variables
-- **Environment-Specific Secrets**: Different secrets for dev, UAT, and prod
+- **No .env Files**: All secrets stored in Google Secret Manager
+- **Environment Separation**: Separate secrets for staging and production
+- **Artifact Registry**: Secure Docker image storage
+- **IAM-Based Access**: Least-privilege service account permissions
 - **Bucket Allowlisting**: S3 bucket access restricted to configured buckets
 - **CORS Protection**: Environment-specific frontend URL allowlisting
 - **Configuration Validation**: Startup validation ensures required variables are set
 
+### Monitoring & Rollback
+
+#### View Deployment Logs
+```bash
+# View Cloud Build logs
+gcloud builds list --limit=10
+gcloud builds log BUILD_ID
+
+# View Cloud Run logs
+gcloud run services logs read sqlgym-staging --region=us-central1
+gcloud run services logs read sqlgym-production --region=us-central1
+```
+
+#### Rollback to Previous Version
+```bash
+# List revisions
+gcloud run revisions list --service=sqlgym-production --region=us-central1
+
+# Rollback to specific revision
+gcloud run services update-traffic sqlgym-production \
+  --region=us-central1 \
+  --to-revisions=REVISION_NAME=100
+```
+
 ### Health Check
-All environments expose a health check endpoint: `/api/health`
+The application exposes a health check endpoint: `/api/health`

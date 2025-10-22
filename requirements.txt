@@ -6,7 +6,6 @@ asyncpg==0.30.0
 bcrypt==4.3.0
 click==8.2.1
 dnspython==2.8.0
-ecdsa==0.19.1
 email-validator==2.3.0
 fastapi==0.116.1
 greenlet==3.2.4
@@ -19,8 +18,7 @@ psycopg2-binary==2.9.10
 pyasn1==0.6.1
 pydantic==2.11.7
 pydantic-core==2.33.2
-python-dotenv==1.1.1
-python-jose==3.5.0
+PyJWT==2.10.1
 python-multipart==0.0.20
 redis==6.4.0
 rsa==4.9.1
@@ -32,6 +30,7 @@ starlette==0.47.3
 typing-extensions==4.15.0
 typing-inspection==0.4.1
 uvicorn==0.35.0
+gunicorn==23.0.0
 
 # Data processing and cloud dependencies
 boto3==1.35.49
@@ -48,3 +47,4 @@ httpx
 itsdangerous
 google-generativeai
 resend
+python-dotenv
