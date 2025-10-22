@@ -12,17 +12,18 @@ Could not resolve entry module "client/index.html"
 - Vite configuration had `root: path.resolve(__dirname, "client")` but build wasn't explicitly specifying the entry point
 - Docker build process couldn't resolve the correct path to index.html
 
-### Solution Implemented
+### Solutions Implemented
 
-[x] 1. Fixed Vite build configuration
-   - Added explicit `rollupOptions.input` in vite.config.ts pointing to `client/index.html`
-   - Updated build command to explicitly reference config file
-   - Build now completes successfully in 34.64s ✅
+[x] 1. First attempt - Added explicit rollupOptions.input
+   - Added `rollupOptions.input` in vite.config.ts
+   - Worked locally but failed in Docker environment ❌
 
-[x] 2. Verified build output
-   - Frontend assets generated in `dist/public/` directory
-   - index.html and all assets present
-   - Build ready for Docker deployment ✅
+[x] 2. Second attempt - Switched to relative paths (CURRENT)
+   - Changed `root: path.resolve(__dirname, "client")` to `root: "client"`
+   - Changed `outDir: path.resolve(__dirname, "dist", "public")` to `outDir: "../dist/public"`
+   - Removed explicit rollupOptions.input (not needed with relative root)
+   - Build completes successfully locally in ~39s ✅
+   - Testing in Docker environment... ⏳
 
 ## Previous Fixes (Completed)
 
