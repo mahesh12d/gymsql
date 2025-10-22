@@ -356,6 +356,34 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+// Helper function to extract readable error message from API responses
+function getErrorMessage(error: any): string {
+  if (!error) return "An unknown error occurred";
+  
+  // Handle Pydantic validation errors (422) - detail is an array of error objects
+  if (error.detail) {
+    if (Array.isArray(error.detail)) {
+      return error.detail
+        .map((err: any) => err.msg || JSON.stringify(err))
+        .join(", ");
+    } else if (typeof error.detail === 'string') {
+      return error.detail;
+    }
+  }
+  
+  // Handle string errors
+  if (typeof error === 'string') return error;
+  
+  // Handle Error objects
+  if (error instanceof Error) return error.message;
+  
+  // Handle error messages directly
+  if (error.message && typeof error.message === 'string') return error.message;
+  
+  // Fallback
+  return String(error);
+}
+
 // Provider component
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(adminReducer, initialState);
@@ -554,7 +582,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           const errorData = await sessionResponse.json().catch(() => ({}));
           toast({
             title: "Authentication Failed",
-            description: errorData.detail || "Invalid admin key or insufficient permissions",
+            description: getErrorMessage(errorData) || "Invalid admin key or insufficient permissions",
             variant: "destructive",
           });
           dispatch({ type: 'SET_LOADING', payload: false });
@@ -589,14 +617,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           const errorData = await schemaResponse.json().catch(() => ({}));
           toast({
             title: "Error",
-            description: errorData.detail || "Failed to load schema info",
+            description: getErrorMessage(errorData) || "Failed to load schema info",
             variant: "destructive",
           });
         }
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to authenticate: " + (error instanceof Error ? error.message : String(error)),
+          description: "Failed to authenticate: " + getErrorMessage(error),
           variant: "destructive",
         });
       } finally {
