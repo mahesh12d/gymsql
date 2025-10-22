@@ -14,16 +14,21 @@ Could not resolve entry module "client/index.html"
 
 ### Solutions Implemented
 
-[x] 1. First attempt - Added explicit rollupOptions.input
-   - Added `rollupOptions.input` in vite.config.ts
+[x] 1. First attempt - Added explicit rollupOptions.input with relative path
+   - Added `rollupOptions.input: path.resolve(__dirname, "client", "index.html")`
    - Worked locally but failed in Docker environment ❌
 
-[x] 2. Second attempt - Switched to relative paths (CURRENT)
-   - Changed `root: path.resolve(__dirname, "client")` to `root: "client"`
-   - Changed `outDir: path.resolve(__dirname, "dist", "public")` to `outDir: "../dist/public"`
-   - Removed explicit rollupOptions.input (not needed with relative root)
-   - Build completes successfully locally in ~39s ✅
-   - Testing in Docker environment... ⏳
+[x] 2. Second attempt - Switched to relative paths only  
+   - Changed to `root: "client"` and `outDir: "../dist/public"`
+   - Removed explicit rollupOptions.input
+   - Worked locally but still failed in Docker ❌
+
+[x] 3. Third attempt - Combination of relative root + absolute input (CURRENT SOLUTION)
+   - `root: "client"` (relative)
+   - `outDir: "../dist/public"` (relative)
+   - `rollupOptions.input: path.resolve(__dirname, "client", "index.html")` (absolute)
+   - Build completes successfully locally in ~32s ✅
+   - Ready for Docker deployment testing 🚀
 
 ## Previous Fixes (Completed)
 

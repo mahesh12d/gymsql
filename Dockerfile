@@ -15,14 +15,26 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy package.json for frontend dependencies
-COPY package.json ./
+# Copy all necessary config files first
+COPY package.json package-lock.json* ./
+COPY vite.config.ts tsconfig.json ./
+COPY tailwind.config.ts postcss.config.js components.json ./
 
 # Install frontend dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy application code (this includes package-lock.json if it exists)
+# Copy the entire application
 COPY . .
+
+# Debug: Verify critical files exist
+RUN echo "=== Verifying build setup ===" && \
+    ls -la && \
+    echo "=== Client directory ===" && \
+    ls -la client/ && \
+    echo "=== Client index.html ===" && \
+    test -f client/index.html && echo "✓ client/index.html exists" || echo "✗ client/index.html MISSING" && \
+    echo "=== Vite config ===" && \
+    head -20 vite.config.ts
 
 # Build frontend
 RUN npm run build
