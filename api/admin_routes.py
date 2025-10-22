@@ -154,7 +154,9 @@ async def create_admin_session(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Validate ADMIN_SECRET_KEY and create short-lived admin session token
+    """[LEGACY] Validate ADMIN_SECRET_KEY and create short-lived admin session token
+    
+    This is the old authentication method. Use /admin/login-secure for the new secure method.
     
     This endpoint allows admin users to validate their admin key once per session
     and receive a session token that can be used for subsequent admin API calls.
@@ -198,6 +200,82 @@ async def create_admin_session(
         expires_in=30,
         message="Admin session created successfully. Use this token in X-Admin-Session header for subsequent requests."
     )
+
+@admin_router.post("/login-secure")
+async def admin_login_secure(
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """[NEW SECURE] Create admin session with HTTP-only cookies - NO ADMIN_SECRET_KEY required
+    
+    This is the new production-ready authentication method with enhanced security:
+    - HTTP-only cookies (JavaScript cannot access tokens)
+    - Redis-based session tracking with instant revocation
+    - CSRF protection for state-changing operations
+    - Activity tracking and audit logging
+    - Auto-logout after inactivity
+    
+    Requirements:
+    1. User must be logged in (JWT token)
+    2. User must have is_admin=true in database
+    3. That's it! No separate admin key needed.
+    
+    Returns:
+    - csrf_token: CSRF token to include in X-CSRF-Token header for POST/PUT/DELETE requests
+    - expires_in_hours: Session duration
+    """
+    from .admin_session import admin_session_manager
+    
+    # Check if user has admin privileges
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - you do not have admin privileges"
+        )
+    
+    # Get client IP and user agent
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    
+    # Create secure admin session
+    session_info = admin_session_manager.create_admin_session(
+        user=user,
+        response=response,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
+    return {
+        "success": True,
+        "message": "Admin session created successfully with HTTP-only cookies",
+        "csrf_token": session_info["csrf_token"],
+        "expires_in_hours": session_info["expires_in_hours"],
+        "expires_at": session_info["expires_at"]
+    }
+
+@admin_router.post("/logout-secure")
+async def admin_logout_secure(
+    request: Request,
+    response: Response
+):
+    """[NEW SECURE] Logout from admin panel and revoke session"""
+    from .admin_session import admin_session_manager
+    
+    # Revoke session
+    admin_session_manager.revoke_session(request)
+    
+    # Clear cookie
+    response.delete_cookie(
+        key="admin_session",
+        path="/api/admin"
+    )
+    
+    return {
+        "success": True,
+        "message": "Admin session revoked successfully"
+    }
 
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
