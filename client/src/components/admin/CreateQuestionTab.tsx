@@ -38,12 +38,27 @@ export function CreateQuestionTab() {
 
   const createProblemMutation = useMutation({
     mutationFn: async (problemData: any) => {
-      // Use correct apiRequest signature: (method, url, data)
-      return await apiRequest('POST', '/api/admin/problems', {
-        ...problemData,
-        solution_source: state.solutionVerification?.source || 'neon',
-        // Remove s3_solution_source to avoid 422 errors
+      // Use direct fetch with explicit admin headers (same pattern as SolutionsTab)
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch('/api/admin/problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+          'X-Admin-Session': state.adminKey
+        },
+        body: JSON.stringify({
+          ...problemData,
+          solution_source: state.solutionVerification?.source || 'neon',
+        })
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create problem');
+      }
+      
+      return response.json();
     },
     onSuccess: (result) => {
       toast({
@@ -67,8 +82,22 @@ export function CreateQuestionTab() {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Use apiRequest and validate response in mutationFn for proper error handling
-      const response = await apiRequest('POST', '/api/admin/convert-parquet', formData);
+      // Use direct fetch with explicit admin headers (same pattern as SolutionsTab)
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch('/api/admin/convert-parquet', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'X-Admin-Session': state.adminKey
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to convert Parquet file');
+      }
+      
       const result = await response.json();
       
       // Validate response shape in mutationFn so errors go to onError
