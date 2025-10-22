@@ -651,7 +651,16 @@ def create_or_update_solution(
             Solution.id == existing_solution.id
         ).first()
         
-        return SolutionResponse.from_orm(solution)
+        try:
+            return SolutionResponse.model_validate(solution)
+        except Exception as e:
+            logging.error(f"Failed to serialize solution: {str(e)}")
+            logging.error(f"Solution data: id={solution.id}, created_by={solution.created_by}")
+            logging.error(f"Creator data: {solution.creator.__dict__ if solution.creator else 'None'}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to serialize solution: {str(e)}"
+            )
     else:
         # Create new solution
         solution = Solution(
@@ -673,7 +682,16 @@ def create_or_update_solution(
             Solution.id == solution.id
         ).first()
         
-        return SolutionResponse.from_orm(solution)
+        try:
+            return SolutionResponse.model_validate(solution)
+        except Exception as e:
+            logging.error(f"Failed to serialize solution: {str(e)}")
+            logging.error(f"Solution data: id={solution.id}, created_by={solution.created_by}")
+            logging.error(f"Creator data: {solution.creator.__dict__ if solution.creator else 'None'}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to serialize solution: {str(e)}"
+            )
 
 @admin_router.get("/problems/{problem_id}/solution", response_model=SolutionResponse)
 def get_problem_solution(
@@ -692,7 +710,16 @@ def get_problem_solution(
             detail="No solution found for this problem"
         )
     
-    return SolutionResponse.from_orm(solution)
+    try:
+        return SolutionResponse.model_validate(solution)
+    except Exception as e:
+        logging.error(f"Failed to serialize solution: {str(e)}")
+        logging.error(f"Solution data: id={solution.id}, created_by={solution.created_by}")
+        logging.error(f"Creator data: {solution.creator.__dict__ if solution.creator else 'None'}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to serialize solution: {str(e)}"
+        )
 
 @admin_router.get("/problems/{problem_id}/solutions", response_model=List[SolutionResponse])
 def get_problem_solutions(
@@ -705,7 +732,14 @@ def get_problem_solutions(
         Solution.problem_id == problem_id
     ).order_by(Solution.created_at.desc()).all()
     
-    return [SolutionResponse.from_orm(solution) for solution in solutions]
+    try:
+        return [SolutionResponse.model_validate(solution) for solution in solutions]
+    except Exception as e:
+        logging.error(f"Failed to serialize solutions: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to serialize solutions: {str(e)}"
+        )
 
 @admin_router.put("/solutions/{solution_id}", response_model=SolutionResponse)
 def update_solution(
@@ -736,7 +770,16 @@ def update_solution(
         Solution.id == solution.id
     ).first()
     
-    return SolutionResponse.from_orm(solution)
+    try:
+        return SolutionResponse.model_validate(solution)
+    except Exception as e:
+        logging.error(f"Failed to serialize solution: {str(e)}")
+        logging.error(f"Solution data: id={solution.id}, created_by={solution.created_by}")
+        logging.error(f"Creator data: {solution.creator.__dict__ if solution.creator else 'None'}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to serialize solution: {str(e)}"
+        )
 
 @admin_router.delete("/solutions/{solution_id}")
 def delete_solution(

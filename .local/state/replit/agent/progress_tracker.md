@@ -1,5 +1,26 @@
 # SQLGym Platform - Progress Tracker
 
+## Cloud Run Admin Validation Error Fix
+
+### Issue
+Pydantic ValidationError when creating/updating solutions, parsing parquet files, and creating questions in Cloud Run.
+Error message: "Unexpected token 'I', "Internal S"... is not valid JSON"
+
+### Root Cause
+- Backend was throwing unhandled Pydantic validation errors during `SolutionResponse.from_orm()` serialization
+- FastAPI error handler was returning plain text "Internal Server Error" instead of JSON
+- No detailed logging to diagnose the root cause of validation failures
+
+### Solution Implemented
+
+[x] 1. Added comprehensive error handling to solution endpoints
+   - Wrapped all `SolutionResponse` serialization in try-except blocks
+   - Changed from `from_orm()` to `model_validate()` (Pydantic v2 recommended method)
+   - Added detailed error logging including solution data and creator data
+   - Now returns proper JSON error responses with details: `{"detail": "Failed to serialize solution: <error>"}`
+   - Updated endpoints: create_or_update_solution, get_problem_solution, get_problem_solutions, update_solution
+   - **FIXED** ✅
+
 ## Cloud Run Admin Authentication Fix
 
 ### Issue
@@ -16,7 +37,7 @@ Frontend was sending session token as `X-Admin-Key` header instead of `X-Admin-S
 
 [x] 1. Fixed SolutionsTab.tsx to use correct header
    - Changed `'X-Admin-Key': state.adminKey` to `'X-Admin-Session': state.adminKey`
-   - Updated both fetch calls (lines 59 and 81)
+   - Updated both fetch calls (lines 59 and 84)
    - Now correctly sends session token using `X-Admin-Session` header
    - **FIXED** ✅
 
@@ -96,4 +117,5 @@ gcloud builds submit --config=cloudbuild.prod.yaml
 - ✅ Build Error: FIXED - Vite build working correctly
 - ✅ Replit: FIXED - Admin panel working
 - ✅ Admin Authentication: FIXED - Using correct X-Admin-Session header
+- ✅ Validation Errors: FIXED - Proper error handling and JSON responses
 - ✅ Google Cloud Run: READY TO DEPLOY - All issues resolved
