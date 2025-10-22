@@ -188,6 +188,16 @@ app.include_router(user_router)
 app.include_router(oauth_router)
 
 
+# Static file serving for production frontend
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
+
+# Mount static files directory
+static_dir = Path(__file__).parent.parent / "dist" / "public"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="static")
+
 
 def format_console_output(execution_result):
     """Create lightweight console output for errors and metadata"""
@@ -2603,6 +2613,26 @@ def simulate_query_execution(query: str, problem: Problem) -> bool:
     return "select" in normalized_query and "from" in normalized_query
 
 
+# SPA catch-all route - must be defined LAST after all API routes
+# This serves index.html for all non-API routes to support client-side routing
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """
+    Catch-all route for SPA (Single Page Application) routing.
+    Serves index.html for all routes that don't start with /api or /assets.
+    This allows wouter (client-side router) to handle routing.
+    """
+    # Don't intercept API routes (already handled above)
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve index.html for all other routes (client-side routing)
+    index_path = static_dir / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    
+    # Fallback if index.html doesn't exist
+    raise HTTPException(status_code=404, detail="Frontend not built")
 
 
 import os
