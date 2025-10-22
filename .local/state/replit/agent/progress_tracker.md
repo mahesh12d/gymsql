@@ -1,5 +1,35 @@
 # SQLGym Platform - Progress Tracker
 
+## Cloud Run Admin 403 Forbidden Errors Fix
+
+### Issue
+403 Forbidden errors in Cloud Run for all admin endpoints:
+- POST `/api/admin/problems` (create problem)
+- POST `/api/admin/convert-parquet` (parse parquet solution)
+- And all other admin endpoints using `apiRequest` or query client
+
+### Root Cause
+The `apiRequest` function and `getQueryFn` in `queryClient.ts` were only sending the JWT token via `Authorization: Bearer` header, but were NOT sending the `X-Admin-Session` header required for admin authentication.
+
+- AdminContext.tsx correctly uses `getAdminHeaders()` helper that includes `X-Admin-Session`
+- BUT CreateQuestionTab.tsx and other components use `apiRequest()` which didn't include admin session token
+- Backend rejects requests without `X-Admin-Session` header with 403 Forbidden
+
+### Solution Implemented
+
+[x] 1. Updated queryClient.ts to auto-include admin session token
+   - Modified `apiRequest()` to check if URL includes `/api/admin`
+   - If yes, automatically adds `X-Admin-Session` header from sessionStorage
+   - Modified `getQueryFn()` with same logic for query requests
+   - Now ALL admin API calls automatically include the session token
+   - **FIXED** ✅
+
+[x] 2. Fixed SolutionsTab.tsx to use correct header
+   - Changed `'X-Admin-Key': state.adminKey` to `'X-Admin-Session': state.adminKey`
+   - Updated both fetch calls (lines 59 and 84)
+   - Now correctly sends session token using `X-Admin-Session` header
+   - **FIXED** ✅
+
 ## Cloud Run Admin Validation Error Fix
 
 ### Issue
@@ -19,26 +49,6 @@ Error message: "Unexpected token 'I', "Internal S"... is not valid JSON"
    - Added detailed error logging including solution data and creator data
    - Now returns proper JSON error responses with details: `{"detail": "Failed to serialize solution: <error>"}`
    - Updated endpoints: create_or_update_solution, get_problem_solution, get_problem_solutions, update_solution
-   - **FIXED** ✅
-
-## Cloud Run Admin Authentication Fix
-
-### Issue
-"Invalid admin key" error in Cloud Run deployment when accessing admin panel features.
-
-### Root Cause
-Frontend was sending session token as `X-Admin-Key` header instead of `X-Admin-Session` header.
-- After authentication, the session token is stored in `state.adminKey`
-- SolutionsTab.tsx was sending this token as `X-Admin-Key` 
-- Backend expects session tokens to use `X-Admin-Session` header
-- Backend only accepts ADMIN_SECRET_KEY in `X-Admin-Key` header, not session tokens
-
-### Solution Implemented
-
-[x] 1. Fixed SolutionsTab.tsx to use correct header
-   - Changed `'X-Admin-Key': state.adminKey` to `'X-Admin-Session': state.adminKey`
-   - Updated both fetch calls (lines 59 and 84)
-   - Now correctly sends session token using `X-Admin-Session` header
    - **FIXED** ✅
 
 ## Google Cloud Run Build Error Fix
@@ -116,6 +126,7 @@ gcloud builds submit --config=cloudbuild.prod.yaml
 ## Status
 - ✅ Build Error: FIXED - Vite build working correctly
 - ✅ Replit: FIXED - Admin panel working
-- ✅ Admin Authentication: FIXED - Using correct X-Admin-Session header
+- ✅ Admin Authentication: FIXED - All admin endpoints automatically include X-Admin-Session header
+- ✅ 403 Forbidden Errors: FIXED - queryClient.ts now auto-includes admin session token
 - ✅ Validation Errors: FIXED - Proper error handling and JSON responses
 - ✅ Google Cloud Run: READY TO DEPLOY - All issues resolved
