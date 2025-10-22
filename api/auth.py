@@ -1,5 +1,5 @@
 """
-Authentication utilities for FastAPI
+Authentication utilities for FastAPI with Production Security
 """
 import os
 from datetime import datetime, timedelta
@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 from .schemas import TokenData
+from .rate_limiter import rate_limiter_service
+from .audit_logger import log_admin_action
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "").strip() or None
@@ -251,7 +253,19 @@ def verify_admin_user_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access - accepts either X-Admin-Session token (new) or X-Admin-Key + JWT (legacy)"""
+    """Verify admin access with rate limiting and audit logging - accepts either X-Admin-Session token (new) or X-Admin-Key + JWT (legacy)"""
+    
+    # Get client IP for rate limiting
+    ip_address = request.client.host if request.client else "unknown"
+    
+    # Check if IP is locked out (after too many failed attempts)
+    if rate_limiter_service.is_locked_out(ip_address):
+        remaining_time = rate_limiter_service.get_remaining_lockout_time(ip_address)
+        print(f"🚫 SECURITY: Blocked admin access from locked out IP: {ip_address}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed authentication attempts. Try again in {remaining_time // 60} minutes."
+        )
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -279,16 +293,22 @@ def verify_admin_user_access(
             user = db.query(User).filter(User.id == user_id).first()
             
             if user is None:
+                rate_limiter_service.record_failed_attempt(ip_address)
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
                 )
             
             if not user.is_admin:
+                rate_limiter_service.record_failed_attempt(ip_address)
+                log_admin_action(user_id, "access_denied", request, {"reason": "not_admin"}, success=False)
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied - admin privileges revoked"
                 )
+            
+            # Clear failed attempts on successful authentication
+            rate_limiter_service.clear_failed_attempts(ip_address)
             
             return user
         except HTTPException:
@@ -297,12 +317,15 @@ def verify_admin_user_access(
     # LEGACY: Fall back to X-Admin-Key + JWT verification for backward compatibility
     admin_key = request.headers.get("X-Admin-Key")
     if not admin_key:
+        rate_limiter_service.record_failed_attempt(ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Admin authentication required - provide X-Admin-Session token or X-Admin-Key header",
         )
     
     if admin_key.strip() != ADMIN_SECRET_KEY:
+        rate_limiter_service.record_failed_attempt(ip_address)
+        print(f"🚫 SECURITY: Invalid admin key attempt from IP: {ip_address}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin key"
@@ -316,6 +339,7 @@ def verify_admin_user_access(
         token = request.cookies.get("auth_token")
     
     if not token:
+        rate_limiter_service.record_failed_attempt(ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User authentication required - please login first",
@@ -328,6 +352,7 @@ def verify_admin_user_access(
         user = db.query(User).filter(User.id == token_data.user_id).first()
         
         if user is None:
+            rate_limiter_service.record_failed_attempt(ip_address)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
@@ -335,16 +360,25 @@ def verify_admin_user_access(
         
         # Verify user has is_admin=True
         if not user.is_admin:
+            rate_limiter_service.record_failed_attempt(ip_address)
+            log_admin_action(user.id, "access_denied", request, {"reason": "not_admin"}, success=False)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied - user does not have admin privileges. Contact a developer to set is_admin=true for your account."
             )
+        
+        # Clear failed attempts on successful authentication
+        rate_limiter_service.clear_failed_attempts(ip_address)
+        
+        # Log successful admin access
+        log_admin_action(user.id, "admin_access", request, {"method": "legacy_key"}, success=True)
         
         return user
         
     except HTTPException:
         raise
     except Exception as e:
+        rate_limiter_service.record_failed_attempt(ip_address)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid authentication credentials"

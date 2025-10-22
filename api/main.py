@@ -176,6 +176,30 @@ app.add_middleware(
     secret_key=Config.JWT_SECRET
 )
 
+# Add security middleware for production
+from .security_middleware import (
+    SecurityHeadersMiddleware,
+    IPWhitelistMiddleware,
+    AdminRequestLoggingMiddleware
+)
+
+# Add security headers to all responses
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Add IP whitelisting for admin endpoints (optional - controlled by ADMIN_ALLOWED_IPS env var)
+app.add_middleware(IPWhitelistMiddleware)
+
+# Log all admin requests for monitoring
+app.add_middleware(AdminRequestLoggingMiddleware)
+
+# Add SlowAPI rate limiting
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from .rate_limiter import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Include routers
 app.include_router(sandbox_router)
 app.include_router(admin_router)

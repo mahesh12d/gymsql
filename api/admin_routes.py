@@ -150,16 +150,18 @@ class AdminSessionResponse(BaseModel):
 
 @admin_router.post("/session", response_model=AdminSessionResponse)
 async def create_admin_session(
+    http_request: Request,
     request: AdminSessionRequest,
     user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(lambda req: __import__('api.rate_limiter', fromlist=['check_not_locked_out']).check_not_locked_out(req))
 ):
     """[LEGACY] Validate ADMIN_SECRET_KEY and create short-lived admin session token
     
-    This is the old authentication method. Use /admin/login-secure for the new secure method.
-    
-    This endpoint allows admin users to validate their admin key once per session
-    and receive a session token that can be used for subsequent admin API calls.
+    This is the production-ready authentication method with enhanced security:
+    - Rate limiting: 5 attempts per hour
+    - IP lockout: Automatic 1-hour lockout after 5 failed attempts
+    - Audit logging: All admin actions logged with timestamps and IP
     
     Requirements:
     1. User must be logged in (JWT token)
@@ -171,10 +173,17 @@ async def create_admin_session(
     - expires_in: Number of minutes until token expires
     """
     from .auth import ADMIN_SECRET_KEY, create_admin_session_token
+    from .rate_limiter import rate_limiter_service, limiter
+    from .audit_logger import log_admin_action
     import os
+    
+    # Get client IP for rate limiting and audit logging
+    ip_address = http_request.client.host if http_request.client else "unknown"
     
     # Check if user has admin privileges
     if not user.is_admin:
+        rate_limiter_service.record_failed_attempt(ip_address)
+        log_admin_action(user.id, "admin_session_failed", http_request, {"reason": "not_admin"}, success=False)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied - you do not have admin privileges. Contact a developer to set is_admin=true for your account."
@@ -182,17 +191,27 @@ async def create_admin_session(
     
     # Validate the admin key
     if request.admin_key.strip() != ADMIN_SECRET_KEY:
-        # Log failed attempt (in production, you might want to rate-limit this)
-        logging.warning(f"Failed admin key validation attempt by user {user.id}")
+        # Record failed attempt for rate limiting
+        rate_limiter_service.record_failed_attempt(ip_address)
+        
+        # Log failed attempt
+        log_admin_action(user.id, "admin_session_failed", http_request, {"reason": "invalid_key"}, success=False)
+        logging.warning(f"Failed admin key validation attempt by user {user.id} from IP {ip_address}")
+        
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin key"
         )
     
+    # Clear failed attempts on successful authentication
+    rate_limiter_service.clear_failed_attempts(ip_address)
+    
     # Create admin session token (30 minutes)
     session_token = create_admin_session_token(user.id, expires_minutes=30)
     
-    logging.info(f"Admin session created for user {user.id} ({user.username})")
+    # Log successful session creation
+    log_admin_action(user.id, "admin_session_created", http_request, {"session_duration_minutes": 30}, success=True)
+    logging.info(f"Admin session created for user {user.id} ({user.username}) from IP {ip_address}")
     
     return AdminSessionResponse(
         success=True,
@@ -538,15 +557,21 @@ def _types_compatible(type1: str, type2: str) -> bool:
 
 @admin_router.post("/problems")
 def create_problem(
+    http_request: Request,
     problem_data: AdminProblemCreate,
-    _: bool = Depends(verify_admin_access),
+    admin_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Create a new problem with the provided data"""
+    from .audit_logger import log_admin_action
     
     # Validate difficulty
     valid_difficulties = ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"]
     if problem_data.difficulty not in valid_difficulties:
+        log_admin_action(admin_user.id, "create_problem_failed", http_request, {
+            "reason": "invalid_difficulty",
+            "difficulty": problem_data.difficulty
+        }, success=False)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid difficulty. Must be one of: {valid_difficulties}"
@@ -556,6 +581,10 @@ def create_problem(
     if problem_data.topic_id:
         topic = db.query(Topic).filter(Topic.id == problem_data.topic_id).first()
         if not topic:
+            log_admin_action(admin_user.id, "create_problem_failed", http_request, {
+                "reason": "invalid_topic",
+                "topic_id": problem_data.topic_id
+            }, success=False)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid topic_id"
@@ -634,6 +663,14 @@ def create_problem(
     db.add(problem)
     db.commit()
     db.refresh(problem)
+    
+    # Log successful problem creation
+    log_admin_action(admin_user.id, "create_problem", http_request, {
+        "problem_id": problem.id,
+        "title": problem.title,
+        "difficulty": problem.difficulty,
+        "premium": problem.premium
+    }, success=True)
     
     return {
         "success": True,

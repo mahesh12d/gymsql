@@ -20,12 +20,21 @@ PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used fo
 Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials and all secrets are managed via environment variables with environment-specific configuration. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
 
 #### Admin Access
-Admin panel access uses a simplified session-based authentication designed for small teams (<10 administrators). The system maintains two-factor security while improving user experience.
+
+Admin panel access uses a production-ready security system designed for single or small team administrators. The system provides robust security with rate limiting, audit logging, and optional IP whitelisting.
+
+**Production Security Features (Option A: Simple & Secure):**
+- ✅ **Rate Limiting**: 5 login attempts per hour to prevent brute force attacks
+- ✅ **Audit Logging**: All admin actions logged with timestamps, IP, and metadata (90-day retention in Redis)
+- ✅ **IP Lockout**: Automatic 1-hour lockout after 5 failed authentication attempts
+- ✅ **Security Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+- ✅ **Optional IP Whitelisting**: Restrict admin panel to specific IP addresses (via `ADMIN_ALLOWED_IPS` env var)
+- ✅ **ADMIN_SECRET_KEY**: Strong cryptographic key (64+ characters recommended)
 
 **Authentication Flow:**
 1. User must be logged in with `is_admin=true` flag
 2. On first admin panel access, user enters `ADMIN_SECRET_KEY` once
-3. Backend issues a JWT-signed session token (30-minute expiry)
+3. Backend validates key and issues a JWT-signed session token (30-minute expiry)
 4. Session token is stored in `sessionStorage` (cleared when tab closes)
 5. All subsequent admin API calls use the session token via `X-Admin-Session` header
 6. Session automatically restores on page reload if token is still valid
@@ -33,23 +42,42 @@ Admin panel access uses a simplified session-based authentication designed for s
    - Session expires (after 30 minutes)
    - Browser tab/window is closed
    - User logs out
+   - Too many failed authentication attempts (1-hour lockout)
 
 **Backend Implementation:**
-- `/api/admin/session` endpoint validates `ADMIN_SECRET_KEY` and issues session token
+- `/api/admin/session` endpoint validates `ADMIN_SECRET_KEY` with rate limiting and audit logging
 - `verify_admin_user_access` middleware validates both user JWT token and admin session token
-- Legacy `verify_admin_access` remains for backward compatibility (requires `ADMIN_SECRET_KEY` on each request)
-- Admin session tokens are JWT-signed with 30-minute expiration
+- Rate limiting service tracks failed attempts per IP address
+- Audit logging service records all admin actions to Redis
+- Security middleware adds headers and optional IP whitelisting
+- Legacy `verify_admin_access` remains for backward compatibility
+
+**Generating a Strong Admin Secret Key:**
+For production, generate a cryptographically secure key (64+ characters):
+
+```bash
+# Linux/Mac using OpenSSL
+openssl rand -hex 32
+
+# Or using Python
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# Example output: vK8Lm2Pq9RtYuI0oP3aS6dF8gH1jK4lZ7xC9vB2nM5qW0eR3tY6uI8oP1aS4dF7g
+```
 
 **Setting the Admin Secret Key:**
 The `ADMIN_SECRET_KEY` must be set as an environment variable or in Google Secret Manager for production deployments:
 
 ```bash
 # Local development (.env file or export)
-export ADMIN_SECRET_KEY="your-secure-random-key"
+export ADMIN_SECRET_KEY="vK8Lm2Pq9RtYuI0oP3aS6dF8gH1jK4lZ7xC9vB2nM5qW0eR3tY6uI8oP1aS4dF7g"
 
-# Google Cloud Run (via Secret Manager)
-# Create secret: gcloud secrets create prod-admin-secret --data-file=-
+# Google Cloud Run (via Secret Manager) - RECOMMENDED
+# Create secret
+echo -n "your-key" | gcloud secrets create ADMIN_SECRET_KEY --data-file=-
+
 # Reference in deployment configs (cloudbuild.staging.yaml / cloudbuild.prod.yaml)
+--set-secrets=ADMIN_SECRET_KEY=ADMIN_SECRET_KEY:latest
 ```
 
 **Granting Admin Privileges to Users:**
@@ -63,8 +91,48 @@ python scripts/make_admin.py admin@example.com
 UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
 ```
 
+**Optional: IP Whitelisting**
+Restrict admin panel access to specific IP addresses:
+
+```bash
+# Set allowed IPs (comma-separated)
+export ADMIN_ALLOWED_IPS="203.0.113.45,198.51.100.23"
+
+# For Cloud Run
+gcloud run services update sqlgym-prod \
+  --set-env-vars=ADMIN_ALLOWED_IPS="203.0.113.45,198.51.100.23" \
+  --region=us-central1
+
+# To disable whitelisting, remove the environment variable
+```
+
+**Viewing Audit Logs:**
+Admin actions are automatically logged to Redis with 90-day retention:
+
+```bash
+# Connect to Redis
+redis-cli -h your-redis-host
+
+# View user's recent actions
+LRANGE user_audit:USER_ID 0 99
+
+# List all audit logs
+KEYS admin_audit:*
+```
+
 **Development Mode (DEV_ADMIN_BYPASS):**
 For local development, you can enable a temporary admin bypass by setting the environment variable `DEV_ADMIN_BYPASS=true`. This bypasses all admin authentication checks. This bypass is disabled by default and should **never** be used in production.
+
+**Security Best Practices:**
+- Use Google Secret Manager for all secrets (never hardcode)
+- Rotate ADMIN_SECRET_KEY every 90 days
+- Enable IP whitelisting if you have a static IP
+- Monitor audit logs regularly for suspicious activity
+- Use strong passwords for your admin account
+- Enable 2FA on your Google Cloud account
+- Never share ADMIN_SECRET_KEY with anyone
+
+**See also:** `PRODUCTION_SECURITY_GUIDE.md` for complete production deployment instructions.
 
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.
