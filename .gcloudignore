@@ -45,9 +45,7 @@ Thumbs.db
 .env.local
 .env.*.local
 *.log
-client/
 scripts/
-attached_assets/
 .local/
 
 # Documentation
