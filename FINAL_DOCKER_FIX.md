@@ -7,11 +7,23 @@ Could not resolve entry module "client/index.html"
 ```
 
 ## Root Cause
-Vite requires a specific combination of **relative and absolute paths** when using a custom `root` directory:
 
+**TWO ISSUES FOUND:**
+
+### Issue 1: Path Resolution in Vite
+Vite requires a specific combination of **relative and absolute paths** when using a custom `root` directory:
 - When `root: "client"` is set, Vite changes its context to that directory
 - The `rollupOptions.input` path must be **absolute** to resolve correctly in Docker
 - Using only relative paths or only absolute paths both failed
+
+### Issue 2: Docker COPY Not Copying client/ Directory  
+The original `COPY . .` command was NOT copying the `client/` directory into the Docker container, causing:
+```
+ls: cannot access 'client/': No such file or directory
+✗ client/index.html MISSING
+```
+
+**Root cause:** The `COPY . .` command wasn't reliably copying all directories. Solution: **explicitly copy each directory**.
 
 ## Final Working Solution
 
@@ -38,23 +50,33 @@ export default defineConfig({
 
 ### Updated `Dockerfile`:
 ```dockerfile
-# Copy all necessary config files first
+# Copy Python requirements and install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy package files
 COPY package.json package-lock.json* ./
+
+# Install frontend dependencies (before copying source to leverage caching)
+RUN npm install --legacy-peer-deps
+
+# Copy all build configuration files
 COPY vite.config.ts tsconfig.json ./
 COPY tailwind.config.ts postcss.config.js components.json ./
 
-# Install frontend dependencies
-RUN npm install --legacy-peer-deps
-
-# Copy the entire application
-COPY . .
+# Copy application directories explicitly (FIX: Use explicit COPY instead of COPY . .)
+COPY client ./client
+COPY api ./api
+COPY shared ./shared
+COPY attached_assets ./attached_assets
+COPY public ./public
 
 # Debug verification
 RUN echo "=== Verifying build setup ===" && \
     ls -la && \
     echo "=== Client directory ===" && \
     ls -la client/ && \
-    test -f client/index.html && echo "✓ client/index.html exists"
+    test -f client/index.html && echo "✓ client/index.html exists" || echo "✗ client/index.html MISSING"
 
 # Build frontend
 RUN npm run build
@@ -69,10 +91,11 @@ RUN npm run build
 | `build.outDir` | `path.resolve(__dirname, "dist", "public")` | `"../dist/public"` | Relative |
 | `build.rollupOptions.input` | *(not set)* | `path.resolve(__dirname, "client", "index.html")` | **Absolute** |
 
-### 2. Dockerfile
-- Explicitly copy config files before `COPY . .`
-- Added debug verification steps
-- Ensured proper layer caching
+### 2. Dockerfile (CRITICAL FIX)
+- **Changed from `COPY . .` to explicit directory copying**
+- Copy each directory individually: `COPY client ./client`, `COPY api ./api`, etc.
+- Added debug verification steps to catch issues early
+- Ensured proper layer caching by installing dependencies before copying source
 
 ### 3. Missing Directories Created
 - Created `shared/` directory (referenced in vite config)
