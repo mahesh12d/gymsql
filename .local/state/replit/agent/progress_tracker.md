@@ -1,5 +1,25 @@
 # SQLGym Platform - Progress Tracker
 
+## Cloud Run Admin Authentication Fix
+
+### Issue
+"Invalid admin key" error in Cloud Run deployment when accessing admin panel features.
+
+### Root Cause
+Frontend was sending session token as `X-Admin-Key` header instead of `X-Admin-Session` header.
+- After authentication, the session token is stored in `state.adminKey`
+- SolutionsTab.tsx was sending this token as `X-Admin-Key` 
+- Backend expects session tokens to use `X-Admin-Session` header
+- Backend only accepts ADMIN_SECRET_KEY in `X-Admin-Key` header, not session tokens
+
+### Solution Implemented
+
+[x] 1. Fixed SolutionsTab.tsx to use correct header
+   - Changed `'X-Admin-Key': state.adminKey` to `'X-Admin-Session': state.adminKey`
+   - Updated both fetch calls (lines 59 and 81)
+   - Now correctly sends session token using `X-Admin-Session` header
+   - **FIXED** ✅
+
 ## Google Cloud Run Build Error Fix
 
 ### Issue
@@ -75,4 +95,5 @@ gcloud builds submit --config=cloudbuild.prod.yaml
 ## Status
 - ✅ Build Error: FIXED - Vite build working correctly
 - ✅ Replit: FIXED - Admin panel working
+- ✅ Admin Authentication: FIXED - Using correct X-Admin-Session header
 - ✅ Google Cloud Run: READY TO DEPLOY - All issues resolved
