@@ -15,13 +15,13 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy package files for frontend
-COPY package.json package-lock.json ./
+# Copy package.json for frontend dependencies
+COPY package.json ./
 
-# Install frontend dependencies (use npm install instead of npm ci for better compatibility)
+# Install frontend dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy application code
+# Copy application code (this includes package-lock.json if it exists)
 COPY . .
 
 # Build frontend
