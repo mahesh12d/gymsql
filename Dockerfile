@@ -11,17 +11,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements
+# Copy Python requirements and install dependencies
 COPY requirements.txt ./
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy package files for frontend
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-# Install frontend dependencies
-RUN npm ci
+# Install frontend dependencies (use npm install instead of npm ci for better compatibility)
+RUN npm install --legacy-peer-deps
 
 # Copy application code
 COPY . .
