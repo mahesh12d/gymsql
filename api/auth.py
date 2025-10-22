@@ -58,6 +58,36 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_admin_session_token(user_id: str, expires_minutes: int = 30):
+    """Create a short-lived admin session token"""
+    to_encode = {
+        "userId": user_id,
+        "adminSession": True,
+        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes)
+    }
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_admin_session_token(token: str) -> str:
+    """Verify admin session token and return user_id"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        user_id: str = payload.get("userId")
+        is_admin_session: bool = payload.get("adminSession", False)
+        
+        if not user_id or not is_admin_session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin session token"
+            )
+        
+        return user_id
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin session expired or invalid"
+        )
+
 def verify_token(token: str) -> TokenData:
     """Verify and decode a JWT token"""
     try:
@@ -221,7 +251,7 @@ def verify_admin_user_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access - requires user JWT token with is_admin=True AND ADMIN_SECRET_KEY in X-Admin-Key header"""
+    """Verify admin access - accepts either X-Admin-Session token (new) or X-Admin-Key + JWT (legacy)"""
     
     # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
     if os.getenv("DEV_ADMIN_BYPASS") == "true":
@@ -241,12 +271,35 @@ def verify_admin_user_access(
             db.refresh(admin_user)
         return admin_user
     
-    # Step 1: Verify ADMIN_SECRET_KEY from X-Admin-Key header
+    # NEW: Check for admin session token first (simpler flow)
+    admin_session_token = request.headers.get("X-Admin-Session")
+    if admin_session_token:
+        try:
+            user_id = verify_admin_session_token(admin_session_token)
+            user = db.query(User).filter(User.id == user_id).first()
+            
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            if not user.is_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied - admin privileges revoked"
+                )
+            
+            return user
+        except HTTPException:
+            raise
+    
+    # LEGACY: Fall back to X-Admin-Key + JWT verification for backward compatibility
     admin_key = request.headers.get("X-Admin-Key")
     if not admin_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin key required - provide ADMIN_SECRET_KEY in X-Admin-Key header",
+            detail="Admin authentication required - provide X-Admin-Session token or X-Admin-Key header",
         )
     
     if admin_key.strip() != ADMIN_SECRET_KEY:
@@ -255,7 +308,7 @@ def verify_admin_user_access(
             detail="Invalid admin key"
         )
     
-    # Step 2: Verify user JWT token
+    # Verify user JWT token
     token = credentials.credentials if credentials else None
     
     # If no Authorization header, try to get from cookie
@@ -280,7 +333,7 @@ def verify_admin_user_access(
                 detail="User not found"
             )
         
-        # Step 3: Verify user has is_admin=True
+        # Verify user has is_admin=True
         if not user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

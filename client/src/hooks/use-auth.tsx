@@ -12,6 +12,7 @@ interface User {
   level: string;
   problemsSolved: number;
   premium?: boolean;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {

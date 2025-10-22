@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Redirect } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { AdminProvider, useAdmin } from '@/contexts/AdminContext';
 import { CreateQuestionTab } from '@/components/admin/CreateQuestionTab';
 import { DataSourceTab } from '@/components/admin/DataSourceTab';
@@ -13,8 +15,26 @@ import { SolutionsTab } from '@/components/admin/SolutionsTab';
 import { SchemaInfoTab } from '@/components/admin/SchemaInfoTab';
 
 function AdminPanelContent() {
+  const { user, isLoading: authLoading } = useAuth();
   const { state, actions } = useAdmin();
   const [adminKey, setAdminKey] = useState('');
+  
+  // Check if user is an admin - if not, redirect to 404
+  if (!authLoading && (!user || !user.isAdmin)) {
+    return <Redirect to="/404" />;
+  }
+  
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleAuthenticate = () => {
     actions.authenticate(adminKey);
