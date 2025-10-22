@@ -92,6 +92,7 @@ class UserResponse(UserBase):
     id: str
     problems_solved: int
     premium: bool
+    is_admin: bool = False
     created_at: datetime
 
 class UserLogin(CamelCaseModel):
