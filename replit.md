@@ -20,12 +20,25 @@ PostgreSQL is the primary database, managed via SQLAlchemy ORM. Redis is used fo
 Authentication supports traditional email/password login with JWT tokens, and OAuth flows for Google and GitHub using secure HttpOnly cookies. OAuth credentials and all secrets are managed via environment variables with environment-specific configuration. User registration includes bcrypt password hashing and checks for unique usernames and emails. OAuth users are automatically created or merged with existing accounts.
 
 #### Admin Access
-Admin panel access is secured through the `ADMIN_SECRET_KEY` environment variable. Most admin endpoints use `verify_admin_access`, which validates the admin secret key passed as a Bearer token.
+Admin panel access uses a simplified session-based authentication designed for small teams (<10 administrators). The system maintains two-factor security while improving user experience.
 
 **Authentication Flow:**
-- Frontend sends: `Authorization: Bearer <ADMIN_SECRET_KEY>`
-- Backend validates the key against the `ADMIN_SECRET_KEY` environment variable
-- **Important:** The key is automatically trimmed of leading/trailing whitespace to prevent authentication failures from copy-paste errors
+1. User must be logged in with `is_admin=true` flag
+2. On first admin panel access, user enters `ADMIN_SECRET_KEY` once
+3. Backend issues a JWT-signed session token (30-minute expiry)
+4. Session token is stored in `sessionStorage` (cleared when tab closes)
+5. All subsequent admin API calls use the session token via `X-Admin-Session` header
+6. Session automatically restores on page reload if token is still valid
+7. User is prompted to re-enter key only when:
+   - Session expires (after 30 minutes)
+   - Browser tab/window is closed
+   - User logs out
+
+**Backend Implementation:**
+- `/api/admin/session` endpoint validates `ADMIN_SECRET_KEY` and issues session token
+- `verify_admin_user_access` middleware validates both user JWT token and admin session token
+- Legacy `verify_admin_access` remains for backward compatibility (requires `ADMIN_SECRET_KEY` on each request)
+- Admin session tokens are JWT-signed with 30-minute expiration
 
 **Setting the Admin Secret Key:**
 The `ADMIN_SECRET_KEY` must be set as an environment variable or in Google Secret Manager for production deployments:
@@ -39,11 +52,8 @@ export ADMIN_SECRET_KEY="your-secure-random-key"
 # Reference in deployment configs (cloudbuild.staging.yaml / cloudbuild.prod.yaml)
 ```
 
-**Development Mode (DEV_ADMIN_BYPASS):**
-For local development, you can enable a temporary admin bypass by setting the environment variable `DEV_ADMIN_BYPASS=true`. This bypasses all admin authentication checks. This bypass is disabled by default and should **never** be used in production.
-
-**User-Based Admin Access:**
-Some endpoints may use `verify_admin_user_access` which requires a logged-in user with `is_admin=true`. To grant admin privileges to a user:
+**Granting Admin Privileges to Users:**
+To allow a user to access the admin panel, set their `is_admin` flag to true:
 
 ```bash
 # Using the Admin Script
@@ -52,6 +62,9 @@ python scripts/make_admin.py admin@example.com
 # Via Database
 UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
 ```
+
+**Development Mode (DEV_ADMIN_BYPASS):**
+For local development, you can enable a temporary admin bypass by setting the environment variable `DEV_ADMIN_BYPASS=true`. This bypasses all admin authentication checks. This bypass is disabled by default and should **never** be used in production.
 
 ### Key Features
 -   **Gamification**: XP system with levels and badge rewards, GitHub-style contribution heatmap for daily activity.

@@ -15,7 +15,7 @@ import tempfile
 
 from .database import get_db
 from .models import Problem, Topic, Solution, User, TestCase
-from .auth import verify_admin_access, verify_admin_user_access
+from .auth import verify_admin_access, verify_admin_user_access, get_current_user
 from .schemas import DifficultyLevel, QuestionData, TableData, TableColumn, SolutionCreate, SolutionResponse, S3AnswerSource, S3DatasetSource
 from .s3_service import s3_service
 from .file_processor import file_processor
@@ -137,9 +137,71 @@ class MultiTableValidationResponse(BaseModel):
     total_rows: int = 0
     error: Optional[str] = None
 
+class AdminSessionRequest(BaseModel):
+    """Request model for creating admin session"""
+    admin_key: str = Field(..., description="ADMIN_SECRET_KEY provided externally")
+
+class AdminSessionResponse(BaseModel):
+    """Response model for admin session creation"""
+    success: bool
+    session_token: str = Field(..., description="Short-lived admin session token (30 min)")
+    expires_in: int = Field(..., description="Token expiry time in minutes")
+    message: str
+
+@admin_router.post("/session", response_model=AdminSessionResponse)
+async def create_admin_session(
+    request: AdminSessionRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Validate ADMIN_SECRET_KEY and create short-lived admin session token
+    
+    This endpoint allows admin users to validate their admin key once per session
+    and receive a session token that can be used for subsequent admin API calls.
+    
+    Requirements:
+    1. User must be logged in (JWT token)
+    2. User must have is_admin=true in database
+    3. Must provide valid ADMIN_SECRET_KEY
+    
+    Returns:
+    - session_token: Short-lived token (30 minutes) to use in X-Admin-Session header
+    - expires_in: Number of minutes until token expires
+    """
+    from .auth import ADMIN_SECRET_KEY, create_admin_session_token
+    import os
+    
+    # Check if user has admin privileges
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - you do not have admin privileges. Contact a developer to set is_admin=true for your account."
+        )
+    
+    # Validate the admin key
+    if request.admin_key.strip() != ADMIN_SECRET_KEY:
+        # Log failed attempt (in production, you might want to rate-limit this)
+        logging.warning(f"Failed admin key validation attempt by user {user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin key"
+        )
+    
+    # Create admin session token (30 minutes)
+    session_token = create_admin_session_token(user.id, expires_minutes=30)
+    
+    logging.info(f"Admin session created for user {user.id} ({user.username})")
+    
+    return AdminSessionResponse(
+        success=True,
+        session_token=session_token,
+        expires_in=30,
+        message="Admin session created successfully. Use this token in X-Admin-Session header for subsequent requests."
+    )
+
 @admin_router.get("/schema-info", response_model=SchemaInfo)
 def get_schema_info(
-    _: bool = Depends(verify_admin_access),
+    current_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """Get the exact schema structure and example for creating problems"""
@@ -712,7 +774,7 @@ class NeonVerificationResponse(BaseModel):
 @admin_router.post("/verify-neon-solution", response_model=NeonVerificationResponse)
 def verify_neon_solution(
     request: NeonVerificationRequest,
-    _: bool = Depends(verify_admin_access),
+    current_user: User = Depends(verify_admin_user_access),
     db: Session = Depends(get_db)
 ):
     """
@@ -1090,7 +1152,7 @@ def refresh_test_case_s3_data(
 @admin_router.post("/validate-dataset-s3", response_model=S3DatasetValidationResponse)
 def validate_s3_dataset(
     request: S3DatasetValidationRequest,
-    _: bool = Depends(verify_admin_access)
+    current_user: User = Depends(verify_admin_user_access)
 ):
     """Validate S3 dataset file and extract schema information"""
     logger = logging.getLogger(__name__)
@@ -1384,7 +1446,7 @@ def create_question_enhanced(
 @admin_router.post("/validate-multitable-s3", response_model=MultiTableValidationResponse)
 async def validate_multitable_s3(
     request: MultiTableValidationRequest,
-    _: bool = Depends(verify_admin_access)
+    current_user: User = Depends(verify_admin_user_access)
 ):
     """Validate multiple S3 datasets for multi-table questions"""
     logger = logging.getLogger(__name__)

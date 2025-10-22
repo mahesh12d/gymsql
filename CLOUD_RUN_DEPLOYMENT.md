@@ -396,6 +396,26 @@ gcloud run services update sqlgym-backend \
 
 ## 🐛 Troubleshooting
 
+### Build Error: Could not resolve entry module
+
+**Problem**: Build fails with error `Could not resolve entry module "client/index.html"`
+
+**Solution**: ✅ This has been fixed in the latest version. The `vite.config.ts` now explicitly specifies the entry point:
+```typescript
+build: {
+  outDir: path.resolve(__dirname, "dist", "public"),
+  emptyOutDir: true,
+  rollupOptions: {
+    input: path.resolve(__dirname, "client", "index.html"),
+  },
+}
+```
+
+If you're still experiencing this issue, verify that:
+- `client/index.html` exists
+- Build command is `vite build --config vite.config.ts`
+- Node.js version is 20.x or higher
+
 ### Container failed to start
 
 **Problem**: "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable."

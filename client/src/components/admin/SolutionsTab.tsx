@@ -52,9 +52,11 @@ export function SolutionsTab() {
     queryKey: ['/api/admin/problems', selectedProblemId, 'solution'],
     enabled: !!selectedProblemId && state.isAuthenticated,
     queryFn: async () => {
+      const authToken = localStorage.getItem('auth_token');
       const response = await fetch(`/api/admin/problems/${selectedProblemId}/solution`, {
         headers: {
-          'Authorization': `Bearer ${state.adminKey}`
+          'Authorization': `Bearer ${authToken}`,
+          'X-Admin-Key': state.adminKey
         }
       });
       if (!response.ok) {
@@ -70,11 +72,13 @@ export function SolutionsTab() {
   // Create or update solution mutation
   const saveSolutionMutation = useMutation({
     mutationFn: async (solutionData: SolutionForm) => {
+      const authToken = localStorage.getItem('auth_token');
       const response = await fetch(`/api/admin/problems/${selectedProblemId}/solutions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.adminKey}`
+          'Authorization': `Bearer ${authToken}`,
+          'X-Admin-Key': state.adminKey
         },
         body: JSON.stringify(solutionData)
       });
