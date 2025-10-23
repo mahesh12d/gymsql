@@ -46,21 +46,12 @@ async function startBackend() {
   const useUv = forceUv && !disableUv && hasUv();
   const pythonCmd = detectPythonCommand();
 
-  // Set development environment variables
-  process.env.DEV_TOKEN_BYPASS = "true";
-  process.env.DEV_ADMIN_BYPASS = "true";
-
   // Set environment variables to prevent Unicode encoding issues
   process.env.PYTHONIOENCODING = "utf-8";
   process.env.LC_ALL = "C.UTF-8";
   process.env.LANG = "C.UTF-8";
 
-  // TEMPORARY: Enable admin bypass for development - REMOVE when Google auth is implemented
-  process.env.DEV_ADMIN_BYPASS = "true";
-  process.env.DEV_TOKEN_BYPASS = "true";
-  console.log("🔓 TEMPORARY: Development authentication bypasses enabled");
-
-  // Generate temporary secure keys for development if not set
+  // Generate secure keys for development if not set
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = require("crypto").randomBytes(32).toString("hex");
     console.log("🔐 Generated temporary JWT_SECRET for development");

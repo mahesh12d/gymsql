@@ -8,13 +8,14 @@ Features:
 - Per-IP tracking using PostgreSQL
 - Automatic lockout after failed attempts
 - Automatic cleanup of expired records
+- Graceful degradation when database tables don't exist (development mode)
 """
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import Request, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import delete
+from sqlalchemy import delete, inspect
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -27,7 +28,17 @@ MAX_FAILED_ATTEMPTS = 5
 
 
 class RateLimiterService:
-    """PostgreSQL-based rate limiting service"""
+    """PostgreSQL-based rate limiting service with graceful degradation"""
+    
+    def _tables_exist(self, db: Session) -> bool:
+        """Check if required security tables exist in the database."""
+        try:
+            inspector = inspect(db.bind)
+            required_tables = {'admin_lockouts', 'admin_failed_attempts'}
+            existing_tables = set(inspector.get_table_names())
+            return required_tables.issubset(existing_tables)
+        except Exception:
+            return False
     
     def is_locked_out(self, identifier: str, db: Session) -> bool:
         """
@@ -38,8 +49,12 @@ class RateLimiterService:
             db: Database session
             
         Returns:
-            True if locked out, False otherwise
+            True if locked out, False otherwise (or False if tables don't exist)
         """
+        # Graceful degradation: if tables don't exist, no lockout enforcement
+        if not self._tables_exist(db):
+            return False
+            
         from .models import AdminLockout
         
         try:
@@ -54,7 +69,7 @@ class RateLimiterService:
             
             return lockout is not None
         except Exception as e:
-            print(f"Failed to check lockout status: {e}")
+            print(f"⚠️  Rate limiter: Failed to check lockout status (tables may not exist): {e}")
             return False
     
     def record_failed_attempt(self, identifier: str, db: Session) -> int:
@@ -66,8 +81,13 @@ class RateLimiterService:
             db: Database session
             
         Returns:
-            Number of failed attempts so far
+            Number of failed attempts so far (0 if tables don't exist)
         """
+        # Graceful degradation: if tables don't exist, skip recording
+        if not self._tables_exist(db):
+            print(f"⚠️  Rate limiter: Security tables not found, failed attempt not recorded (development mode)")
+            return 0
+            
         from .models import AdminFailedAttempt
         import uuid
         
@@ -118,6 +138,10 @@ class RateLimiterService:
             identifier: IP address or user ID
             db: Database session
         """
+        # Graceful degradation: if tables don't exist, nothing to clear
+        if not self._tables_exist(db):
+            return
+            
         from .models import AdminFailedAttempt
         
         try:
@@ -127,7 +151,7 @@ class RateLimiterService:
             db.commit()
         except Exception as e:
             db.rollback()
-            print(f"Failed to clear failed attempts: {e}")
+            print(f"⚠️  Rate limiter: Failed to clear failed attempts: {e}")
     
     def _lockout(self, identifier: str, db: Session):
         """

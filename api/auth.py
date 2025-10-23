@@ -137,32 +137,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # TEMPORARY: Development token bypass - only in explicit dev mode
-    # Format: dev-token::<unique-dev-id>
-    if os.getenv("DEV_TOKEN_BYPASS") == "true" and token.startswith('dev-token::'):
-        dev_user_id = token.split('::', 1)[1] if '::' in token else None
-        if dev_user_id:
-            # Find or create unique dev user for this browser/developer
-            dev_user = db.query(User).filter(User.id == dev_user_id).first()
-            if not dev_user:
-                # Create new isolated dev user with no submissions
-                dev_user = User(
-                    id=dev_user_id,
-                    username=f"dev_{dev_user_id[:8]}",
-                    email=f"{dev_user_id}@example.com",
-                    first_name="Dev",
-                    last_name="User",
-                    problems_solved=0,
-                    premium=True,
-                    is_admin=False,
-                    auth_provider="dev"
-                )
-                db.add(dev_user)
-                db.commit()
-                db.refresh(dev_user)
-            return dev_user
-    
-    # Normal JWT verification for production
+    # JWT verification
     token_data = verify_token(token)
     
     user = db.query(User).filter(User.id == token_data.user_id).first()
@@ -192,32 +167,6 @@ async def get_current_user_optional(
         return None
     
     try:
-        
-        # TEMPORARY: Development token bypass - only in explicit dev mode
-        # Format: dev-token::<unique-dev-id>
-        if os.getenv("DEV_TOKEN_BYPASS") == "true" and token.startswith('dev-token::'):
-            dev_user_id = token.split('::', 1)[1] if '::' in token else None
-            if dev_user_id:
-                # Find or create unique dev user for this browser/developer
-                dev_user = db.query(User).filter(User.id == dev_user_id).first()
-                if not dev_user:
-                    # Create new isolated dev user with no submissions
-                    dev_user = User(
-                        id=dev_user_id,
-                        username=f"dev_{dev_user_id[:8]}",
-                        email=f"{dev_user_id}@example.com",
-                        first_name="Dev",
-                        last_name="User",
-                        problems_solved=0,
-                        premium=True,
-                        is_admin=False,
-                        auth_provider="dev"
-                    )
-                    db.add(dev_user)
-                    db.commit()
-                    db.refresh(dev_user)
-                return dev_user
-        
         token_data = verify_token(token)
         user = db.query(User).filter(User.id == token_data.user_id).first()
         return user
@@ -228,10 +177,6 @@ def verify_admin_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)
 ) -> bool:
     """Verify admin access using the admin secret key"""
-    
-    # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
-    if os.getenv("DEV_ADMIN_BYPASS") == "true":
-        return True
     
     if not credentials:
         raise HTTPException(
@@ -277,25 +222,7 @@ def verify_admin_user_access(
             detail=f"Too many failed authentication attempts. Try again in {remaining_time // 60} minutes."
         )
     
-    # TEMPORARY DEV BYPASS - Only enabled with explicit flag (disabled by default)
-    if os.getenv("DEV_ADMIN_BYPASS") == "true":
-        # Create/find a temp admin user for development
-        admin_user = db.query(User).filter(User.username == "temp_admin").first()
-        if admin_user is None:
-            from uuid import uuid4
-            admin_user = User(
-                id=str(uuid4()),
-                username="temp_admin",
-                email="temp_admin@example.com",
-                is_admin=True,
-                premium=True
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-        return admin_user
-    
-    # SIMPLIFIED: Just check for X-Admin-Key header (no JWT required)
+    # Check for X-Admin-Key header (no JWT required - simplified single-admin authentication)
     admin_key = request.headers.get("X-Admin-Key")
     if not admin_key:
         rate_limiter_service.record_failed_attempt(ip_address, db)

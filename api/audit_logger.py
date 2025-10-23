@@ -8,20 +8,29 @@ Features:
 - Stores in PostgreSQL for permanent, queryable storage
 - 90-day automatic retention (configurable)
 - Fast queries with proper indexing
+- Graceful degradation when database tables don't exist (development mode)
 """
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from fastapi import Request
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, inspect
 
 # Audit log retention
 AUDIT_LOG_RETENTION_DAYS = 90
 
 
 class AuditLogger:
-    """PostgreSQL-based audit logging service"""
+    """PostgreSQL-based audit logging service with graceful degradation"""
+    
+    def _table_exists(self, db: Session) -> bool:
+        """Check if audit log table exists in the database."""
+        try:
+            inspector = inspect(db.bind)
+            return 'admin_audit_logs' in inspector.get_table_names()
+        except Exception:
+            return False
     
     def log_action(
         self,
@@ -43,11 +52,25 @@ class AuditLogger:
             metadata: Additional metadata (e.g., problem_id, changes made)
             success: Whether the action was successful
         """
+        timestamp = datetime.utcnow()
+        ip_address = request.client.host if request.client else "unknown"
+        
+        # Console logging always happens (even if tables don't exist)
+        status_emoji = "✅" if success else "❌"
+        print(
+            f"{status_emoji} ADMIN AUDIT [{timestamp.isoformat()}]: "
+            f"User {user_id} - {action} - IP: {ip_address} - "
+            f"Metadata: {json.dumps(metadata or {})}"
+        )
+        
+        # Graceful degradation: if table doesn't exist, only log to console
+        if not self._table_exists(db):
+            print(f"⚠️  Audit logger: Table not found, audit log not persisted to database (development mode)")
+            return
+            
         from .models import AdminAuditLog
         import uuid
         
-        timestamp = datetime.utcnow()
-        ip_address = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
         
         log_entry = AdminAuditLog(
@@ -65,14 +88,6 @@ class AuditLogger:
             db.add(log_entry)
             db.commit()
             
-            # Console logging for real-time monitoring
-            status_emoji = "✅" if success else "❌"
-            print(
-                f"{status_emoji} ADMIN AUDIT [{timestamp.isoformat()}]: "
-                f"User {user_id} - {action} - IP: {ip_address} - "
-                f"Metadata: {json.dumps(metadata or {})}"
-            )
-            
             # Periodic cleanup of old logs (runs every ~100 logs)
             import random
             if random.randint(1, 100) == 1:
@@ -80,7 +95,7 @@ class AuditLogger:
                 
         except Exception as e:
             db.rollback()
-            print(f"Failed to write audit log: {e}")
+            print(f"⚠️  Audit logger: Failed to write audit log to database: {e}")
     
     def get_user_actions(
         self,
