@@ -309,7 +309,7 @@ def get_schema_info(
     
     problem_structure = {
         "title": "string (required) - The problem title",
-        "difficulty": "string (required) - One of: BEGINNER, EASY, MEDIUM, HARD, EXPERT",
+        "difficulty": "string (required) - One of: EASY, MEDIUM, HARD",
         "question": {
             "description": "string (required) - Problem description in markdown",
             "tables": [
@@ -396,7 +396,7 @@ Order the results by total sales amount in descending order.
     return SchemaInfo(
         problem_structure=problem_structure,
         example_problem=example_problem,
-        difficulty_options=["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"],
+        difficulty_options=["EASY", "MEDIUM", "HARD"],
         available_topics=available_topics
     )
 
