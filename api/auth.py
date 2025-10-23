@@ -2,6 +2,7 @@
 Authentication utilities for FastAPI with Production Security
 """
 import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 import jwt
@@ -268,8 +269,8 @@ def verify_admin_user_access(
     ip_address = request.client.host if request.client else "unknown"
     
     # Check if IP is locked out (after too many failed attempts)
-    if rate_limiter_service.is_locked_out(ip_address):
-        remaining_time = rate_limiter_service.get_remaining_lockout_time(ip_address)
+    if rate_limiter_service.is_locked_out(ip_address, db):
+        remaining_time = rate_limiter_service.get_remaining_lockout_time(ip_address, db)
         print(f"🚫 SECURITY: Blocked admin access from locked out IP: {ip_address}")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -297,17 +298,17 @@ def verify_admin_user_access(
     # SIMPLIFIED: Just check for X-Admin-Key header (no JWT required)
     admin_key = request.headers.get("X-Admin-Key")
     if not admin_key:
-        rate_limiter_service.record_failed_attempt(ip_address)
+        rate_limiter_service.record_failed_attempt(ip_address, db)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Admin authentication required - provide X-Admin-Key header",
         )
     
-    # Verify the admin key
-    if admin_key.strip() != ADMIN_SECRET_KEY:
-        rate_limiter_service.record_failed_attempt(ip_address)
+    # Verify the admin key using constant-time comparison to prevent timing attacks
+    if not secrets.compare_digest(admin_key.strip(), ADMIN_SECRET_KEY):
+        rate_limiter_service.record_failed_attempt(ip_address, db)
         print(f"🚫 SECURITY: Invalid admin key attempt from IP: {ip_address}")
-        log_admin_action("admin", "access_denied", request, {"reason": "invalid_key"}, success=False)
+        log_admin_action("admin", "access_denied", request, db, {"reason": "invalid_key"}, success=False)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin key"
@@ -333,9 +334,9 @@ def verify_admin_user_access(
         db.refresh(admin_user)
     
     # Clear failed attempts on successful authentication
-    rate_limiter_service.clear_failed_attempts(ip_address)
+    rate_limiter_service.clear_failed_attempts(ip_address, db)
     
     # Log successful admin access
-    log_admin_action(admin_user.id, "admin_access", request, {"method": "simple_key"}, success=True)
+    log_admin_action(admin_user.id, "admin_access", request, db, {"method": "simple_key"}, success=True)
     
     return admin_user

@@ -482,3 +482,60 @@ class HelpfulLink(Base):
         Index('idx_helpful_links_user_id', 'user_id'),
     )
 
+
+class AdminFailedAttempt(Base):
+    """Track failed admin authentication attempts for rate limiting"""
+    __tablename__ = "admin_failed_attempts"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    identifier = Column(String(255), nullable=False)  # IP address or user ID
+    attempt_count = Column(Integer, default=1, nullable=False)
+    first_attempt_at = Column(DateTime, default=func.now(), nullable=False)
+    last_attempt_at = Column(DateTime, default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=False)  # When the record expires
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_admin_failed_identifier', 'identifier'),
+        Index('idx_admin_failed_expires_at', 'expires_at'),
+    )
+
+
+class AdminLockout(Base):
+    """Track IP addresses locked out after too many failed attempts"""
+    __tablename__ = "admin_lockouts"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    identifier = Column(String(255), unique=True, nullable=False)  # IP address or user ID
+    locked_at = Column(DateTime, default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=False)  # When lockout expires
+    reason = Column(Text, nullable=True)  # Reason for lockout
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_admin_lockout_identifier', 'identifier'),
+        Index('idx_admin_lockout_expires_at', 'expires_at'),
+    )
+
+
+class AdminAuditLog(Base):
+    """Comprehensive audit logging for all admin actions"""
+    __tablename__ = "admin_audit_logs"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False)  # Admin user ID
+    action = Column(String(100), nullable=False)  # Action type (e.g., 'create_problem', 'delete_solution')
+    ip_address = Column(String(50), nullable=False)
+    user_agent = Column(Text, nullable=True)
+    metadata = Column(JSONB, default=dict, nullable=False)  # Additional context
+    success = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_admin_audit_user_id', 'user_id'),
+        Index('idx_admin_audit_action', 'action'),
+        Index('idx_admin_audit_created_at', 'created_at'),
+        Index('idx_admin_audit_ip_address', 'ip_address'),
+    )
+
