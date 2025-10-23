@@ -17,7 +17,7 @@ The backend is a FastAPI-based RESTful API in Python, using SQLAlchemy ORM with 
 PostgreSQL is the primary database, managed via SQLAlchemy. Redis is used for result caching (10 min TTL) and high-performance sorted-set leaderboards. A 6-month data retention policy is in place for execution results.
 
 ### Authentication System
-Supports email/password login with JWT, and OAuth for Google and GitHub using HttpOnly cookies. Admin access is secured with a robust system including rate limiting, audit logging, IP lockout, and optional IP whitelisting, requiring an `ADMIN_SECRET_KEY` and an `is_admin=true` flag for users.
+Supports email/password login with JWT, and OAuth for Google and GitHub using HttpOnly cookies. Admin access uses a simplified single-key authentication system - no user login required. The admin panel authenticates directly using only the `ADMIN_SECRET_KEY` via the `X-Admin-Key` header. Security features including rate limiting (5 attempts/hour), audit logging, IP lockout, and optional IP whitelisting remain fully functional. The backend auto-provisions a single admin user when a valid key is provided.
 
 ### Key Features
 -   **Gamification**: XP system, levels, badge rewards, and contribution heatmap.
