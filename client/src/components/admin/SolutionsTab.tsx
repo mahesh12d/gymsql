@@ -56,7 +56,7 @@ export function SolutionsTab() {
       const response = await fetch(`/api/admin/problems/${selectedProblemId}/solution`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
-          'X-Admin-Session': state.adminKey
+          'X-Admin-Key': state.adminKey
         }
       });
       if (!response.ok) {
@@ -78,7 +78,7 @@ export function SolutionsTab() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
-          'X-Admin-Session': state.adminKey
+          'X-Admin-Key': state.adminKey
         },
         body: JSON.stringify(solutionData)
       });

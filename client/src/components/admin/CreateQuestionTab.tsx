@@ -45,7 +45,7 @@ export function CreateQuestionTab() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
-          'X-Admin-Session': state.adminKey
+          'X-Admin-Key': state.adminKey
         },
         body: JSON.stringify({
           ...problemData,
@@ -88,7 +88,7 @@ export function CreateQuestionTab() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
-          'X-Admin-Session': state.adminKey
+          'X-Admin-Key': state.adminKey
         },
         body: formData
       });
