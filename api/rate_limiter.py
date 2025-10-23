@@ -15,8 +15,13 @@ from typing import Optional
 from fastapi import Request, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import delete
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-# Rate limiting constants
+# Create SlowAPI limiter instance for general rate limiting
+limiter = Limiter(key_func=get_remote_address)
+
+# Admin-specific rate limiting constants
 LOCKOUT_DURATION_SECONDS = 3600  # 1 hour lockout after too many failed attempts
 MAX_FAILED_ATTEMPTS = 5
 

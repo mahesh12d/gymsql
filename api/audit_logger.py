@@ -56,7 +56,7 @@ class AuditLogger:
             action=action,
             ip_address=ip_address,
             user_agent=user_agent,
-            metadata=metadata or {},
+            action_metadata=metadata or {},
             success=success,
             created_at=timestamp
         )
@@ -113,7 +113,7 @@ class AuditLogger:
                     "action": log.action,
                     "ip_address": log.ip_address,
                     "user_agent": log.user_agent,
-                    "metadata": log.metadata,
+                    "metadata": log.action_metadata,
                     "success": log.success,
                     "timestamp": log.created_at.isoformat()
                 }
@@ -162,7 +162,7 @@ class AuditLogger:
                     "action": log.action,
                     "ip_address": log.ip_address,
                     "user_agent": log.user_agent,
-                    "metadata": log.metadata,
+                    "metadata": log.action_metadata,
                     "success": log.success,
                     "timestamp": log.created_at.isoformat()
                 }
@@ -221,7 +221,7 @@ class AuditLogger:
                     "action": log.action,
                     "ip_address": log.ip_address,
                     "user_agent": log.user_agent,
-                    "metadata": log.metadata,
+                    "metadata": log.action_metadata,
                     "success": log.success,
                     "timestamp": log.created_at.isoformat()
                 }

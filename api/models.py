@@ -527,7 +527,7 @@ class AdminAuditLog(Base):
     action = Column(String(100), nullable=False)  # Action type (e.g., 'create_problem', 'delete_solution')
     ip_address = Column(String(50), nullable=False)
     user_agent = Column(Text, nullable=True)
-    metadata = Column(JSONB, default=dict, nullable=False)  # Additional context
+    action_metadata = Column(JSONB, default=dict, nullable=False, name="metadata")  # Additional context
     success = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
