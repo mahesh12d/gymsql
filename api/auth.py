@@ -253,7 +253,16 @@ def verify_admin_user_access(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> User:
-    """Verify admin access with rate limiting and audit logging - accepts either X-Admin-Session token (new) or X-Admin-Key + JWT (legacy)"""
+    """SIMPLIFIED: Verify admin access using only ADMIN_SECRET_KEY - no JWT required!
+    
+    This simplified authentication only requires the ADMIN_SECRET_KEY in the X-Admin-Key header.
+    No need to login first - perfect for single admin use.
+    
+    Security features still enabled:
+    - Rate limiting to prevent brute force
+    - IP lockout after failed attempts
+    - Audit logging of all admin actions
+    """
     
     # Get client IP for rate limiting
     ip_address = request.client.host if request.client else "unknown"
@@ -285,101 +294,48 @@ def verify_admin_user_access(
             db.refresh(admin_user)
         return admin_user
     
-    # NEW: Check for admin session token first (simpler flow)
-    admin_session_token = request.headers.get("X-Admin-Session")
-    if admin_session_token:
-        try:
-            user_id = verify_admin_session_token(admin_session_token)
-            user = db.query(User).filter(User.id == user_id).first()
-            
-            if user is None:
-                rate_limiter_service.record_failed_attempt(ip_address)
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
-                )
-            
-            if not user.is_admin:
-                rate_limiter_service.record_failed_attempt(ip_address)
-                log_admin_action(user_id, "access_denied", request, {"reason": "not_admin"}, success=False)
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied - admin privileges revoked"
-                )
-            
-            # Clear failed attempts on successful authentication
-            rate_limiter_service.clear_failed_attempts(ip_address)
-            
-            return user
-        except HTTPException:
-            raise
-    
-    # LEGACY: Fall back to X-Admin-Key + JWT verification for backward compatibility
+    # SIMPLIFIED: Just check for X-Admin-Key header (no JWT required)
     admin_key = request.headers.get("X-Admin-Key")
     if not admin_key:
         rate_limiter_service.record_failed_attempt(ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin authentication required - provide X-Admin-Session token or X-Admin-Key header",
+            detail="Admin authentication required - provide X-Admin-Key header",
         )
     
+    # Verify the admin key
     if admin_key.strip() != ADMIN_SECRET_KEY:
         rate_limiter_service.record_failed_attempt(ip_address)
         print(f"🚫 SECURITY: Invalid admin key attempt from IP: {ip_address}")
+        log_admin_action("admin", "access_denied", request, {"reason": "invalid_key"}, success=False)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin key"
         )
     
-    # Verify user JWT token
-    token = credentials.credentials if credentials else None
-    
-    # If no Authorization header, try to get from cookie
-    if not token:
-        token = request.cookies.get("auth_token")
-    
-    if not token:
-        rate_limiter_service.record_failed_attempt(ip_address)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User authentication required - please login first",
-            headers={"WWW-Authenticate": "Bearer"},
+    # Key is valid! Create/fetch single admin user
+    admin_user = db.query(User).filter(User.username == "admin").first()
+    if admin_user is None:
+        from uuid import uuid4
+        admin_user = User(
+            id=str(uuid4()),
+            username="admin",
+            email="admin@sqlgym.local",
+            first_name="Admin",
+            last_name="User",
+            is_admin=True,
+            premium=True,
+            problems_solved=0,
+            auth_provider="admin_key"
         )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
     
-    # Verify JWT token
-    try:
-        token_data = verify_token(token)
-        user = db.query(User).filter(User.id == token_data.user_id).first()
-        
-        if user is None:
-            rate_limiter_service.record_failed_attempt(ip_address)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        # Verify user has is_admin=True
-        if not user.is_admin:
-            rate_limiter_service.record_failed_attempt(ip_address)
-            log_admin_action(user.id, "access_denied", request, {"reason": "not_admin"}, success=False)
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied - user does not have admin privileges. Contact a developer to set is_admin=true for your account."
-            )
-        
-        # Clear failed attempts on successful authentication
-        rate_limiter_service.clear_failed_attempts(ip_address)
-        
-        # Log successful admin access
-        log_admin_action(user.id, "admin_access", request, {"method": "legacy_key"}, success=True)
-        
-        return user
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        rate_limiter_service.record_failed_attempt(ip_address)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid authentication credentials"
-        )
+    # Clear failed attempts on successful authentication
+    rate_limiter_service.clear_failed_attempts(ip_address)
+    
+    # Log successful admin access
+    log_admin_action(admin_user.id, "admin_access", request, {"method": "simple_key"}, success=True)
+    
+    return admin_user

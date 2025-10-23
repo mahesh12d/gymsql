@@ -41,6 +41,9 @@ function AppRouter() {
         <Navbar />
       )}
       <Switch>
+        {/* Admin panel is always accessible (uses its own authentication) */}
+        <Route path="/admin-panel" component={AdminPanel} />
+        
         {!isAuthenticated ? (
           <>
             <Route path="/" component={Landing} />
@@ -57,7 +60,6 @@ function AppRouter() {
             <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
             <Route path="/profile" component={Profile} />
-            <Route path="/admin-panel" component={AdminPanel} />
           </>
         )}
         <Route component={NotFound} />

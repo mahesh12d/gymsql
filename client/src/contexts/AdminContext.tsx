@@ -389,46 +389,33 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(adminReducer, initialState);
   const { toast } = useToast();
 
-  // Restore admin session from sessionStorage on mount
+  // Restore admin session from sessionStorage on mount (SIMPLIFIED)
   useEffect(() => {
     const restoreSession = async () => {
-      const sessionToken = sessionStorage.getItem('admin_session_token');
-      const expiresAt = sessionStorage.getItem('admin_session_expires');
+      const adminKey = sessionStorage.getItem('admin_key');
       
-      // Check if we have a valid session token
-      if (sessionToken && expiresAt) {
-        const now = Date.now();
-        const expiry = Number(expiresAt);
-        
-        // Check if token is still valid (not expired)
-        if (now < expiry) {
-          try {
-            // Verify token is still valid with a lightweight API call
-            const response = await fetch('/api/admin/schema-info', {
-              headers: { 'X-Admin-Session': sessionToken },
-            });
-            
-            if (response.ok) {
-              // Token is valid - restore session
-              const schema = await response.json();
-              dispatch({ type: 'SET_SCHEMA_INFO', payload: schema });
-              dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-              dispatch({ type: 'SET_ADMIN_KEY', payload: sessionToken });
-              dispatch({ type: 'UPDATE_PROBLEM_DRAFT', payload: schema.example_problem });
-            } else {
-              // Token is invalid - clear session
-              sessionStorage.removeItem('admin_session_token');
-              sessionStorage.removeItem('admin_session_expires');
-            }
-          } catch (error) {
-            // Error verifying token - clear session
-            sessionStorage.removeItem('admin_session_token');
-            sessionStorage.removeItem('admin_session_expires');
+      // Check if we have a valid admin key
+      if (adminKey) {
+        try {
+          // Verify key is still valid with a lightweight API call
+          const response = await fetch('/api/admin/schema-info', {
+            headers: { 'X-Admin-Key': adminKey },
+          });
+          
+          if (response.ok) {
+            // Key is valid - restore session
+            const schema = await response.json();
+            dispatch({ type: 'SET_SCHEMA_INFO', payload: schema });
+            dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+            dispatch({ type: 'SET_ADMIN_KEY', payload: adminKey });
+            dispatch({ type: 'UPDATE_PROBLEM_DRAFT', payload: schema.example_problem });
+          } else {
+            // Key is invalid - clear it
+            sessionStorage.removeItem('admin_key');
           }
-        } else {
-          // Token expired - clear session
-          sessionStorage.removeItem('admin_session_token');
-          sessionStorage.removeItem('admin_session_expires');
+        } catch (error) {
+          // Error verifying key - clear it
+          sessionStorage.removeItem('admin_key');
         }
       }
     };
@@ -436,24 +423,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  // Helper function to get admin session token
+  // Helper function to get admin key header (SIMPLIFIED - no session tokens needed!)
   const getAdminHeaders = (): HeadersInit => {
-    const sessionToken = sessionStorage.getItem('admin_session_token');
-    if (!sessionToken) {
-      throw new Error('Admin session expired. Please re-enter admin key.');
+    const adminKey = sessionStorage.getItem('admin_key');
+    if (!adminKey) {
+      throw new Error('Admin key not found. Please re-enter admin key.');
     }
     
-    // Check if session is expired
-    const expiresAt = sessionStorage.getItem('admin_session_expires');
-    if (expiresAt && Date.now() > Number(expiresAt)) {
-      // Clear expired session
-      sessionStorage.removeItem('admin_session_token');
-      sessionStorage.removeItem('admin_session_expires');
-      dispatch({ type: 'SET_AUTHENTICATED', payload: false });
-      throw new Error('Admin session expired. Please re-enter admin key.');
-    }
-    
-    return { 'X-Admin-Session': sessionToken };
+    return { 'X-Admin-Key': adminKey };
   };
 
   const actions = {
@@ -555,51 +532,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
-        // Get user's JWT token from localStorage or cookies
-        const authToken = localStorage.getItem('auth_token');
+        // SIMPLIFIED: Just store the admin key and verify it works
+        // No JWT login required anymore!
+        sessionStorage.setItem('admin_key', key);
         
-        if (!authToken) {
-          toast({
-            title: "Authentication Required",
-            description: "Please login first before accessing the admin panel",
-            variant: "destructive",
-          });
-          dispatch({ type: 'SET_LOADING', payload: false });
-          return;
-        }
-
-        // Step 1: Validate admin key and get session token
-        const sessionResponse = await fetch('/api/admin/session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ admin_key: key }),
-        });
-
-        if (!sessionResponse.ok) {
-          const errorData = await sessionResponse.json().catch(() => ({}));
-          toast({
-            title: "Authentication Failed",
-            description: getErrorMessage(errorData) || "Invalid admin key or insufficient permissions",
-            variant: "destructive",
-          });
-          dispatch({ type: 'SET_LOADING', payload: false });
-          return;
-        }
-
-        const sessionData = await sessionResponse.json();
-        const sessionToken = sessionData.session_token;
-        
-        // Store session token in sessionStorage (clears on tab close)
-        sessionStorage.setItem('admin_session_token', sessionToken);
-        sessionStorage.setItem('admin_session_expires', String(Date.now() + (sessionData.expires_in * 60 * 1000)));
-
-        // Step 2: Fetch schema info using session token
+        // Test the key by fetching schema info
         const schemaResponse = await fetch('/api/admin/schema-info', {
           headers: {
-            'X-Admin-Session': sessionToken,
+            'X-Admin-Key': key,
           },
         });
 
@@ -607,21 +547,24 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           const schema = await schemaResponse.json();
           dispatch({ type: 'SET_SCHEMA_INFO', payload: schema });
           dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-          dispatch({ type: 'SET_ADMIN_KEY', payload: sessionToken }); // Store session token instead of key
+          dispatch({ type: 'SET_ADMIN_KEY', payload: key });
           dispatch({ type: 'UPDATE_PROBLEM_DRAFT', payload: schema.example_problem });
           toast({
             title: "Success",
-            description: `Admin access granted! Session expires in ${sessionData.expires_in} minutes.`,
+            description: "Admin access granted! No login required.",
           });
         } else {
+          // Clear invalid key
+          sessionStorage.removeItem('admin_key');
           const errorData = await schemaResponse.json().catch(() => ({}));
           toast({
-            title: "Error",
-            description: getErrorMessage(errorData) || "Failed to load schema info",
+            title: "Authentication Failed",
+            description: getErrorMessage(errorData) || "Invalid admin key",
             variant: "destructive",
           });
         }
       } catch (error) {
+        sessionStorage.removeItem('admin_key');
         toast({
           title: "Error",
           description: "Failed to authenticate: " + getErrorMessage(error),
