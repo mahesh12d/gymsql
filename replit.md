@@ -24,6 +24,7 @@ Supports email/password login with JWT, and OAuth for Google and GitHub using Ht
 - ✅ Graceful degradation: Security features work in dev mode without database tables
 - ✅ Zero bypass mechanisms: DEV_ADMIN_BYPASS and DEV_TOKEN_BYPASS completely removed
 - ✅ Secure authentication: ADMIN_SECRET_KEY required for all admin operations
+- ✅ Admin panel authentication fixed: Frontend now correctly sends X-Admin-Key header (was sending X-Admin-Session)
 
 ### Key Features
 -   **Gamification**: XP system, levels, badge rewards, and contribution heatmap.
