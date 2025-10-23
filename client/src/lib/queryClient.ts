@@ -38,11 +38,11 @@ export async function apiRequest(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  // Add admin session token for admin endpoints
+  // Add admin key for admin endpoints
   if (url.includes('/api/admin')) {
-    const adminSessionToken = sessionStorage.getItem('admin_session_token');
-    if (adminSessionToken) {
-      headers['X-Admin-Session'] = adminSessionToken;
+    const adminKey = sessionStorage.getItem('admin_key');
+    if (adminKey) {
+      headers['X-Admin-Key'] = adminKey;
     }
   }
 
@@ -83,11 +83,11 @@ export const getQueryFn: <T>(options: {
 
     const url = queryKey.join("/") as string;
     
-    // Add admin session token for admin endpoints
+    // Add admin key for admin endpoints
     if (url.includes('/api/admin')) {
-      const adminSessionToken = sessionStorage.getItem('admin_session_token');
-      if (adminSessionToken) {
-        headers['X-Admin-Session'] = adminSessionToken;
+      const adminKey = sessionStorage.getItem('admin_key');
+      if (adminKey) {
+        headers['X-Admin-Key'] = adminKey;
       }
     }
     
