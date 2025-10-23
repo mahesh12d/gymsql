@@ -556,10 +556,17 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         } else {
           // Clear invalid key
           sessionStorage.removeItem('admin_key');
-          const errorData = await schemaResponse.json().catch(() => ({}));
+          let errorMessage = "Invalid admin key";
+          try {
+            const errorData = await schemaResponse.json();
+            errorMessage = getErrorMessage(errorData) || errorMessage;
+          } catch (e) {
+            // If JSON parsing fails, use the status text or default message
+            errorMessage = schemaResponse.statusText || `Authentication failed (${schemaResponse.status})`;
+          }
           toast({
             title: "Authentication Failed",
-            description: getErrorMessage(errorData) || "Invalid admin key",
+            description: errorMessage,
             variant: "destructive",
           });
         }
