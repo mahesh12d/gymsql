@@ -1,0 +1,202 @@
+{
+  "database": "sqlgym",
+  "description": "SQLGym Platform - Database Table Configuration",
+  "version": "1.0",
+  "tables": [
+    {
+      "name": "users",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "Core user accounts and authentication"
+    },
+    {
+      "name": "followers",
+      "pk": "id",
+      "updated_col": null,
+      "description": "User follower relationships",
+      "foreign_keys": [
+        {"column": "follower_id", "references": "users.id"},
+        {"column": "following_id", "references": "users.id"}
+      ]
+    },
+    {
+      "name": "helpful_links",
+      "pk": "id",
+      "updated_col": null,
+      "description": "User-shared educational resources",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"}
+      ]
+    },
+    {
+      "name": "topics",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "SQL topic/category hierarchy",
+      "foreign_keys": [
+        {"column": "parent_topic_id", "references": "topics.id"}
+      ]
+    },
+    {
+      "name": "problems",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "SQL coding problems/challenges",
+      "foreign_keys": [
+        {"column": "topic_id", "references": "topics.id"}
+      ]
+    },
+    {
+      "name": "problem_schemas",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "Database schemas for problem sandboxes",
+      "foreign_keys": [
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "test_cases",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "Test cases for problem validation",
+      "foreign_keys": [
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "submissions",
+      "pk": "id",
+      "updated_col": null,
+      "description": "User SQL query submissions",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "problem_submissions",
+      "pk": "id",
+      "updated_col": null,
+      "description": "Detailed submission tracking with async job processing",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "problem_sessions",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "Track time spent on each problem",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "execution_results",
+      "pk": "id",
+      "updated_col": null,
+      "description": "Detailed execution results per test case",
+      "foreign_keys": [
+        {"column": "submission_id", "references": "submissions.id"},
+        {"column": "test_case_id", "references": "test_cases.id"}
+      ]
+    },
+    {
+      "name": "user_progress",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "Aggregate user statistics per topic",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "topic_id", "references": "topics.id"}
+      ]
+    },
+    {
+      "name": "badges",
+      "pk": "id",
+      "updated_col": null,
+      "description": "Achievement badge definitions"
+    },
+    {
+      "name": "user_badges",
+      "pk": "id",
+      "updated_col": null,
+      "description": "User badge inventory",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "badge_id", "references": "badges.id"}
+      ]
+    },
+    {
+      "name": "community_posts",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "User-generated community posts",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "post_likes",
+      "pk": "id",
+      "updated_col": null,
+      "description": "User likes on community posts",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "post_id", "references": "community_posts.id"}
+      ]
+    },
+    {
+      "name": "post_comments",
+      "pk": "id",
+      "updated_col": null,
+      "description": "Comments on community posts",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "post_id", "references": "community_posts.id"},
+        {"column": "parent_id", "references": "post_comments.id"}
+      ]
+    },
+    {
+      "name": "problem_interactions",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "User bookmarks and votes on problems",
+      "foreign_keys": [
+        {"column": "user_id", "references": "users.id"},
+        {"column": "problem_id", "references": "problems.id"}
+      ]
+    },
+    {
+      "name": "solutions",
+      "pk": "id",
+      "updated_col": "updated_at",
+      "description": "User-submitted and official solutions",
+      "foreign_keys": [
+        {"column": "problem_id", "references": "problems.id"},
+        {"column": "created_by", "references": "users.id"}
+      ]
+    },
+    {
+      "name": "cache_entries",
+      "pk": "id",
+      "updated_col": null,
+      "description": "PostgreSQL fallback cache when Redis is unavailable"
+    },
+    {
+      "name": "fallback_submissions",
+      "pk": "id",
+      "updated_col": null,
+      "description": "Queue fallback for when Redis is unavailable"
+    }
+  ],
+  "summary": {
+    "total_tables": 21,
+    "tables_with_updated_col": 10,
+    "total_foreign_keys": 25
+  }
+}
