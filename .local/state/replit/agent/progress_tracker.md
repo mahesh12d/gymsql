@@ -212,3 +212,70 @@ The application is now ready for secure production deployment!
 ---
 
 The data engineering pipeline is production-ready and fully configured!
+
+## 🔧 Pipeline Code Fixes - October 24, 2025
+
+### Critical Logic Flaws Fixed in handler.py
+
+- [x] **Fixed metadata update for no_new_data case** - Critical fix to prevent unnecessary full syncs
+
+**Issue Identified:**
+When an incremental sync found no new rows (`len(df) == 0`), the metadata was NOT updated. This caused two problems:
+1. If the initial metadata upload failed, subsequent syncs would always do full sync (no watermark)
+2. "Last checked" time was never tracked for runs with no data changes
+
+**Fix Applied:**
+Now metadata is ALWAYS updated, even when `row_count = 0`, with status = 'no_new_data'. This ensures:
+- ✅ Incremental sync watermark is maintained
+- ✅ "Last checked" timestamp is tracked
+- ✅ Prevents unnecessary full syncs if metadata upload previously failed
+- ✅ Better monitoring and observability
+
+**Code Changes:**
+```python
+else:
+    logger.info(f"No new data for {table_name}")
+    
+    # Still update metadata to track "last checked" time
+    metadata = {
+        'table_name': table_name,
+        'sync_type': actual_sync_type,
+        'sync_end_time': datetime.utcnow().isoformat(),  # ← Always update!
+        'row_count': 0,
+        'status': 'no_new_data'
+    }
+    uploader.upload_metadata(metadata, table_name)  # ← Always write!
+```
+
+- [x] **Removed broken comparison logic** - Lines 52-55 had invalid logic
+
+**Issue Identified:**
+Code was comparing column name (`"updated_at"`) with timestamp value (`"2025-10-24 12:00:00"`):
+```python
+if updated_col and last_sync_time and updated_col == last_sync_time:
+    # This would NEVER be true!
+```
+
+**Fix Applied:**
+Removed the nonsensical check entirely. The logic now correctly proceeds to build incremental query.
+
+- [x] **Fixed get_last_sync_time metadata retrieval** - Proper sorting and pagination
+
+**Issue Identified:**
+1. Function used `MaxKeys=1` without sorting - might not get the latest metadata
+2. No pagination - would fail after 1000+ metadata files
+
+**Fix Applied:**
+- ✅ Removed MaxKeys limitation
+- ✅ Added explicit sorting by `LastModified` (descending)
+- ✅ Added full pagination support for list_objects_v2
+- ✅ Handles unlimited metadata files
+
+**Impact:**
+These fixes ensure the pipeline is truly production-ready and handles edge cases correctly:
+- No more unexpected full syncs
+- Proper incremental sync watermark maintenance
+- Scales to thousands of sync runs
+- Better resilience to transient S3 upload failures
+
+---
