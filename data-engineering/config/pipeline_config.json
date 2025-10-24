@@ -1,0 +1,170 @@
+{
+  "pipeline_name": "sqlgym-postgres-to-s3",
+  "description": "SQLGym Neon Postgres to S3 Data Pipeline",
+  "version": "1.0.0",
+  "sync_schedule": "rate(1 hour)",
+  "tables": {
+    "users": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 1
+    },
+    "followers": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 2
+    },
+    "helpful_links": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 3
+    },
+    "topics": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 1
+    },
+    "problems": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 1
+    },
+    "problem_schemas": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "test_cases": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "submissions": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 1,
+      "partition_by": "submitted_at"
+    },
+    "problem_submissions": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 1
+    },
+    "problem_sessions": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "execution_results": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 2
+    },
+    "user_progress": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 1
+    },
+    "badges": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 3
+    },
+    "user_badges": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 2
+    },
+    "community_posts": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "post_likes": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 3
+    },
+    "post_comments": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": true,
+      "sync_type": "full",
+      "priority": 3
+    },
+    "problem_interactions": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "solutions": {
+      "pk": "id",
+      "updated_col": "updated_at",
+      "sync_enabled": true,
+      "sync_type": "incremental",
+      "priority": 2
+    },
+    "cache_entries": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": false,
+      "sync_type": "full",
+      "priority": 4,
+      "comment": "Cache data - usually not needed in analytics"
+    },
+    "fallback_submissions": {
+      "pk": "id",
+      "updated_col": null,
+      "sync_enabled": false,
+      "sync_type": "full",
+      "priority": 4,
+      "comment": "Temporary queue data - usually not needed in analytics"
+    }
+  },
+  "s3_settings": {
+    "file_format": "parquet",
+    "compression": "snappy",
+    "partitioning_enabled": true,
+    "partition_format": "YYYY/MM/DD",
+    "retention_days": 90
+  },
+  "lambda_settings": {
+    "timeout_seconds": 900,
+    "memory_mb": 3008,
+    "reserved_concurrent_executions": 1
+  }
+}
