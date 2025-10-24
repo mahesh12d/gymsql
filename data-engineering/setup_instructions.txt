@@ -9,26 +9,31 @@ PREREQUISITES:
 4. Python 3.11+
 5. Neon Postgres database credentials
 
-QUICK START:
-------------
-1. Copy .env.example to .env and fill in your credentials:
-   cp .env.example .env
+QUICK START (PRODUCTION-READY WITH AWS SECRETS MANAGER):
+--------------------------------------------------------
+1. Create database secret in AWS Secrets Manager:
+   python scripts/create_db_secret.py production --region us-east-1
+   (Save the ARN that's displayed!)
 
 2. Install Python dependencies:
    pip install -r requirements.txt
 
 3. Test locally (optional):
-   python scripts/test_local.py --test single
+   export DB_SECRET_NAME="production/sqlgym/database"
+   python scripts/test_local.py --test connection
 
 4. Deploy to AWS:
-   source .env
-   ./scripts/deploy.sh production
+   make deploy ENVIRONMENT=production \
+     DATABASE_SECRET_ARN="arn:aws:secretsmanager:...:secret:production/sqlgym/database-..." \
+     S3_BUCKET_NAME="sqlgym-data-lake-production"
 
 5. Invoke manually:
    ./scripts/invoke_lambda.sh production incremental
 
 6. Monitor sync status:
    python scripts/monitor_sync.py --bucket $S3_BUCKET_NAME --hours 24
+
+NOTE: For development/testing without Secrets Manager, see SECRETS_MANAGER_GUIDE.md
 
 DEPLOYMENT OPTIONS:
 -------------------
@@ -124,22 +129,25 @@ S3 upload failures:
 
 SECURITY BEST PRACTICES:
 ------------------------
-1. Store database credentials in AWS Secrets Manager
-2. Use IAM roles instead of access keys
+1. ✅ Store database credentials in AWS Secrets Manager (NOW IMPLEMENTED)
+2. Use IAM roles instead of access keys (configured in template.yaml)
 3. Enable S3 bucket encryption
 4. Restrict S3 bucket access with policies
 5. Enable CloudTrail for audit logging
 6. Use VPC endpoints for private connectivity
 
+See SECRETS_MANAGER_GUIDE.md for complete security documentation.
+
 PRODUCTION CHECKLIST:
 ---------------------
-☐ Database credentials stored in Secrets Manager
+☑ Database credentials stored in Secrets Manager (IMPLEMENTED)
+☑ IAM permissions configured for Secrets Manager (IMPLEMENTED)
 ☐ S3 bucket encryption enabled
 ☐ CloudWatch alarms configured
 ☐ Backup/recovery plan in place
 ☐ Monitoring dashboard created
 ☐ Cost alerts configured
-☐ Documentation updated
+☑ Documentation updated (SECRETS_MANAGER_GUIDE.md)
 ☐ Team trained on monitoring procedures
 
 SUPPORT:

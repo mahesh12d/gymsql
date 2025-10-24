@@ -1,30 +1,22 @@
 # Quick Start Guide - SQLGym Postgres to S3 Pipeline
 
-## 🚀 5-Minute Setup
+## 🚀 5-Minute Setup (Production-Ready with AWS Secrets Manager)
 
-### Step 1: Configure Credentials
+### Step 1: Create Database Secret in AWS
 ```bash
 cd data-engineering
-cp .env.example .env
+python scripts/create_db_secret.py production --region us-east-1
 ```
 
-Edit `.env` with your credentials:
-```bash
-# Neon Postgres
-DB_HOST=your-neon-host.neon.tech
-DB_NAME=sqlgym
-DB_USER=your-username
-DB_PASSWORD=your-password
+Follow the prompts to enter your Neon database credentials. **Save the ARN** that's displayed!
 
-# AWS
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=sqlgym-data-lake-production
-```
+**Alternative:** For development/testing without Secrets Manager, see legacy `.env` setup in `SECRETS_MANAGER_GUIDE.md`
 
 ### Step 2: Deploy to AWS
 ```bash
-source .env
-make deploy ENVIRONMENT=production
+make deploy ENVIRONMENT=production \
+  DATABASE_SECRET_ARN="arn:aws:secretsmanager:us-east-1:123456789012:secret:production/sqlgym/database-AbCdEf" \
+  S3_BUCKET_NAME="sqlgym-data-lake-production"
 ```
 
 ### Step 3: Trigger First Sync
@@ -114,13 +106,21 @@ make logs
 
 ## ✅ Production Checklist
 
-- [ ] Configure `.env` with real credentials
-- [ ] Store DB password in AWS Secrets Manager
-- [ ] Deploy to AWS
+- [ ] ✅ Create database secret in AWS Secrets Manager (Step 1)
+- [ ] ✅ Save secret ARN securely
+- [ ] Deploy to AWS with secret ARN (Step 2)
 - [ ] Test with `make invoke`
 - [ ] Set up CloudWatch alarms
 - [ ] Configure backup policies
 - [ ] Document for team
+
+## 🔐 Security Note
+
+This pipeline now uses **AWS Secrets Manager** for credential storage (production-ready). See `SECRETS_MANAGER_GUIDE.md` for:
+- Detailed setup instructions
+- Secret rotation configuration
+- Security best practices
+- Troubleshooting guide
 
 ---
 

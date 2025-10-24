@@ -12,23 +12,9 @@ Parameters:
       - production
     Description: Environment name
   
-  DatabaseHost:
+  DatabaseSecretArn:
     Type: String
-    Description: Neon Postgres host endpoint
-  
-  DatabaseName:
-    Type: String
-    Default: sqlgym
-    Description: Database name
-  
-  DatabaseUser:
-    Type: String
-    Description: Database username
-  
-  DatabasePassword:
-    Type: String
-    NoEcho: true
-    Description: Database password (use AWS Secrets Manager in production)
+    Description: ARN of the AWS Secrets Manager secret containing database credentials (JSON format with keys - host, port, database, username, password)
   
   S3BucketName:
     Type: String
@@ -36,7 +22,7 @@ Parameters:
   
   SyncSchedule:
     Type: String
-    Default: rate(1 hour)
+    Default: rate(1 day)
     Description: CloudWatch Events schedule expression
 
 Globals:
@@ -104,6 +90,22 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${S3BucketName}/*'
                   - !Sub 'arn:aws:s3:::${S3BucketName}'
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref DatabaseSecretArn
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub 'secretsmanager.${AWS::Region}.amazonaws.com'
 
   # Lambda Function
   PostgresToS3Function:
@@ -116,11 +118,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:
-          DB_HOST: !Ref DatabaseHost
-          DB_PORT: '5432'
-          DB_NAME: !Ref DatabaseName
-          DB_USER: !Ref DatabaseUser
-          DB_PASSWORD: !Ref DatabasePassword
+          DB_SECRET_NAME: !Ref DatabaseSecretArn
           S3_BUCKET_NAME: !Ref S3BucketName
           ENVIRONMENT: !Ref Environment
           TABLES_CONFIG: !Sub |

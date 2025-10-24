@@ -12,11 +12,75 @@ from datetime import datetime
 from io import BytesIO
 import logging
 from typing import Dict, List, Any, Optional
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3_client = boto3.client('s3')
+secrets_client = boto3.client('secretsmanager')
+
+
+class SecretsManager:
+    """Handles AWS Secrets Manager operations with caching"""
+    
+    _secret_cache = {}
+    
+    @classmethod
+    def get_secret(cls, secret_name: str) -> Dict[str, Any]:
+        """
+        Retrieve secret from AWS Secrets Manager with caching.
+        Caches secrets for the lifetime of the Lambda container.
+        
+        Args:
+            secret_name: Name or ARN of the secret
+            
+        Returns:
+            Dictionary containing secret key-value pairs
+            
+        Raises:
+            ClientError: If secret cannot be retrieved
+        """
+        if secret_name in cls._secret_cache:
+            logger.info(f"Using cached secret: {secret_name}")
+            return cls._secret_cache[secret_name]
+        
+        try:
+            logger.info(f"Retrieving secret from AWS Secrets Manager: {secret_name}")
+            response = secrets_client.get_secret_value(SecretId=secret_name)
+            
+            if 'SecretString' in response:
+                secret = json.loads(response['SecretString'])
+            else:
+                import base64
+                secret = json.loads(base64.b64decode(response['SecretBinary']))
+            
+            cls._secret_cache[secret_name] = secret
+            logger.info(f"Successfully retrieved and cached secret: {secret_name}")
+            return secret
+            
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            logger.error(f"Failed to retrieve secret {secret_name}: {error_code}")
+            
+            if error_code == 'ResourceNotFoundException':
+                raise Exception(f"Secret {secret_name} not found")
+            elif error_code == 'InvalidRequestException':
+                raise Exception(f"Invalid request for secret {secret_name}")
+            elif error_code == 'InvalidParameterException':
+                raise Exception(f"Invalid parameter for secret {secret_name}")
+            elif error_code == 'DecryptionFailure':
+                raise Exception(f"Cannot decrypt secret {secret_name}")
+            elif error_code == 'InternalServiceError':
+                raise Exception(f"Internal service error retrieving {secret_name}")
+            else:
+                raise
+    
+    @classmethod
+    def clear_cache(cls):
+        """Clear the secret cache (useful for testing or forced refresh)"""
+        cls._secret_cache = {}
+        logger.info("Secret cache cleared")
 
 
 class DatabaseExtractor:
@@ -204,17 +268,56 @@ def lambda_handler(event, context):
         "sync_type": "incremental",  // Optional: "full" or "incremental"
         "force_full_sync": false  // Optional: force full sync even for incremental tables
     }
+    
+    Environment variables required:
+    - DB_SECRET_NAME: Name or ARN of the AWS Secrets Manager secret containing database credentials
+    - S3_BUCKET_NAME: Name of the S3 bucket for data storage
+    - TABLES_CONFIG: JSON configuration of tables to sync
+    
+    Expected secret structure in AWS Secrets Manager:
+    {
+        "host": "your-neon-host.neon.tech",
+        "port": "5432",
+        "database": "sqlgym",
+        "username": "db_user",
+        "password": "db_password"
+    }
     """
 
     start_time = datetime.utcnow()
-
-    db_config = {
-        'host': os.environ['DB_HOST'],
-        'port': os.environ.get('DB_PORT', '5432'),
-        'database': os.environ['DB_NAME'],
-        'user': os.environ['DB_USER'],
-        'password': os.environ['DB_PASSWORD']
-    }
+    
+    try:
+        secret_name = os.environ['DB_SECRET_NAME']
+        db_secret = SecretsManager.get_secret(secret_name)
+        
+        db_config = {
+            'host': db_secret.get('host'),
+            'port': db_secret.get('port', '5432'),
+            'database': db_secret.get('database'),
+            'user': db_secret.get('username'),
+            'password': db_secret.get('password')
+        }
+        
+        logger.info(f"Database config loaded from secret: {secret_name}")
+        
+    except KeyError as e:
+        logger.error(f"Missing required environment variable: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': {
+                'message': 'Configuration error: Missing DB_SECRET_NAME environment variable',
+                'error': str(e)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve database credentials: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': {
+                'message': 'Failed to retrieve database credentials from Secrets Manager',
+                'error': str(e)
+            }
+        }
 
     s3_bucket = os.environ['S3_BUCKET_NAME']
 
