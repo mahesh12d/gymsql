@@ -159,8 +159,7 @@
     "file_format": "parquet",
     "compression": "snappy",
     "partitioning_enabled": true,
-    "partition_format": "YYYY/MM/DD",
-    "retention_days": 90
+    "partition_format": "YYYY/MM/DD"
   },
   "lambda_settings": {
     "timeout_seconds": 900,
