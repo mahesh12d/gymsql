@@ -1,0 +1,499 @@
+"""
+Corrected SQL Test Case Validator
+==================================
+Fixes for critical issues while maintaining performance
+"""
+
+import json
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union, Set
+from datetime import datetime, date
+from decimal import Decimal
+import re
+from enum import Enum
+from dataclasses import dataclass
+from collections import defaultdict
+
+logger = logging.getLogger(__name__)
+
+
+class ComparisonMode(Enum):
+    """Different modes for comparing query results"""
+    EXACT = "exact"
+    UNORDERED = "unordered"
+    SUBSET = "subset"
+    FUZZY = "fuzzy"
+
+
+class ErrorCategory(Enum):
+    """Categories of common SQL errors for targeted feedback"""
+    SYNTAX = "syntax"
+    LOGIC = "logic"
+    JOIN = "join"
+    AGGREGATION = "aggregation"
+    FILTERING = "filtering"
+
+
+@dataclass
+class FeedbackContext:
+    """Lightweight context for personalized feedback"""
+    user_level: str = "intermediate"  # beginner, intermediate, advanced
+    previous_attempts: int = 0
+    strict_types: bool = False  # Whether to enforce strict type checking
+
+
+class CorrectedTestCaseValidator:
+    """Performance-optimized validator with critical fixes"""
+
+    def __init__(self):
+        self.numeric_tolerance = 0.001
+        self.max_sample_size = 100  # For large dataset validation
+
+        # Cached patterns for performance
+        self._error_keywords = {
+            'join_issues': ['cartesian', 'missing', 'duplicate'],
+            'aggregation_issues': ['sum', 'count', 'avg', 'group'],
+            'filter_issues': ['where', 'condition', 'missing']
+        }
+
+        # Pre-compiled regex patterns
+        self._sql_patterns = {
+            'select_star': re.compile(r'select\s+\*', re.IGNORECASE),
+            'missing_semicolon': re.compile(r'[^;]\s*$'),
+            'cartesian_join': re.compile(r'from\s+\w+\s*,\s*\w+', re.IGNORECASE)
+        }
+
+    def validate_test_case(
+            self,
+            actual_result: List[Dict[str, Any]],
+            expected_result: List[Dict[str, Any]],
+            student_query: Optional[str] = None,
+            comparison_mode: ComparisonMode = ComparisonMode.EXACT,
+            context: Optional[FeedbackContext] = None) -> Dict[str, Any]:
+        """
+        Corrected validation with proper type handling and scoring
+        """
+        if context is None:
+            context = FeedbackContext()
+
+        result = self._create_base_result()
+
+        try:
+            # Fast path for empty results
+            if not expected_result and not actual_result:
+                result.update({
+                    'is_correct': True,
+                    'score': 100.0,
+                    'feedback': ["Perfect! Both results are empty."]
+                })
+                return result
+
+            # Fast path for obvious mismatches
+            if not expected_result or not actual_result:
+                return self._handle_missing_results(result, bool(expected_result), context)
+
+            # Structure validation
+            structure_score = self._validate_structure_fast(
+                actual_result, expected_result, result)
+
+            # Content validation - CRITICAL: Required for any passing score
+            content_score = 0.0
+            if structure_score > 0:  # Only if structure is somewhat correct
+                content_score = self._validate_content_corrected(
+                    actual_result, expected_result, comparison_mode, result, context)
+
+            # FIXED: Content must be correct for passing score
+            final_score = self._calculate_corrected_score(
+                structure_score, content_score, context)
+            
+            result['score'] = round(final_score, 2)
+            result['is_correct'] = final_score >= 100.0
+
+            # Smart feedback generation
+            if student_query and final_score < 100:
+                self._add_quick_query_feedback(student_query, result, context)
+
+            self._add_contextual_feedback(result, context)
+
+        except Exception as e:
+            logger.error(f"Validation failed: {e}")
+            result['errors'].append(f"Validation error: {str(e)}")
+
+        return result
+
+    def _create_base_result(self) -> Dict[str, Any]:
+        """Create base result structure"""
+        return {
+            'is_correct': False,
+            'score': 0.0,
+            'max_score': 100.0,
+            'feedback': [],
+            'errors': [],
+            'warnings': [],
+            'details': {
+                'row_count_match': False,
+                'column_count_match': False,
+                'column_names_match': False,
+                'data_matches': False,
+                'type_mismatches': []  # Track type issues
+            }
+        }
+
+    def _handle_missing_results(self, result: Dict[str, Any], has_expected: bool,
+                                context: FeedbackContext) -> Dict[str, Any]:
+        """Fast handling of missing results"""
+        if not has_expected:
+            result['errors'].append("No expected result provided")
+        else:
+            result['errors'].append("Query returned no results")
+            if context.user_level == "beginner":
+                result['feedback'].append(
+                    "💡 Your query didn't return any data. Check your FROM and WHERE clauses."
+                )
+            else:
+                result['feedback'].append(
+                    "Query returned empty result set. Verify your conditions.")
+        return result
+
+    def _validate_structure_fast(self, actual: List[Dict[str, Any]],
+                                 expected: List[Dict[str, Any]],
+                                 result: Dict[str, Any]) -> float:
+        """Optimized structure validation"""
+        score = 0.0
+
+        # Row count
+        actual_rows, expected_rows = len(actual), len(expected)
+        if actual_rows == expected_rows:
+            result['details']['row_count_match'] = True
+            score += 40.0
+        else:
+            ratio = min(actual_rows, expected_rows) / max(actual_rows, expected_rows) if max(actual_rows, expected_rows) > 0 else 0
+            score += 40.0 * ratio
+
+            diff = actual_rows - expected_rows
+            if diff > 0:
+                result['feedback'].append(
+                    f"Too many rows: got {actual_rows}, expected {expected_rows}"
+                )
+            else:
+                result['feedback'].append(
+                    f"Too few rows: got {actual_rows}, expected {expected_rows}"
+                )
+
+        # Column structure
+        if actual and expected:
+            actual_cols = set(actual[0].keys())
+            expected_cols = set(expected[0].keys())
+
+            if len(actual_cols) == len(expected_cols):
+                result['details']['column_count_match'] = True
+                score += 30.0
+            else:
+                ratio = min(len(actual_cols), len(expected_cols)) / max(len(actual_cols), len(expected_cols))
+                score += 30.0 * ratio
+
+            if actual_cols == expected_cols:
+                result['details']['column_names_match'] = True
+                score += 30.0
+            else:
+                intersection = len(actual_cols & expected_cols)
+                union = len(actual_cols | expected_cols)
+                similarity = intersection / union if union > 0 else 0
+                score += 30.0 * similarity
+
+                missing = expected_cols - actual_cols
+                extra = actual_cols - expected_cols
+                if missing:
+                    result['feedback'].append(
+                        f"Missing columns: {', '.join(list(missing)[:3])}{'...' if len(missing) > 3 else ''}"
+                    )
+                if extra:
+                    result['feedback'].append(
+                        f"Extra columns: {', '.join(list(extra)[:3])}{'...' if len(extra) > 3 else ''}"
+                    )
+
+        return min(score, 100.0)
+
+    def _validate_content_corrected(self, actual: List[Dict[str, Any]],
+                                    expected: List[Dict[str, Any]],
+                                    comparison_mode: ComparisonMode,
+                                    result: Dict[str, Any],
+                                    context: FeedbackContext) -> float:
+        """FIXED: Proper content validation with type awareness"""
+
+        if len(actual) != len(expected):
+            return 0.0
+
+        # Fast path for small datasets
+        if len(expected) <= 10:
+            return self._validate_small_dataset_corrected(
+                actual, expected, comparison_mode, result, context)
+
+        # For larger datasets
+        if comparison_mode == ComparisonMode.UNORDERED:
+            return self._validate_unordered_corrected(actual, expected, result, context)
+        else:
+            return self._validate_ordered_corrected(actual, expected, result, context)
+
+    def _validate_small_dataset_corrected(self, actual: List[Dict[str, Any]],
+                                         expected: List[Dict[str, Any]],
+                                         comparison_mode: ComparisonMode,
+                                         result: Dict[str, Any],
+                                         context: FeedbackContext) -> float:
+        """FIXED: Direct comparison for small datasets"""
+
+        if comparison_mode == ComparisonMode.UNORDERED:
+            # Use hash-based matching with proper hashing
+            actual_hashes = [self._row_hash_corrected(row) for row in actual]
+            expected_hashes = [self._row_hash_corrected(row) for row in expected]
+
+            actual_hash_count = defaultdict(int)
+            for h in actual_hashes:
+                actual_hash_count[h] += 1
+
+            matches = 0
+            for expected_hash in expected_hashes:
+                if actual_hash_count[expected_hash] > 0:
+                    matches += 1
+                    actual_hash_count[expected_hash] -= 1
+
+            match_ratio = matches / len(expected) if expected else 0.0
+        else:
+            # Exact order comparison
+            matches = sum(1 for a, e in zip(actual, expected)
+                         if self._rows_equal_corrected(a, e, context))
+            match_ratio = matches / len(expected) if expected else 0.0
+
+        result['details']['data_matches'] = match_ratio > 0.95
+
+        if match_ratio < 1.0:
+            mismatches = len(expected) - matches
+            result['feedback'].append(
+                f"{mismatches} row(s) don't match expected values")
+
+        return match_ratio * 100.0
+
+    def _validate_unordered_corrected(self, actual: List[Dict[str, Any]],
+                                     expected: List[Dict[str, Any]],
+                                     result: Dict[str, Any],
+                                     context: FeedbackContext) -> float:
+        """FIXED: Proper hash-based matching"""
+
+        actual_hashes = [self._row_hash_corrected(row) for row in actual]
+        expected_hashes = [self._row_hash_corrected(row) for row in expected]
+
+        actual_hash_count = defaultdict(int)
+        for h in actual_hashes:
+            actual_hash_count[h] += 1
+
+        matches = 0
+        for expected_hash in expected_hashes:
+            if actual_hash_count[expected_hash] > 0:
+                matches += 1
+                actual_hash_count[expected_hash] -= 1
+
+        match_ratio = matches / len(expected) if expected else 0.0
+        result['details']['data_matches'] = match_ratio > 0.95
+
+        return match_ratio * 100.0
+
+    def _validate_ordered_corrected(self, actual: List[Dict[str, Any]],
+                                   expected: List[Dict[str, Any]],
+                                   result: Dict[str, Any],
+                                   context: FeedbackContext) -> float:
+        """FIXED: Proper sampling and extrapolation"""
+
+        # Sample strategically: beginning, middle, end
+        total_rows = len(expected)
+        sample_size = min(self.max_sample_size, total_rows)
+        
+        if total_rows <= sample_size:
+            # Check all rows
+            matches = sum(1 for a, e in zip(actual, expected)
+                         if self._rows_equal_corrected(a, e, context))
+            match_ratio = matches / total_rows
+        else:
+            # Sample from different parts of the dataset
+            indices = set()
+            # First 20
+            indices.update(range(min(20, total_rows)))
+            # Last 20
+            indices.update(range(max(0, total_rows - 20), total_rows))
+            # Random middle samples
+            step = total_rows // (sample_size - 40)
+            indices.update(range(20, total_rows - 20, max(1, step)))
+            
+            indices = sorted(list(indices))[:sample_size]
+            
+            matches = sum(1 for i in indices
+                         if self._rows_equal_corrected(actual[i], expected[i], context))
+            match_ratio = matches / len(indices)
+
+        result['details']['data_matches'] = match_ratio > 0.95
+        return match_ratio * 100.0
+
+    def _rows_equal_corrected(self, row1: Dict[str, Any], row2: Dict[str, Any],
+                             context: FeedbackContext) -> bool:
+        """FIXED: Proper type-aware comparison with numeric tolerance"""
+
+        if len(row1) != len(row2):
+            return False
+
+        for key in row2:
+            if key not in row1:
+                return False
+
+            val1, val2 = row1[key], row2[key]
+
+            # Handle None values
+            if val1 is None and val2 is None:
+                continue
+            if val1 is None or val2 is None:
+                return False
+
+            # FIXED: Numeric comparison with tolerance
+            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                if abs(float(val1) - float(val2)) > self.numeric_tolerance:
+                    return False
+                continue
+
+            # FIXED: Datetime comparison
+            if isinstance(val1, (datetime, date)) and isinstance(val2, (datetime, date)):
+                if val1 != val2:
+                    return False
+                continue
+
+            # Type checking
+            if type(val1) != type(val2):
+                if context.strict_types:
+                    return False
+                # Lenient: try string comparison as fallback
+                if str(val1).strip() != str(val2).strip():
+                    return False
+                continue
+
+            # Direct comparison for same types
+            if val1 != val2:
+                return False
+
+        return True
+
+    def _row_hash_corrected(self, row: Dict[str, Any]) -> int:
+        """FIXED: Type-aware hashing that preserves type information"""
+        
+        def hashable_value(v):
+            if v is None:
+                return ('None',)
+            if isinstance(v, bool):  # Check bool before int (bool is subclass of int)
+                return ('bool', v)
+            if isinstance(v, int):
+                return ('int', v)
+            if isinstance(v, float):
+                # Round to tolerance for consistent hashing
+                return ('float', round(v / self.numeric_tolerance) * self.numeric_tolerance)
+            if isinstance(v, str):
+                return ('str', v.strip())
+            if isinstance(v, (datetime, date)):
+                return ('datetime', v.isoformat())
+            if isinstance(v, Decimal):
+                return ('decimal', float(v))
+            # Fallback for other types
+            return ('other', str(v))
+        
+        try:
+            return hash(tuple(sorted((k, hashable_value(v)) for k, v in row.items())))
+        except TypeError:
+            # Fallback if hashing fails
+            return hash(tuple(sorted((k, str(v)) for k, v in row.items())))
+
+    def _calculate_corrected_score(self, structure_score: float,
+                                   content_score: float,
+                                   context: FeedbackContext) -> float:
+        """FIXED: Content accuracy is required for passing"""
+        
+        # Structure provides partial credit, but content must be correct for full score
+        if content_score < 95:  # Content must be nearly perfect
+            # Cap maximum score based on content accuracy
+            max_achievable = 50 + (content_score / 100 * 50)
+            combined = structure_score * 0.3 + content_score * 0.7
+            return min(combined, max_achievable)
+        else:
+            # Full scoring when content is correct
+            return structure_score * 0.2 + content_score * 0.8
+
+    def _add_quick_query_feedback(self, query: str, result: Dict[str, Any],
+                                  context: FeedbackContext):
+        """Add quick query-based feedback"""
+
+        query_lower = query.lower()
+
+        if self._sql_patterns['select_star'].search(query):
+            if context.user_level != "beginner":
+                result['warnings'].append(
+                    "Consider selecting specific columns instead of SELECT *")
+
+        if self._sql_patterns['cartesian_join'].search(query):
+            result['warnings'].append(
+                "Possible Cartesian product - check your JOIN conditions")
+
+        # Fast keyword-based detection
+        if 'join' in query_lower and result['score'] < 50:
+            result['feedback'].append(
+                "💡 JOIN issue detected. Check your ON conditions.")
+        elif 'group by' in query_lower and result['score'] < 50:
+            result['feedback'].append(
+                "💡 GROUP BY issue detected. Verify your grouping columns.")
+
+    def _add_contextual_feedback(self, result: Dict[str, Any],
+                                 context: FeedbackContext):
+        """Add context-aware feedback"""
+        score = result['score']
+
+        if score >= 100:
+            messages = ["🎉 Perfect!", "Excellent work!", "Spot on!"]
+        elif score >= 80:
+            messages = ["Good job!", "Almost perfect!", "Great work!"]
+        elif score >= 60:
+            messages = ["You're on the right track", "Getting closer!", "Good attempt"]
+        else:
+            messages = ["Needs work", "Review the requirements", "Try a different approach"]
+
+        base_message = messages[min(len(messages) - 1, int(score // 20))]
+
+        if context.user_level == "beginner" and score < 60:
+            base_message += " - break down the problem step by step."
+        elif context.previous_attempts > 2 and score > 60:
+            base_message += " - you're improving with each attempt!"
+
+        if not result['feedback'] or score >= 100:
+            result['feedback'].insert(0, base_message)
+
+    # Additional utility methods for compatibility
+    def compare_schemas(self, actual_schema: List[Dict],
+                        expected_schema: List[Dict]) -> Dict[str, Any]:
+        """Fast schema comparison"""
+        actual_names = {table['name'] for table in actual_schema}
+        expected_names = {table['name'] for table in expected_schema}
+
+        missing = expected_names - actual_names
+        extra = actual_names - expected_names
+
+        matches = len(expected_names & actual_names) == len(expected_names) and not extra
+        score = 100.0 - (len(missing) * 20) - (len(extra) * 10)
+
+        differences = []
+        if missing:
+            differences.append(f"Missing tables: {', '.join(missing)}")
+        if extra:
+            differences.append(f"Extra tables: {', '.join(extra)}")
+
+        return {
+            'matches': matches,
+            'differences': differences,
+            'score': max(0.0, score)
+        }
+
+
+# Global instance
+corrected_test_validator = CorrectedTestCaseValidator()
+test_validator = corrected_test_validator
