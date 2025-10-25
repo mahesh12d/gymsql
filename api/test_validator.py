@@ -180,29 +180,33 @@ class OptimizedTestCaseValidator:
                     f"Too few rows: got {actual_rows}, expected {expected_rows}"
                 )
 
-        # Column structure
+        # Column structure (case-insensitive comparison)
         if actual and expected:
             actual_cols = set(actual[0].keys())
             expected_cols = set(expected[0].keys())
+            
+            # Convert to lowercase for comparison
+            actual_cols_lower = set(col.lower() for col in actual_cols)
+            expected_cols_lower = set(col.lower() for col in expected_cols)
 
-            if len(actual_cols) == len(expected_cols):
+            if len(actual_cols_lower) == len(expected_cols_lower):
                 result['details']['column_count_match'] = True
                 score += 30.0
             else:
-                ratio = min(len(actual_cols), len(expected_cols)) / max(len(actual_cols), len(expected_cols))
+                ratio = min(len(actual_cols_lower), len(expected_cols_lower)) / max(len(actual_cols_lower), len(expected_cols_lower))
                 score += 30.0 * ratio
 
-            if actual_cols == expected_cols:
+            if actual_cols_lower == expected_cols_lower:
                 result['details']['column_names_match'] = True
                 score += 30.0
             else:
-                intersection = len(actual_cols & expected_cols)
-                union = len(actual_cols | expected_cols)
+                intersection = len(actual_cols_lower & expected_cols_lower)
+                union = len(actual_cols_lower | expected_cols_lower)
                 similarity = intersection / union if union > 0 else 0
                 score += 30.0 * similarity
 
-                missing = expected_cols - actual_cols
-                extra = actual_cols - expected_cols
+                missing = expected_cols_lower - actual_cols_lower
+                extra = actual_cols_lower - expected_cols_lower
                 if missing:
                     result['feedback'].append(
                         f"Missing columns: {', '.join(list(missing)[:3])}{'...' if len(missing) > 3 else ''}"
@@ -334,16 +338,20 @@ class OptimizedTestCaseValidator:
 
     def _rows_equal_corrected(self, row1: Dict[str, Any], row2: Dict[str, Any],
                              context: FeedbackContext) -> bool:
-        """FIXED: Proper type-aware comparison with numeric tolerance"""
+        """FIXED: Proper type-aware comparison with numeric tolerance and case-insensitive column names"""
 
         if len(row1) != len(row2):
             return False
 
+        # Create case-insensitive column mapping for row1
+        row1_lower = {k.lower(): v for k, v in row1.items()}
+        
         for key in row2:
-            if key not in row1:
+            key_lower = key.lower()
+            if key_lower not in row1_lower:
                 return False
 
-            val1, val2 = row1[key], row2[key]
+            val1, val2 = row1_lower[key_lower], row2[key]
 
             # Handle None values
             if val1 is None and val2 is None:
@@ -379,7 +387,7 @@ class OptimizedTestCaseValidator:
         return True
 
     def _row_hash_corrected(self, row: Dict[str, Any]) -> int:
-        """FIXED: Type-aware hashing that preserves type information"""
+        """FIXED: Type-aware hashing that preserves type information with case-insensitive column names"""
         
         def hashable_value(v):
             if v is None:
@@ -401,10 +409,11 @@ class OptimizedTestCaseValidator:
             return ('other', str(v))
         
         try:
-            return hash(tuple(sorted((k, hashable_value(v)) for k, v in row.items())))
+            # Use lowercase keys for case-insensitive comparison
+            return hash(tuple(sorted((k.lower(), hashable_value(v)) for k, v in row.items())))
         except TypeError:
             # Fallback if hashing fails
-            return hash(tuple(sorted((k, str(v)) for k, v in row.items())))
+            return hash(tuple(sorted((k.lower(), str(v)) for k, v in row.items())))
 
     def _calculate_corrected_score(self, structure_score: float,
                                    content_score: float,

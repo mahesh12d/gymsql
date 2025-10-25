@@ -1470,8 +1470,14 @@ class SecureQueryExecutor:
                 expected_row = expected_results[i] if i < len(
                     expected_results) else {}
 
-                # Check if rows match
-                matches = user_row == expected_row if user_row is not None else False
+                # Check if rows match (case-insensitive column names)
+                matches = False
+                if user_row is not None:
+                    # Create case-insensitive mappings
+                    user_row_lower = {k.lower(): v for k, v in user_row.items()} if user_row else {}
+                    expected_row_lower = {k.lower(): v for k, v in expected_row.items()} if expected_row else {}
+                    matches = user_row_lower == expected_row_lower
+                    
                 if matches:
                     matching_count += 1
 
@@ -1479,9 +1485,12 @@ class SecureQueryExecutor:
                 differences = None
                 if user_row and expected_row and not matches:
                     diff_list = []
+                    user_row_lower = {k.lower(): (k, v) for k, v in user_row.items()}
+                    
                     for col in expected_row.keys():
-                        if col in user_row:
-                            user_val = user_row[col]
+                        col_lower = col.lower()
+                        if col_lower in user_row_lower:
+                            _, user_val = user_row_lower[col_lower]
                             expected_val = expected_row[col]
                             if user_val != expected_val:
                                 diff_list.append(
@@ -1515,9 +1524,13 @@ class SecureQueryExecutor:
                 expected_columns = set(expected_results[0].keys()
                                        ) if expected_results[0] else set()
 
-                if user_columns != expected_columns:
-                    missing_cols = expected_columns - user_columns
-                    extra_cols = user_columns - expected_columns
+                # Case-insensitive column comparison
+                user_columns_lower = set(col.lower() for col in user_columns)
+                expected_columns_lower = set(col.lower() for col in expected_columns)
+
+                if user_columns_lower != expected_columns_lower:
+                    missing_cols = expected_columns_lower - user_columns_lower
+                    extra_cols = user_columns_lower - expected_columns_lower
 
                     if missing_cols:
                         comparison_differences.append(
