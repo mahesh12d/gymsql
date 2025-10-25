@@ -213,6 +213,51 @@ The application is now ready for secure production deployment!
 
 The data engineering pipeline is production-ready and fully configured!
 
+## 🐳 Docker Deployment Guide - October 25, 2025
+
+### Lambda Docker Container Deployment Created
+
+- [x] **Updated Dockerfile to Python 3.12** - Modern runtime for Lambda
+- [x] **Created comprehensive Docker deployment guide** - `DOCKER_DEPLOYMENT_GUIDE.md`
+
+**Why Docker Instead of ZIP:**
+- ✅ Eliminates ALL library dependency issues (psycopg2, pandas, pyarrow)
+- ✅ No need for Lambda Layers
+- ✅ Reproducible builds across all environments
+- ✅ Easier local testing with Docker
+- ✅ Better version control with image tags
+
+**Guide Includes:**
+1. **Step-by-step instructions** - From Docker build to Lambda deployment
+2. **Mix of CLI and Console** - Minimal CLI (only for Docker), AWS Console for Lambda
+3. **Complete prerequisites** - All tools and requirements listed
+4. **ECR setup** - Container registry configuration
+5. **Lambda configuration** - Environment variables, timeouts, memory settings
+6. **Testing procedures** - How to verify the deployment works
+7. **Update workflow** - How to deploy code changes
+8. **Cost estimates** - Monthly AWS cost breakdown
+
+**Deployment Flow:**
+1. Build Docker image locally (`docker build`)
+2. Create ECR repository in AWS Console
+3. Push image to ECR (`docker push`)
+4. Create Lambda function from container image in AWS Console
+5. Configure environment variables in Console
+6. Test and verify
+
+**Files Modified:**
+- ✅ `data-engineering/Dockerfile` - Updated to Python 3.12
+- ✅ `data-engineering/DOCKER_DEPLOYMENT_GUIDE.md` - Complete deployment guide
+
+**Advantages Over ZIP Deployment:**
+- No Lambda Layer compatibility issues
+- No "module not found" errors
+- No platform-specific wheel problems
+- Consistent across development and production
+- Can test exact same container locally
+
+---
+
 ## 🔧 Pipeline Code Fixes - October 24, 2025
 
 ### Critical Logic Flaws Fixed in handler.py
