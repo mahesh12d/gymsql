@@ -1140,12 +1140,12 @@ class SecureQueryExecutor:
         ignore_order = not validation_rules.get('strict_ordering', False)
 
         if ignore_order:
-            # Sort both datasets for comparison (ignoring order)
+            # FIXED: Use type-aware sorting instead of string-based
             try:
                 sorted_user = sorted(normalized_user,
-                                     key=lambda x: str(sorted(x.items())))
+                                     key=lambda x: self._row_sort_key(x))
                 sorted_expected = sorted(normalized_expected,
-                                         key=lambda x: str(sorted(x.items())))
+                                         key=lambda x: self._row_sort_key(x))
             except Exception:
                 # Fallback to unsorted comparison if sorting fails
                 sorted_user = normalized_user
@@ -1154,17 +1154,24 @@ class SecureQueryExecutor:
             sorted_user = normalized_user
             sorted_expected = normalized_expected
 
-        # Compare the data
+        # Compare the data with numeric tolerance
+        numeric_tolerance = 0.001
         for i, (user_row,
                 expected_row) in enumerate(zip(sorted_user, sorted_expected)):
-            if user_row != expected_row:
+            if not self._rows_equal_with_tolerance(user_row, expected_row, numeric_tolerance):
                 # Find specific differences
                 differences = []
                 for col in expected_row.keys():
                     if col in user_row:
                         user_val = user_row[col]
                         expected_val = expected_row[col]
-                        if user_val != expected_val:
+                        # Check with tolerance for numeric values
+                        if isinstance(user_val, (int, float)) and isinstance(expected_val, (int, float)):
+                            if abs(float(user_val) - float(expected_val)) > numeric_tolerance:
+                                differences.append(
+                                    f"{col}: got '{user_val}', expected '{expected_val}'"
+                                )
+                        elif user_val != expected_val:
                             differences.append(
                                 f"{col}: got '{user_val}', expected '{expected_val}'"
                             )
@@ -1181,38 +1188,77 @@ class SecureQueryExecutor:
                 return False
 
         return True
+    
+    def _row_sort_key(self, row: Dict[str, Any]) -> tuple:
+        """FIXED: Type-aware sorting key that preserves type information"""
+        def sortable_value(v):
+            if v is None:
+                return (0, None)  # None sorts first
+            if isinstance(v, bool):
+                return (1, v)  # bool before numbers
+            if isinstance(v, (int, float)):
+                return (2, float(v))  # Numeric comparison
+            if isinstance(v, str):
+                return (3, v)  # String comparison
+            return (4, str(v))  # Other types as strings
+        
+        try:
+            return tuple(sorted((k, sortable_value(v)) for k, v in row.items()))
+        except Exception:
+            # Fallback to string-based if sorting fails
+            return tuple(sorted((k, str(v)) for k, v in row.items()))
+    
+    def _rows_equal_with_tolerance(self, row1: Dict[str, Any], row2: Dict[str, Any], tolerance: float = 0.001) -> bool:
+        """FIXED: Row comparison with numeric tolerance"""
+        if len(row1) != len(row2):
+            return False
+        
+        for key in row2:
+            if key not in row1:
+                return False
+            
+            val1, val2 = row1[key], row2[key]
+            
+            # Handle None values
+            if val1 is None and val2 is None:
+                continue
+            if val1 is None or val2 is None:
+                return False
+            
+            # Numeric comparison with tolerance
+            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                if abs(float(val1) - float(val2)) > tolerance:
+                    return False
+            elif val1 != val2:
+                return False
+        
+        return True
 
     def _normalize_data_types(
             self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Step 4: Normalize data types (int vs float, NULL handling)"""
+        """Step 4: FIXED - Normalize data types preserving original types where possible"""
         normalized = []
 
         for row in results:
             normalized_row = {}
             for key, value in row.items():
+                # Normalize column names to lowercase for case-insensitive comparison
+                norm_key = key.lower()
+                
                 # Handle None/NULL values
                 if value is None:
-                    normalized_row[key] = None
-                # Normalize numeric types
+                    normalized_row[norm_key] = None
+                # Keep numeric types as-is (no int->float conversion)
+                elif isinstance(value, bool):
+                    normalized_row[norm_key] = value
                 elif isinstance(value, (int, float)):
-                    # Convert int to float for consistent comparison
-                    if isinstance(value, int) and not isinstance(value, bool):
-                        normalized_row[key] = float(value)
-                    else:
-                        normalized_row[key] = value
-                # Handle string representations of numbers
+                    normalized_row[norm_key] = value
+                # Keep strings as strings (don't try to convert to numbers)
                 elif isinstance(value, str):
-                    try:
-                        # Try to convert to number if it's a numeric string
-                        if '.' in value:
-                            normalized_row[key] = float(value)
-                        else:
-                            normalized_row[key] = float(int(value))
-                    except (ValueError, TypeError):
-                        # Keep as string if not numeric
-                        normalized_row[key] = value
+                    # Strip whitespace but keep as string
+                    normalized_row[norm_key] = value.strip()
                 else:
-                    normalized_row[key] = value
+                    normalized_row[norm_key] = value
 
             normalized.append(normalized_row)
 
