@@ -1220,11 +1220,11 @@ async def get_ai_hint(
         "expected_output": [...]  # optional
     }
     """
-    # Rate limit: 5 hints per problem per user
+    # Rate limit: 10 hints per problem per user (increased due to optimized token usage)
     rate_limit = redis_service.check_rate_limit(
         user_id=current_user.id,
         action=f"ai_hint:{problem_id}",
-        limit=5,
+        limit=10,
         window_seconds=3600  # 1 hour window
     )
     

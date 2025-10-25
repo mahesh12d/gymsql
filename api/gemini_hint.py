@@ -5,6 +5,7 @@ Provides increasingly specific hints to help students learn step-by-step
 import os
 import json
 import logging
+import hashlib
 from typing import List, Dict, Any, Optional
 from enum import Enum
 import google.generativeai as genai
@@ -31,7 +32,17 @@ class SQLHintGenerator:
     """Generate helpful, progressive SQL hints without revealing solutions"""
 
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Use gemini-2.0-flash-exp with lower temperature for consistency
+        self.model = genai.GenerativeModel(
+            'gemini-2.0-flash-exp',
+            generation_config=genai.GenerationConfig(
+                temperature=0.5,  # Lower temp = more consistent, less creative (saves tokens on retries)
+                response_mime_type="application/json"
+            )
+        )
+        # Simple in-memory cache to avoid duplicate API calls (reduces token usage)
+        self._hint_cache = {}  # Cache format: {cache_key: hint_result}
+        self.MAX_CACHE_SIZE = 100  # Prevent memory bloat
 
     async def generate_hint(
             self,
@@ -72,11 +83,23 @@ class SQLHintGenerator:
             - encouragement: Motivational message
         """
         try:
-            # Auto-adjust hint level based on attempts
-            if attempt_number > 3 and hint_level == HintLevel.GENTLE:
+            # Simplified 2-level hint system to reduce token usage
+            # Attempt 1: MODERATE (helpful guidance)
+            # Attempt 2+: DETAILED (very specific, almost solution)
+            if attempt_number == 1:
                 hint_level = HintLevel.MODERATE
-            elif attempt_number > 5 and hint_level == HintLevel.MODERATE:
-                hint_level = HintLevel.SPECIFIC
+            else:
+                hint_level = HintLevel.DETAILED
+
+            # Check cache to avoid duplicate API calls
+            cache_key = self._generate_cache_key(
+                problem_title, user_query, feedback, hint_level
+            )
+            if cache_key in self._hint_cache:
+                logger.info(f"Cache hit for hint (saved tokens)")
+                cached_hint = self._hint_cache[cache_key].copy()
+                cached_hint["cached"] = True
+                return cached_hint
 
             # Build table schemas with sample data hints
             table_schemas = self._build_table_schemas(tables)
@@ -96,49 +119,49 @@ class SQLHintGenerator:
             system_instruction = self._build_system_instruction(
                 hint_level, attempt_number)
 
-            # Build the main prompt
-            prompt = f"""Analyze this student's SQL query attempt and provide a {hint_level.value} hint:
+            # Build compact prompt to reduce token usage
+            hint_instruction = "Point to SQL concepts needed" if hint_level == HintLevel.MODERATE else "Detailed guidance with structure"
+            
+            prompt = f"""SQL Query Analysis - Attempt {attempt_number}
 
 PROBLEM: {problem_title}
 {problem_description}
 
-DATABASE SCHEMA:
+SCHEMA & DATA:
 {table_schemas}
 
-STUDENT'S QUERY (Attempt #{attempt_number}):
+QUERY:
 ```sql
 {user_query}
 ```
 
-VALIDATION FEEDBACK:
-{chr(10).join(f"❌ {fb}" for fb in feedback)}
+ERRORS: {', '.join(feedback)}
 {output_comparison}
-{previous_hints_str}
 
-Provide a {hint_level.value} hint that helps them learn. Respond with JSON in this exact format:
+Provide {hint_level.value} hint. JSON format:
 {{
-  "category": "Issue category (e.g., JOIN, WHERE, AGGREGATION, ORDER BY)",
-  "issue_identified": "What's wrong in simple terms",
-  "concept_needed": "SQL concept or technique needed",
-  "hint": "{self._get_hint_instruction(hint_level)}",
-  "example_concept": "Generic example of the concept (not using this problem's data)",
-  "next_steps": ["step 1", "step 2", "step 3"],
-  "sql_tip": "A general SQL best practice related to this issue",
+  "category": "Issue type",
+  "issue_identified": "What's wrong",
+  "concept_needed": "SQL concept needed",
+  "hint": "{hint_instruction}",
+  "example_concept": "Generic example",
+  "next_steps": ["step1", "step2"],
+  "sql_tip": "Best practice tip",
   "confidence": 0.9,
-  "encouragement": "Brief motivational message"
+  "encouragement": "Brief message"
 }}"""
 
-            # Generate response
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json", temperature=0.7))
+            # Generate response (using model's default config set in __init__)
+            response = self.model.generate_content(prompt)
 
             hint_data = json.loads(response.text)
 
             # Validate and enhance response
             hint_data = self._validate_and_enhance_response(
                 hint_data, hint_level, attempt_number)
+
+            # Cache the result to save tokens on repeated queries
+            self._cache_hint(cache_key, hint_data)
 
             logger.info(
                 f"Generated {hint_level.value} hint for attempt #{attempt_number}"
@@ -150,38 +173,39 @@ Provide a {hint_level.value} hint that helps them learn. Respond with JSON in th
             return self._get_fallback_hint(feedback, attempt_number)
 
     def _build_table_schemas(self, tables: List[Dict[str, Any]]) -> str:
-        """Build formatted table schemas with helpful annotations and sample data"""
+        """Build formatted table schemas with helpful annotations and sample data (optimized for token usage)"""
         schemas = []
         for table in tables:
             columns = []
             for col in table.get('columns', []):
                 col_str = f"  • {col['name']} ({col['type']})"
                 if col.get('primary_key'):
-                    col_str += " 🔑 PRIMARY KEY"
+                    col_str += " 🔑 PK"
                 if col.get('foreign_key'):
                     col_str += f" → {col['foreign_key']}"
                 columns.append(col_str)
 
-            schema = f"📋 Table: {table['name']}\n" + "\n".join(columns)
+            schema = f"📋 {table['name']}\n" + "\n".join(columns)
             
-            # Add sample data if available - this helps AI understand actual values!
+            # Add minimal sample data - only 3 rows to reduce tokens
             sample_data = table.get('sampleData') or table.get('sample_data')
             if sample_data and len(sample_data) > 0:
-                schema += f"\n\n  📊 Sample Data (first {min(5, len(sample_data))} rows):"
-                for i, row in enumerate(sample_data[:5]):
-                    schema += f"\n  Row {i+1}: {json.dumps(row, ensure_ascii=False)}"
+                schema += f"\n  Sample ({min(3, len(sample_data))} rows):"
+                for row in sample_data[:3]:
+                    schema += f"\n  {json.dumps(row, ensure_ascii=False)}"
                 
-                # Extract distinct values for categorical-looking columns
+                # Only show distinct values for key columns (reduce token usage)
                 if len(sample_data) > 1:
-                    schema += "\n\n  💡 Distinct values found in sample:"
+                    schema += "\n  Key values:"
                     for col in table.get('columns', []):
                         col_name = col['name']
                         try:
                             distinct_vals = list(set(str(row.get(col_name, '')) for row in sample_data if col_name in row))
-                            if len(distinct_vals) <= 10 and len(distinct_vals) > 0:  # Only show if reasonably small set
-                                schema += f"\n    • {col_name}: {', '.join(repr(v) for v in sorted(distinct_vals) if v)}"
+                            # Only show columns with 2-8 distinct values (likely categorical/filter columns)
+                            if 2 <= len(distinct_vals) <= 8:
+                                schema += f"\n    {col_name}: {', '.join(repr(v) for v in sorted(distinct_vals) if v)}"
                         except:
-                            pass  # Skip if there's any issue extracting values
+                            pass
             
             schemas.append(schema)
 
@@ -190,20 +214,16 @@ Provide a {hint_level.value} hint that helps them learn. Respond with JSON in th
     def _build_output_comparison(
             self, user_output: Optional[List[Dict[str, Any]]],
             expected_output: Optional[List[Dict[str, Any]]]) -> str:
-        """Build formatted output comparison"""
+        """Build formatted output comparison (optimized for token usage)"""
         if not user_output or not expected_output:
             return ""
 
+        # Compact output comparison to reduce tokens
         return f"""
-📊 OUTPUT COMPARISON:
-
-Your Output (first 3 rows):
-{json.dumps(user_output[:3], indent=2)}
-
-Expected Output (first 3 rows):
-{json.dumps(expected_output[:3], indent=2)}
-
-💡 Look for differences in: column names, data types, values, row count, or ordering
+📊 OUTPUT:
+Your result (first 2): {json.dumps(user_output[:2], ensure_ascii=False)}
+Expected (first 2): {json.dumps(expected_output[:2], ensure_ascii=False)}
+Rows: {len(user_output)} vs {len(expected_output)} expected
 """
 
     def _build_system_instruction(self, hint_level: HintLevel,
@@ -320,6 +340,27 @@ CRITICAL RULES:
             self._get_timestamp()
         }
 
+    def _generate_cache_key(self, problem_title: str, user_query: str, 
+                           feedback: List[str], hint_level: HintLevel) -> str:
+        """Generate cache key from query parameters to avoid duplicate API calls"""
+        # Normalize query by removing extra whitespace
+        normalized_query = " ".join(user_query.strip().split())
+        feedback_str = "|".join(sorted(feedback))
+        
+        cache_input = f"{problem_title}|{normalized_query}|{feedback_str}|{hint_level.value}"
+        return hashlib.md5(cache_input.encode()).hexdigest()
+    
+    def _cache_hint(self, cache_key: str, hint_data: Dict[str, Any]) -> None:
+        """Cache hint result with size limit"""
+        # Implement simple LRU by clearing cache when full
+        if len(self._hint_cache) >= self.MAX_CACHE_SIZE:
+            # Clear half the cache (simple approach)
+            keys_to_remove = list(self._hint_cache.keys())[:self.MAX_CACHE_SIZE // 2]
+            for key in keys_to_remove:
+                del self._hint_cache[key]
+        
+        self._hint_cache[cache_key] = hint_data
+
     @staticmethod
     def _get_timestamp() -> str:
         """Get current timestamp"""
@@ -346,17 +387,10 @@ async def get_progressive_hint(problem_title: str,
                                **kwargs) -> Dict[str, Any]:
     """
     Convenience function for getting progressive hints
-    Automatically adjusts hint level based on attempt number
+    Simplified 2-level system: Attempt 1 = moderate, Attempt 2+ = detailed
     """
-    # Auto-select hint level
-    if attempt_number == 1:
-        hint_level = HintLevel.GENTLE
-    elif attempt_number <= 3:
-        hint_level = HintLevel.MODERATE
-    elif attempt_number <= 5:
-        hint_level = HintLevel.SPECIFIC
-    else:
-        hint_level = HintLevel.DETAILED
+    # Simplified hint level selection (reduces token usage)
+    hint_level = HintLevel.MODERATE if attempt_number == 1 else HintLevel.DETAILED
 
     return await sql_hint_generator.generate_hint(
         problem_title=problem_title,
