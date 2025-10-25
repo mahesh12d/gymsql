@@ -34,12 +34,11 @@ class SQLHintGenerator:
     def __init__(self):
         # Use gemini-2.0-flash-exp with lower temperature for consistency
         self.model = genai.GenerativeModel(
-            'gemini-2.0-flash-exp',
+            'gemini-2.5-flash-lite',
             generation_config=genai.GenerationConfig(
-                temperature=0.5,  # Lower temp = more consistent, less creative (saves tokens on retries)
-                response_mime_type="application/json"
-            )
-        )
+                temperature=
+                0.5,  # Lower temp = more consistent, less creative (saves tokens on retries)
+                response_mime_type="application/json"))
         # Simple in-memory cache to avoid duplicate API calls (reduces token usage)
         self._hint_cache = {}  # Cache format: {cache_key: hint_result}
         self.MAX_CACHE_SIZE = 100  # Prevent memory bloat
@@ -92,9 +91,8 @@ class SQLHintGenerator:
                 hint_level = HintLevel.DETAILED
 
             # Check cache to avoid duplicate API calls
-            cache_key = self._generate_cache_key(
-                problem_title, user_query, feedback, hint_level
-            )
+            cache_key = self._generate_cache_key(problem_title, user_query,
+                                                 feedback, hint_level)
             if cache_key in self._hint_cache:
                 logger.info(f"Cache hit for hint (saved tokens)")
                 cached_hint = self._hint_cache[cache_key].copy()
@@ -121,7 +119,7 @@ class SQLHintGenerator:
 
             # Build compact prompt to reduce token usage
             hint_instruction = "Point to SQL concepts needed" if hint_level == HintLevel.MODERATE else "Detailed guidance with structure"
-            
+
             prompt = f"""SQL Query Analysis - Attempt {attempt_number}
 
 PROBLEM: {problem_title}
@@ -186,27 +184,30 @@ Provide {hint_level.value} hint. JSON format:
                 columns.append(col_str)
 
             schema = f"📋 {table['name']}\n" + "\n".join(columns)
-            
+
             # Add minimal sample data - only 3 rows to reduce tokens
             sample_data = table.get('sampleData') or table.get('sample_data')
             if sample_data and len(sample_data) > 0:
                 schema += f"\n  Sample ({min(3, len(sample_data))} rows):"
                 for row in sample_data[:3]:
                     schema += f"\n  {json.dumps(row, ensure_ascii=False)}"
-                
+
                 # Only show distinct values for key columns (reduce token usage)
                 if len(sample_data) > 1:
                     schema += "\n  Key values:"
                     for col in table.get('columns', []):
                         col_name = col['name']
                         try:
-                            distinct_vals = list(set(str(row.get(col_name, '')) for row in sample_data if col_name in row))
+                            distinct_vals = list(
+                                set(
+                                    str(row.get(col_name, ''))
+                                    for row in sample_data if col_name in row))
                             # Only show columns with 2-8 distinct values (likely categorical/filter columns)
                             if 2 <= len(distinct_vals) <= 8:
                                 schema += f"\n    {col_name}: {', '.join(repr(v) for v in sorted(distinct_vals) if v)}"
                         except:
                             pass
-            
+
             schemas.append(schema)
 
         return "\n\n".join(schemas)
@@ -340,25 +341,26 @@ CRITICAL RULES:
             self._get_timestamp()
         }
 
-    def _generate_cache_key(self, problem_title: str, user_query: str, 
-                           feedback: List[str], hint_level: HintLevel) -> str:
+    def _generate_cache_key(self, problem_title: str, user_query: str,
+                            feedback: List[str], hint_level: HintLevel) -> str:
         """Generate cache key from query parameters to avoid duplicate API calls"""
         # Normalize query by removing extra whitespace
         normalized_query = " ".join(user_query.strip().split())
         feedback_str = "|".join(sorted(feedback))
-        
+
         cache_input = f"{problem_title}|{normalized_query}|{feedback_str}|{hint_level.value}"
         return hashlib.md5(cache_input.encode()).hexdigest()
-    
+
     def _cache_hint(self, cache_key: str, hint_data: Dict[str, Any]) -> None:
         """Cache hint result with size limit"""
         # Implement simple LRU by clearing cache when full
         if len(self._hint_cache) >= self.MAX_CACHE_SIZE:
             # Clear half the cache (simple approach)
-            keys_to_remove = list(self._hint_cache.keys())[:self.MAX_CACHE_SIZE // 2]
+            keys_to_remove = list(
+                self._hint_cache.keys())[:self.MAX_CACHE_SIZE // 2]
             for key in keys_to_remove:
                 del self._hint_cache[key]
-        
+
         self._hint_cache[cache_key] = hint_data
 
     @staticmethod
