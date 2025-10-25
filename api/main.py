@@ -1268,7 +1268,15 @@ async def get_ai_hint(
         problem_description = question_data.get("description", "")
         tables = question_data.get("tables", [])
         
-        # Generate hint using Gemini
+        # Track attempt number for progressive hints
+        # Count failed submissions as attempts (more attempts = more specific hints)
+        attempt_number = db.query(Submission).filter(
+            Submission.user_id == current_user.id,
+            Submission.problem_id == problem_id,
+            Submission.is_correct == False
+        ).count() + 1  # +1 for current attempt
+        
+        # Generate hint using Gemini with attempt tracking
         hint_result = await sql_hint_generator.generate_hint(
             problem_title=problem_title,
             problem_description=problem_description,
@@ -1276,7 +1284,8 @@ async def get_ai_hint(
             user_query=user_query,
             feedback=feedback,
             user_output=user_output,
-            expected_output=expected_output
+            expected_output=expected_output,
+            attempt_number=attempt_number  # Progressive hints based on attempts
         )
         
         return {

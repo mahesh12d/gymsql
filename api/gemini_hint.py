@@ -150,7 +150,7 @@ Provide a {hint_level.value} hint that helps them learn. Respond with JSON in th
             return self._get_fallback_hint(feedback, attempt_number)
 
     def _build_table_schemas(self, tables: List[Dict[str, Any]]) -> str:
-        """Build formatted table schemas with helpful annotations"""
+        """Build formatted table schemas with helpful annotations and sample data"""
         schemas = []
         for table in tables:
             columns = []
@@ -163,6 +163,26 @@ Provide a {hint_level.value} hint that helps them learn. Respond with JSON in th
                 columns.append(col_str)
 
             schema = f"📋 Table: {table['name']}\n" + "\n".join(columns)
+            
+            # Add sample data if available - this helps AI understand actual values!
+            sample_data = table.get('sampleData') or table.get('sample_data')
+            if sample_data and len(sample_data) > 0:
+                schema += f"\n\n  📊 Sample Data (first {min(5, len(sample_data))} rows):"
+                for i, row in enumerate(sample_data[:5]):
+                    schema += f"\n  Row {i+1}: {json.dumps(row, ensure_ascii=False)}"
+                
+                # Extract distinct values for categorical-looking columns
+                if len(sample_data) > 1:
+                    schema += "\n\n  💡 Distinct values found in sample:"
+                    for col in table.get('columns', []):
+                        col_name = col['name']
+                        try:
+                            distinct_vals = list(set(str(row.get(col_name, '')) for row in sample_data if col_name in row))
+                            if len(distinct_vals) <= 10 and len(distinct_vals) > 0:  # Only show if reasonably small set
+                                schema += f"\n    • {col_name}: {', '.join(repr(v) for v in sorted(distinct_vals) if v)}"
+                        except:
+                            pass  # Skip if there's any issue extracting values
+            
             schemas.append(schema)
 
         return "\n\n".join(schemas)
