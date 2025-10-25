@@ -62,6 +62,13 @@ async function startBackend() {
       .toString("hex");
     console.log("🔐 Generated temporary ADMIN_SECRET_KEY for development");
   }
+  
+  // ⚠️  DEVELOPMENT MODE: Enable email verification bypass for faster testing
+  // This auto-verifies new user registrations without requiring email confirmation
+  if (!process.env.DEV_BYPASS_EMAIL_VERIFICATION) {
+    process.env.DEV_BYPASS_EMAIL_VERIFICATION = "true";
+    console.log("⚠️  DEV MODE: Email verification bypass enabled");
+  }
 
   console.log(
     `🐍 Using ${useUv ? "uv" : "pip"} for Python dependency management`

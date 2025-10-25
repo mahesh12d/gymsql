@@ -102,6 +102,11 @@ class Config:
     RESEND_API_KEY: Optional[str] = os.getenv("RESEND_API_KEY")
     FROM_EMAIL: str = os.getenv("FROM_EMAIL", "noreply@sqlgym.com")
     
+    # ⚠️  DEVELOPMENT ONLY: Bypass email verification for faster testing
+    # WARNING: This should NEVER be enabled in production environments
+    # Set DEV_BYPASS_EMAIL_VERIFICATION=true to auto-verify all new email signups
+    DEV_BYPASS_EMAIL_VERIFICATION: bool = os.getenv("DEV_BYPASS_EMAIL_VERIFICATION", "false").lower() == "true"
+    
     # ==================== FRONTEND & CORS CONFIGURATION ====================
     # Frontend URLs (comma-separated list for multiple domains)
     FRONTEND_URLS: List[str] = [
@@ -244,6 +249,7 @@ class Config:
         print(f"Frontend URLs: {len(cls.FRONTEND_URLS)} configured")
         print(f"CORS Origins: {len(cls.get_cors_origins())} allowed")
         print(f"Email Service: {'✅ Enabled' if cls.RESEND_API_KEY else '❌ Disabled'}")
+        print(f"Email Verification Bypass: {'⚠️  ENABLED (DEV MODE)' if cls.DEV_BYPASS_EMAIL_VERIFICATION else '✅ Disabled'}")
         print(f"Google OAuth: {'✅ Enabled' if cls.GOOGLE_CLIENT_ID else '❌ Disabled'}")
         print(f"GitHub OAuth: {'✅ Enabled' if cls.GITHUB_CLIENT_ID else '❌ Disabled'}")
         print(f"AI Hints: {'✅ Enabled' if cls.GEMINI_API_KEY else '❌ Disabled'}")

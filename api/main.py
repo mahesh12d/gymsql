@@ -392,6 +392,9 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         password_hash = get_password_hash(user_data.password)
 
     # Create user - email not verified by default for email/password signups
+    # ⚠️  DEV MODE: Auto-verify email if bypass is enabled
+    auto_verify = (user_data.auth_provider != "email") or Config.DEV_BYPASS_EMAIL_VERIFICATION
+    
     user = User(username=user_data.username,
                 email=user_data.email,
                 password_hash=password_hash,
@@ -400,14 +403,14 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 profile_image_url=user_data.profile_image_url,
                 google_id=user_data.google_id,
                 auth_provider=user_data.auth_provider,
-                email_verified=user_data.auth_provider != "email")  # OAuth users are auto-verified
+                email_verified=auto_verify)  # OAuth users are auto-verified, or DEV bypass enabled
 
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    # Send verification email for email/password signups
-    if user_data.auth_provider == "email":
+    # Send verification email for email/password signups (unless bypassed in dev mode)
+    if user_data.auth_provider == "email" and not Config.DEV_BYPASS_EMAIL_VERIFICATION:
         from api.email_service import create_verification_code
         code = create_verification_code(user, db)
         send_verification_email(user, code)
@@ -419,15 +422,23 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             message="Please check your email for a 6-digit verification code"
         )
 
-    # For OAuth users, generate JWT token immediately
+    # For OAuth users or DEV bypass mode, generate JWT token immediately
     access_token = create_access_token(data={
         "userId": user.id,
         "username": user.username,
         "isAdmin": user.is_admin
     })
+    
+    # Add dev mode message if bypass is enabled
+    message = None
+    if user_data.auth_provider == "email" and Config.DEV_BYPASS_EMAIL_VERIFICATION:
+        message = "⚠️  DEV MODE: Email verification bypassed - you are logged in immediately"
 
-    return RegisterResponse(token=access_token,
-                            user=UserResponse.from_orm(user))
+    return RegisterResponse(
+        token=access_token,
+        user=UserResponse.from_orm(user),
+        message=message
+    )
 
 
 @app.post("/api/auth/login",
@@ -446,8 +457,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid credentials")
 
-    # Check if email is verified (only for email/password users)
-    if user.auth_provider == "email" and not user.email_verified:
+    # Check if email is verified (only for email/password users, unless bypassed in dev mode)
+    if user.auth_provider == "email" and not user.email_verified and not Config.DEV_BYPASS_EMAIL_VERIFICATION:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email before logging in. Check your inbox for the 6-digit verification code."

@@ -6,6 +6,7 @@
 - [x] 2. Restart the workflow to see if the project is working  
 - [x] 3. Verify the project is working using the screenshot tool
 - [x] 4. Mark the import as completed
+- [x] 5. Implement development bypass for email verification (October 25, 2025)
 
 ## ✅ Migration Status: COMPLETED
 
@@ -212,6 +213,66 @@ The application is now ready for secure production deployment!
 ---
 
 The data engineering pipeline is production-ready and fully configured!
+
+## 🔓 Email Verification Bypass - October 25, 2025
+
+### Development Mode: Email Verification Disabled
+
+- [x] **Implemented email verification bypass for development** - Streamlined local testing
+
+**What Was Implemented:**
+
+### 1. Configuration Changes (`api/config.py`)
+- ✅ Added `DEV_BYPASS_EMAIL_VERIFICATION` environment variable
+- ✅ Defaults to `false` (disabled) for safety
+- ✅ Set to `true` in development mode
+- ✅ Added clear warnings that this is DEV ONLY
+- ✅ Added to configuration summary display
+
+### 2. Registration Endpoint Changes (`api/main.py`)
+- ✅ Auto-verifies email for new email/password signups when bypass enabled
+- ✅ Skips sending verification email when bypass enabled
+- ✅ Returns JWT token immediately (no need to verify)
+- ✅ Shows dev mode warning message in response
+
+### 3. Login Endpoint Changes (`api/main.py`)
+- ✅ Skips email verification check when bypass enabled
+- ✅ Allows unverified email/password users to login in dev mode
+
+### 4. Development Script (`scripts/dev_backend.cjs`)
+- ✅ Automatically sets `DEV_BYPASS_EMAIL_VERIFICATION=true` in development
+- ✅ Shows clear warning: "⚠️  DEV MODE: Email verification bypass enabled"
+
+**Behavior Changes:**
+
+**Before (Production Mode):**
+1. User registers with email/password → receives 6-digit code via email
+2. User must enter code to verify email
+3. Only after verification can user login
+
+**After (Development Mode):**
+1. User registers with email/password → immediately logged in
+2. No email sent (even if RESEND_API_KEY is configured)
+3. User can login immediately without verification
+4. Dev mode warning displayed: "⚠️  DEV MODE: Email verification bypassed - you are logged in immediately"
+
+**Security Safeguards:**
+- ✅ Feature is OFF by default (requires explicit env var)
+- ✅ Clear warnings in logs and code
+- ✅ Well-documented as DEV ONLY
+- ✅ Can be disabled by setting `DEV_BYPASS_EMAIL_VERIFICATION=false`
+
+**Files Modified:**
+1. `api/config.py` (+8 lines) - Added config variable and display
+2. `api/main.py` (+17 lines) - Updated registration and login logic
+3. `scripts/dev_backend.cjs` (+7 lines) - Auto-enable in dev mode
+
+**Verification:**
+```
+Email Verification Bypass: ⚠️  ENABLED (DEV MODE)
+```
+
+---
 
 ## 🐳 Docker Deployment Guide - October 25, 2025
 
