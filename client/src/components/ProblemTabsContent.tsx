@@ -14,7 +14,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import ProblemDescriptionTab from '@/components/ProblemDescriptionTab';
 import AnswersScreen from '@/components/AnswersScreen';
-import ResultComparisonTable from './ResultComparisonTable';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 
@@ -256,7 +255,15 @@ const NestedComment = memo(function NestedComment({
   );
 });
 
-const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
+const OutputTable = ({ 
+  data, 
+  title, 
+  validationDetails 
+}: { 
+  data: any[]; 
+  title: string;
+  validationDetails?: any;
+}) => {
   if (!data || data.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -267,6 +274,14 @@ const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
   }
 
   const headers = Object.keys(data[0]);
+  
+  // Create a map of row indices to match status
+  const rowMatchStatus = new Map<number, boolean>();
+  if (validationDetails?.row_comparisons) {
+    validationDetails.row_comparisons.forEach((comparison: any) => {
+      rowMatchStatus.set(comparison.row_index, comparison.matches);
+    });
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -288,15 +303,22 @@ const OutputTable = ({ data, title }: { data: any[]; title: string }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50">
-                {headers.map((header, j) => (
-                  <td key={j} className="px-4 py-2 text-sm text-gray-900">
-                    {String(row[header] ?? '')}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {data.map((row, i) => {
+              const isMatching = rowMatchStatus.get(i);
+              const rowClassName = isMatching 
+                ? "bg-green-50 hover:bg-green-100" 
+                : "hover:bg-gray-50";
+              
+              return (
+                <tr key={i} className={rowClassName}>
+                  {headers.map((header, j) => (
+                    <td key={j} className="px-4 py-2 text-sm text-gray-900">
+                      {String(row[header] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -686,20 +708,13 @@ const ProblemTabsContent = memo(function ProblemTabsContent({
                         <>
                           <OutputTable 
                             data={mainTestResult.user_output} 
-                            title="Your Output" 
+                            title="Your Solution" 
+                            validationDetails={mainTestResult.validation_details}
                           />
                           <OutputTable 
                             data={mainTestResult.expected_output} 
                             title="Expected Output" 
                           />
-                          
-                          {/* Detailed Result Comparison */}
-                          {mainTestResult.validation_details && (
-                            <ResultComparisonTable 
-                              validationDetails={mainTestResult.validation_details}
-                              isCorrect={latestSubmissionResult.is_correct}
-                            />
-                          )}
                         </>
                       ) : null;
                     })()}

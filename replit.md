@@ -8,12 +8,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates
 
-### October 25, 2025 - Case-Insensitive Column Validation
-**Issue:** SQL query validation was failing when column names had different cases (e.g., `club_name` vs `CLUB_NAME`), showing false positives for "Missing columns" and "Unexpected columns".
+### October 25, 2025 - Case-Insensitive Column Validation & Simplified Result Display
+**Issue 1:** SQL query validation was failing when column names had different cases (e.g., `club_name` vs `CLUB_NAME`), showing false positives for "Missing columns" and "Unexpected columns".
 
 **Solution:** Implemented case-insensitive column name comparison across all validation layers:
 - Updated `api/test_validator.py`: All column comparisons now use `.lower()` for case-insensitive matching
-- Updated `api/secure_execution.py`: Fixed three separate validation functions to handle case-insensitive column names:
+- Updated `api/secure_execution.py`: Fixed six separate validation functions to handle case-insensitive column names:
   - `_validate_column_names()` - Already case-insensitive
   - `_compare_results_detailed()` - Added case-insensitive comparison
   - `_create_validation_details()` - Added case-insensitive comparison
@@ -22,6 +22,16 @@ Preferred communication style: Simple, everyday language.
   - `_row_sort_key()` - Added case-insensitive column name sorting
 
 **Impact:** SQL queries now pass validation regardless of column name case, eliminating false negatives in result comparison.
+
+**Issue 2:** The detailed result comparison table was too complex and cluttered the UI.
+
+**Solution:** Simplified the result display in `client/src/components/ProblemTabsContent.tsx`:
+- Removed the "Detailed Result Comparison" table component
+- Modified `OutputTable` component to highlight matching rows with light green background (`bg-green-50`)
+- Changed "Your Output" title to "Your Solution"
+- Non-matching rows display with default white background
+
+**Impact:** Cleaner, more intuitive UI that makes it easier to spot which rows are correct at a glance.
 
 ## System Architecture
 ### Frontend
