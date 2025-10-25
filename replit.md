@@ -6,6 +6,23 @@ SQLGym is a gamified SQL learning platform designed to teach SQL through coding 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Updates
+
+### October 25, 2025 - Case-Insensitive Column Validation
+**Issue:** SQL query validation was failing when column names had different cases (e.g., `club_name` vs `CLUB_NAME`), showing false positives for "Missing columns" and "Unexpected columns".
+
+**Solution:** Implemented case-insensitive column name comparison across all validation layers:
+- Updated `api/test_validator.py`: All column comparisons now use `.lower()` for case-insensitive matching
+- Updated `api/secure_execution.py`: Fixed three separate validation functions to handle case-insensitive column names:
+  - `_validate_column_names()` - Already case-insensitive
+  - `_compare_results_detailed()` - Added case-insensitive comparison
+  - `_create_validation_details()` - Added case-insensitive comparison
+  - `_compare_results_fast()` - Added case-insensitive comparison
+  - `_rows_equal_with_tolerance()` - Added case-insensitive comparison
+  - `_row_sort_key()` - Added case-insensitive column name sorting
+
+**Impact:** SQL queries now pass validation regardless of column name case, eliminating false negatives in result comparison.
+
 ## System Architecture
 ### Frontend
 The frontend uses React, TypeScript, and Vite, styled with Tailwind CSS. It leverages `shadcn/ui` and Radix UI for components, Wouter for routing, TanStack Query for server state, and React Hook Form with Zod for forms.

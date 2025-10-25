@@ -1190,7 +1190,7 @@ class SecureQueryExecutor:
         return True
     
     def _row_sort_key(self, row: Dict[str, Any]) -> tuple:
-        """FIXED: Type-aware sorting key that preserves type information"""
+        """FIXED: Type-aware sorting key that preserves type information with case-insensitive column names"""
         def sortable_value(v):
             if v is None:
                 return (0, None)  # None sorts first
@@ -1203,21 +1203,26 @@ class SecureQueryExecutor:
             return (4, str(v))  # Other types as strings
         
         try:
-            return tuple(sorted((k, sortable_value(v)) for k, v in row.items()))
+            # Use lowercase column names for case-insensitive comparison
+            return tuple(sorted((k.lower(), sortable_value(v)) for k, v in row.items()))
         except Exception:
             # Fallback to string-based if sorting fails
-            return tuple(sorted((k, str(v)) for k, v in row.items()))
+            return tuple(sorted((k.lower(), str(v)) for k, v in row.items()))
     
     def _rows_equal_with_tolerance(self, row1: Dict[str, Any], row2: Dict[str, Any], tolerance: float = 0.001) -> bool:
-        """FIXED: Row comparison with numeric tolerance"""
+        """FIXED: Row comparison with numeric tolerance and case-insensitive column names"""
         if len(row1) != len(row2):
             return False
         
+        # Create case-insensitive column mapping for row1
+        row1_lower = {k.lower(): v for k, v in row1.items()}
+        
         for key in row2:
-            if key not in row1:
+            key_lower = key.lower()
+            if key_lower not in row1_lower:
                 return False
             
-            val1, val2 = row1[key], row2[key]
+            val1, val2 = row1_lower[key_lower], row2[key]
             
             # Handle None values
             if val1 is None and val2 is None:
@@ -1347,21 +1352,28 @@ class SecureQueryExecutor:
 
     def _compare_results_fast(self, user_results: List[Dict],
                               expected_results: List[Dict]) -> bool:
-        """Ultra-fast result comparison"""
+        """Ultra-fast result comparison with case-insensitive column names"""
         try:
             if len(user_results) != len(expected_results):
                 return False
 
-            # Quick comparison for small datasets
+            # Quick comparison for small datasets (case-insensitive)
             if len(user_results) <= 100:
-                return user_results == expected_results
+                for user_row, expected_row in zip(user_results, expected_results):
+                    user_row_lower = {k.lower(): v for k, v in user_row.items()} if user_row else {}
+                    expected_row_lower = {k.lower(): v for k, v in expected_row.items()} if expected_row else {}
+                    if user_row_lower != expected_row_lower:
+                        return False
+                return True
 
-            # Sample comparison for large datasets
+            # Sample comparison for large datasets (case-insensitive)
             sample_size = min(50, len(user_results))
             for i in range(0, len(user_results),
                            len(user_results) // sample_size):
                 if i < len(user_results) and i < len(expected_results):
-                    if user_results[i] != expected_results[i]:
+                    user_row_lower = {k.lower(): v for k, v in user_results[i].items()} if user_results[i] else {}
+                    expected_row_lower = {k.lower(): v for k, v in expected_results[i].items()} if expected_results[i] else {}
+                    if user_row_lower != expected_row_lower:
                         return False
 
             return True
@@ -1390,16 +1402,20 @@ class SecureQueryExecutor:
             if user_count == 0:
                 return True, ["Both results are empty"]
 
-            # Check column structure
+            # Check column structure (case-insensitive)
             if user_results and expected_results:
                 user_columns = set(
                     user_results[0].keys()) if user_results[0] else set()
                 expected_columns = set(expected_results[0].keys()
                                        ) if expected_results[0] else set()
 
-                if user_columns != expected_columns:
-                    missing_cols = expected_columns - user_columns
-                    extra_cols = user_columns - expected_columns
+                # Case-insensitive comparison
+                user_columns_lower = set(col.lower() for col in user_columns)
+                expected_columns_lower = set(col.lower() for col in expected_columns)
+
+                if user_columns_lower != expected_columns_lower:
+                    missing_cols = expected_columns_lower - user_columns_lower
+                    extra_cols = user_columns_lower - expected_columns_lower
 
                     if missing_cols:
                         feedback.append(
@@ -1412,15 +1428,22 @@ class SecureQueryExecutor:
 
                     return False, feedback
 
-            # Check data content
+            # Check data content (case-insensitive column names)
             for i, (user_row, expected_row) in enumerate(
                     zip(user_results, expected_results)):
-                if user_row != expected_row:
+                # Case-insensitive comparison
+                user_row_lower = {k.lower(): v for k, v in user_row.items()} if user_row else {}
+                expected_row_lower = {k.lower(): v for k, v in expected_row.items()} if expected_row else {}
+                
+                if user_row_lower != expected_row_lower:
                     # Find specific differences
                     differences = []
+                    user_row_map = {k.lower(): (k, v) for k, v in user_row.items()}
+                    
                     for col in expected_row.keys():
-                        if col in user_row:
-                            user_val = user_row[col]
+                        col_lower = col.lower()
+                        if col_lower in user_row_map:
+                            _, user_val = user_row_map[col_lower]
                             expected_val = expected_row[col]
                             if user_val != expected_val:
                                 differences.append(
