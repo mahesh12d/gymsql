@@ -844,20 +844,26 @@ class S3AnswerService:
     def generate_expected_result_hash(self, result_data: List[Dict[str, Any]]) -> str:
         """
         Generate MD5 hash of sorted expected result for validation
+        NOTE: This function DOES NOT modify the input data - sorting is only for hashing
         
         Args:
-            result_data: List of dictionaries representing query result
+            result_data: List of dictionaries representing query result (unchanged)
             
         Returns:
             MD5 hash string
         """
         import hashlib
         import json
+        import copy
         
         try:
-            # Sort the data to ensure consistent hashing
+            # IMPORTANT: Create a deep copy to avoid modifying the original data
+            # The original order must be preserved for expected_display!
+            data_copy = copy.deepcopy(result_data)
+            
+            # Sort the COPY to ensure consistent hashing (order-independent validation)
             # Sort by converting each row to string and sorting lexically
-            sorted_data = sorted(result_data, key=lambda x: json.dumps(x, sort_keys=True, default=str))
+            sorted_data = sorted(data_copy, key=lambda x: json.dumps(x, sort_keys=True, default=str))
             
             # Convert to JSON string with consistent formatting
             json_str = json.dumps(sorted_data, sort_keys=True, separators=(',', ':'), default=str)
