@@ -78,6 +78,7 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
             total_time_spent_seconds=0  # Immediate submission
         )
         db.add(session)
+        db.commit()
         is_first_solve = True
     elif session.completed_at is None:
         # Update existing session with completion
@@ -93,23 +94,12 @@ def track_successful_submission(user_id: str, problem_id: str, db: Session):
             session.total_time_spent_seconds = 0
         
         session.updated_at = func.now()
+        db.commit()
         is_first_solve = True
     
-    # CRITICAL FIX: Increment PostgreSQL users.problems_solved on first solve
-    # PostgreSQL is the source of truth; Redis is just a cache
+    # Increment Redis leaderboard on first solve
     if is_first_solve:
-        # Atomic increment of problems_solved in the same transaction
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise ValueError(f"User {user_id} not found during successful submission tracking")
-        
-        user.problems_solved = (user.problems_solved or 0) + 1
-        user.updated_at = func.now()
-        
-        # Commit both ProblemSession and User updates in single transaction
-        db.commit()
-        
-        # Only update Redis cache AFTER PostgreSQL write succeeds
+        # Get problem details for topic-based leaderboard
         problem = db.query(Problem).filter(Problem.id == problem_id).first()
         topic = problem.tags[0] if problem and problem.tags else None
         
@@ -311,62 +301,6 @@ def initialize_database(current_user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database initialization failed: {str(e)}"
-        )
-
-
-# Backfill problems_solved counts from ProblemSession table (admin-only)
-@app.post("/api/admin/backfill-problems-solved")
-def backfill_problems_solved(current_user: User = Depends(get_current_user), 
-                              db: Session = Depends(get_db)):
-    """
-    Backfill users.problems_solved from ProblemSession table.
-    Counts completed problems (where completed_at IS NOT NULL) for each user.
-    """
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    
-    try:
-        users = db.query(User).all()
-        total_users = len(users)
-        updated_count = 0
-        user_updates = []
-        
-        for user in users:
-            completed_problems = db.query(func.count(func.distinct(ProblemSession.problem_id))).filter(
-                ProblemSession.user_id == user.id,
-                ProblemSession.completed_at.isnot(None)
-            ).scalar() or 0
-            
-            old_count = user.problems_solved or 0
-            
-            if old_count != completed_problems:
-                user.problems_solved = completed_problems
-                user.updated_at = func.now()
-                updated_count += 1
-                user_updates.append({
-                    "username": user.username,
-                    "old_count": old_count,
-                    "new_count": completed_problems
-                })
-        
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": f"Backfill complete: {updated_count} users updated out of {total_users}",
-            "total_users": total_users,
-            "users_updated": updated_count,
-            "users_unchanged": total_users - updated_count,
-            "updates": user_updates[:20]
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Backfill failed: {str(e)}"
         )
 
 
