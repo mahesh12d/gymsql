@@ -283,3 +283,20 @@ async def test_duckdb_connection(
             detail=f"Failed to test DuckDB connection: {str(e)}"
         )
 
+@sandbox_router.get("/duckdb/stats", response_model=Dict[str, Any])
+async def get_sandbox_stats(
+    current_user: User = Depends(get_current_user)
+):
+    """Get statistics about active sandboxes (admin/monitoring endpoint)"""
+    try:
+        stats = duckdb_sandbox_manager.get_sandbox_stats()
+        return {
+            "success": True,
+            **stats
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get sandbox stats: {str(e)}"
+        )
+

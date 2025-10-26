@@ -1162,12 +1162,14 @@ class DuckDBSandbox:
 
 class DuckDBSandboxManager:
     """
-    Manager for DuckDB sandbox instances with resource management
+    Manager for DuckDB sandbox instances with resource management and automatic idle cleanup
     """
     
-    def __init__(self):
+    def __init__(self, idle_timeout_seconds: int = 300):
         self.active_sandboxes = {}
+        self.sandbox_last_accessed = {}  # Track last access time for each sandbox
         self.max_concurrent_sandboxes = 10
+        self.idle_timeout_seconds = idle_timeout_seconds  # Default: 5 minutes
     
     async def create_sandbox(self, user_id: str, problem_id: str) -> DuckDBSandbox:
         """
@@ -1185,6 +1187,7 @@ class DuckDBSandboxManager:
         # Clean up existing sandbox if present
         if sandbox_key in self.active_sandboxes:
             self.active_sandboxes[sandbox_key].cleanup()
+            del self.sandbox_last_accessed[sandbox_key]
         
         # Check resource limits
         if len(self.active_sandboxes) >= self.max_concurrent_sandboxes:
@@ -1192,17 +1195,26 @@ class DuckDBSandboxManager:
             oldest_key = next(iter(self.active_sandboxes))
             self.active_sandboxes[oldest_key].cleanup()
             del self.active_sandboxes[oldest_key]
+            if oldest_key in self.sandbox_last_accessed:
+                del self.sandbox_last_accessed[oldest_key]
         
         # Create new sandbox with unique ID
         sandbox = DuckDBSandbox(sandbox_id=sandbox_key)
         self.active_sandboxes[sandbox_key] = sandbox
+        self.sandbox_last_accessed[sandbox_key] = time.time()
         
         return sandbox
     
     def get_sandbox(self, user_id: str, problem_id: str) -> Optional[DuckDBSandbox]:
-        """Get existing sandbox for user and problem"""
+        """Get existing sandbox for user and problem, updating last accessed time"""
         sandbox_key = f"{user_id}_{problem_id}"
-        return self.active_sandboxes.get(sandbox_key)
+        sandbox = self.active_sandboxes.get(sandbox_key)
+        
+        if sandbox:
+            # Update last accessed time when sandbox is retrieved
+            self.sandbox_last_accessed[sandbox_key] = time.time()
+        
+        return sandbox
     
     def cleanup_sandbox(self, user_id: str, problem_id: str):
         """Clean up specific sandbox"""
@@ -1210,12 +1222,64 @@ class DuckDBSandboxManager:
         if sandbox_key in self.active_sandboxes:
             self.active_sandboxes[sandbox_key].cleanup()
             del self.active_sandboxes[sandbox_key]
+            if sandbox_key in self.sandbox_last_accessed:
+                del self.sandbox_last_accessed[sandbox_key]
     
     def cleanup_all(self):
         """Clean up all active sandboxes"""
         for sandbox in self.active_sandboxes.values():
             sandbox.cleanup()
         self.active_sandboxes.clear()
+        self.sandbox_last_accessed.clear()
+    
+    def cleanup_idle_sandboxes(self) -> int:
+        """
+        Clean up sandboxes that have been idle for longer than idle_timeout_seconds
+        
+        Returns:
+            Number of sandboxes cleaned up
+        """
+        current_time = time.time()
+        idle_keys = []
+        
+        # Find all idle sandboxes
+        for sandbox_key, last_accessed in self.sandbox_last_accessed.items():
+            idle_time = current_time - last_accessed
+            if idle_time > self.idle_timeout_seconds:
+                idle_keys.append(sandbox_key)
+        
+        # Clean up idle sandboxes
+        for sandbox_key in idle_keys:
+            if sandbox_key in self.active_sandboxes:
+                logger.info(f"Cleaning up idle sandbox: {sandbox_key} (idle for {current_time - self.sandbox_last_accessed[sandbox_key]:.0f}s)")
+                self.active_sandboxes[sandbox_key].cleanup()
+                del self.active_sandboxes[sandbox_key]
+                del self.sandbox_last_accessed[sandbox_key]
+        
+        if idle_keys:
+            logger.info(f"Cleaned up {len(idle_keys)} idle sandbox(es)")
+        
+        return len(idle_keys)
+    
+    def get_sandbox_stats(self) -> Dict[str, Any]:
+        """Get statistics about active sandboxes"""
+        current_time = time.time()
+        stats = {
+            "total_sandboxes": len(self.active_sandboxes),
+            "max_concurrent": self.max_concurrent_sandboxes,
+            "idle_timeout_seconds": self.idle_timeout_seconds,
+            "sandboxes": []
+        }
+        
+        for sandbox_key, last_accessed in self.sandbox_last_accessed.items():
+            idle_time = current_time - last_accessed
+            stats["sandboxes"].append({
+                "key": sandbox_key,
+                "idle_seconds": round(idle_time, 1),
+                "will_cleanup_in": max(0, round(self.idle_timeout_seconds - idle_time, 1))
+            })
+        
+        return stats
 
 
 # Global sandbox manager instance
