@@ -511,3 +511,56 @@ make deploy ENVIRONMENT=production \
 The pipeline now meets enterprise security standards with encrypted credential storage, audit logging, and zero plaintext secrets.
 
 ---
+
+## 🗄️ Database Sandbox Behavior - October 26, 2025
+
+### Replit PostgreSQL Database Lifecycle Research
+
+- [x] **Researched database sandbox behavior** - Documented suspension and restore capabilities
+
+**Database Suspension Timing:**
+- ✅ **Automatic suspension: 5 minutes of inactivity**
+- Database is "active" when receiving requests + 5 minutes after last request
+- After 5 minutes idle → database enters suspended/inactive state
+- Purpose: Cost optimization (billing only for actual usage)
+
+**Data Persistence:**
+- ✅ Suspended databases **retain all data** (including deletions)
+- Suspension is NOT a reset - it's a pause
+- Deleted data remains deleted after suspension/resume
+- No automatic "rollback" or "reset" functionality
+
+**Restoring Deleted Data:**
+
+**Option 1: Point-in-Time Restore** (Production)
+- Configure retention period in Database tool Settings
+- Restore to any timestamp within retention window
+- Access: Database tool → Settings → Restore section
+- **CRITICAL:** Cannot be undone or rolled forward after restore
+- Choose closest timestamp to minimize data loss
+
+**Option 2: Checkpoints** (Development)
+- Replit creates automatic checkpoints during work
+- Can rollback code, chat session, AND database to previous checkpoint
+- User-initiated through Replit UI
+
+**Key Timing:**
+- **5 minutes** = automatic database suspension (not a reset)
+- **Retention period** = configurable window for point-in-time restore
+- **No automatic reset** = deleted data must be manually restored
+
+**Use Cases:**
+1. Accidental DELETE operation → Use point-in-time restore
+2. Testing/debugging → Use checkpoints or restore
+3. Cost optimization → Automatic 5-minute suspension (transparent to user)
+
+**Important Notes:**
+- Point-in-time restore requires pre-configuration of retention period
+- Restore operations are permanent (cannot undo)
+- Billing: Only charged when database is active
+- For production: Set appropriate retention period based on recovery needs
+
+---
+
+**Status:**
+✅ Database behavior fully documented for both development and production scenarios
