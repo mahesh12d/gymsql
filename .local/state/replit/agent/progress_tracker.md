@@ -512,55 +512,142 @@ The pipeline now meets enterprise security standards with encrypted credential s
 
 ---
 
-## 🗄️ Database Sandbox Behavior - October 26, 2025
+## 🗄️ DuckDB Sandbox Architecture - October 26, 2025
 
-### Replit PostgreSQL Database Lifecycle Research
+### SQLGym User Isolation & Data Access Model
 
-- [x] **Researched database sandbox behavior** - Documented suspension and restore capabilities
+- [x] **Documented DuckDB sandbox architecture** - User isolation model explained
 
-**Database Suspension Timing:**
-- ✅ **Automatic suspension: 5 minutes of inactivity**
-- Database is "active" when receiving requests + 5 minutes after last request
-- After 5 minutes idle → database enters suspended/inactive state
-- Purpose: Cost optimization (billing only for actual usage)
+## Architecture Overview:
 
-**Data Persistence:**
-- ✅ Suspended databases **retain all data** (including deletions)
-- Suspension is NOT a reset - it's a pause
-- Deleted data remains deleted after suspension/resume
-- No automatic "rollback" or "reset" functionality
+SQLGym uses a **three-tier data isolation model** for security and scalability:
 
-**Restoring Deleted Data:**
+### 1. **Neon PostgreSQL Database** (Production Data)
+- **Purpose:** Stores permanent application data
+- **Contains:** Users, problems, submissions, leaderboards, community posts
+- **Access:** Backend API only (users NEVER query directly)
+- **Location:** Neon cloud database
+- **Persistence:** Permanent (backed up, point-in-time restore available)
 
-**Option 1: Point-in-Time Restore** (Production)
-- Configure retention period in Database tool Settings
-- Restore to any timestamp within retention window
-- Access: Database tool → Settings → Restore section
-- **CRITICAL:** Cannot be undone or rolled forward after restore
-- Choose closest timestamp to minimize data loss
+### 2. **DuckDB Sandboxes** (User Query Execution)
+- **Purpose:** Isolated environments for SQL practice
+- **Access:** Each user gets their own temporary sandbox
+- **Isolation:** Sandbox ID = `{user_id}_{problem_id}`
+- **Data Source:** Loads problem datasets from S3 (parquet files)
+- **Memory:** In-memory only (not persisted to disk)
+- **Limits:** 128MB RAM, 30-second query timeout per sandbox
 
-**Option 2: Checkpoints** (Development)
-- Replit creates automatic checkpoints during work
-- Can rollback code, chat session, AND database to previous checkpoint
-- User-initiated through Replit UI
+### 3. **AWS S3** (Problem Dataset Storage)
+- **Purpose:** Stores static problem datasets
+- **Format:** Parquet files (optimized columnar storage)
+- **Security:** Allowlist validation, size limits (max file size enforced)
+- **Access:** Read-only via backend S3 service
 
-**Key Timing:**
-- **5 minutes** = automatic database suspension (not a reset)
-- **Retention period** = configurable window for point-in-time restore
-- **No automatic reset** = deleted data must be manually restored
+## User Query Flow:
 
-**Use Cases:**
-1. Accidental DELETE operation → Use point-in-time restore
-2. Testing/debugging → Use checkpoints or restore
-3. Cost optimization → Automatic 5-minute suspension (transparent to user)
+```
+User works on Problem #123
+    ↓
+Backend creates sandbox: "user_456_problem_123"
+    ↓
+Sandbox loads data from S3: s3://bucket/problem-123-data.parquet
+    ↓
+User runs queries (SELECT, DELETE, UPDATE, etc.)
+    ↓
+All changes happen ONLY in user's isolated sandbox
+    ↓
+Sandbox cleanup when:
+    - User switches to different problem (fresh sandbox created)
+    - Max concurrent sandboxes (10) exceeded (oldest cleaned up)
+    - Server restarts (all sandboxes lost - in-memory only)
+```
 
-**Important Notes:**
-- Point-in-time restore requires pre-configuration of retention period
-- Restore operations are permanent (cannot undo)
-- Billing: Only charged when database is active
-- For production: Set appropriate retention period based on recovery needs
+## Data Isolation Guarantees:
+
+✅ **User A CANNOT affect User B's data**
+- Each user gets unique sandbox ID
+- No shared state between sandboxes
+- Sandboxes are completely isolated in-memory
+
+✅ **Users CANNOT access Neon production database**
+- No direct database access for users
+- Only backend API can query Neon
+- Users only interact with temporary DuckDB sandboxes
+
+✅ **Sandbox Cleanup (No Time-Based Reset)**
+- **NOT time-based:** Sandboxes don't expire after X minutes
+- Cleanup happens when:
+  1. User moves to a different problem → old sandbox destroyed, new one created
+  2. Resource limit exceeded → oldest sandbox removed (max 10 concurrent)
+  3. Backend server restarts → all sandboxes cleared (in-memory)
+
+## "Resetting" Sandbox Data:
+
+If a user runs `DELETE FROM table` and wants to restore the data:
+
+**Option 1: Switch Problems & Return** (Instant Reset)
+- User navigates away from the problem
+- Sandbox is destroyed
+- User returns to the problem
+- Fresh sandbox created with original S3 data loaded
+
+**Option 2: Reload Page** (Depends on implementation)
+- May trigger new sandbox creation
+- Original S3 data reloaded
+
+**Option 3: Backend Endpoint** (If implemented)
+- API endpoint to reset specific sandbox
+- Destroys old sandbox, creates fresh one
+
+## Key Differences from Replit Database:
+
+| Feature | Replit PostgreSQL | SQLGym DuckDB Sandbox |
+|---------|------------------|---------------------|
+| **Persistence** | Permanent (disk) | Temporary (RAM) |
+| **Suspension** | After 5 min idle | No suspension (destroyed instead) |
+| **Data Restore** | Point-in-time restore | Recreate from S3 |
+| **Isolation** | Per Repl project | Per user per problem |
+| **Purpose** | Production data | Practice/learning |
+| **Cost** | Billed per usage | Included (RAM on Cloud Run) |
+
+## Security Model:
+
+**Neon Database Security:**
+- Production credentials in AWS Secrets Manager
+- Only backend can access
+- Full audit logging
+- Point-in-time restore (configurable retention)
+
+**DuckDB Sandbox Security:**
+- No persistent storage (RAM only)
+- Resource limits (memory, timeout)
+- S3 bucket allowlist
+- Table/column name validation
+- SQL injection prevention
+
+**S3 Security:**
+- Bucket allowlist validation
+- File size limits
+- Read-only access
+- AWS IAM permissions
+
+## Summary:
+
+**Your original question:** "If user deletes rows, what time do we have to close sandbox and create new?"
+
+**Answer:** 
+- ❌ **No time-based cleanup** - Sandboxes don't automatically reset after X minutes
+- ✅ **Event-based cleanup** - Sandboxes are destroyed when user switches problems or resource limits are hit
+- ✅ **Users are isolated** - Each user has their own sandbox, changes don't affect others
+- ✅ **No access to Neon** - Users only interact with temporary DuckDB sandboxes loaded from S3
+- ✅ **Easy reset** - User can get fresh data by navigating away and back to the problem
+
+**Production Impact:**
+- Replit's 5-minute database suspension applies ONLY to your Neon database (backend data)
+- Does NOT affect DuckDB sandboxes (they're in Cloud Run server memory)
+- Users can practice SQL without affecting production data or each other
 
 ---
 
 **Status:**
-✅ Database behavior fully documented for both development and production scenarios
+✅ SQLGym architecture fully documented - three-tier isolation model ensures security and scalability
