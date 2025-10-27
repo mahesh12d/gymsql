@@ -44,6 +44,10 @@ function AppRouter() {
         {/* Admin panel is always accessible (uses its own authentication) */}
         <Route path="/admin-panel" component={AdminPanel} />
         
+        {/* Problems routes are accessible to everyone */}
+        <Route path="/problems" component={Problems} />
+        <Route path="/problems/:id" component={ProblemDetail} />
+        
         {!isAuthenticated ? (
           <>
             <Route path="/" component={Landing} />
@@ -54,8 +58,6 @@ function AppRouter() {
           <>
             <Route path="/">{() => <Redirect to="/home" />}</Route>
             <Route path="/home" component={Home} />
-            <Route path="/problems" component={Problems} />
-            <Route path="/problems/:id" component={ProblemDetail} />
             <Route path="/leaderboard" component={Leaderboard} />
             <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
