@@ -37,7 +37,7 @@ jobs:
           docker build \
             -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-dev:${{ github.sha }} \
             -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-dev:latest \
-            -f Dockerfile.dev \
+            -f Dockerfile \
             .
 
       - name: Push Docker image to GCR
