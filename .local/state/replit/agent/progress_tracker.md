@@ -34,6 +34,12 @@ The SQLGym Platform has been successfully migrated to the Replit environment!
 - ✅ Prominent "Sign In to Start Coding" button
 - ✅ "Free forever • No credit card required" message
 
+### 3. Landing Page "Browse Problems" Button (`client/src/pages/landing.tsx`)
+- ✅ Added "Browse Problems" button as the first CTA on landing page
+- ✅ Button navigates directly to `/problems` without requiring login
+- ✅ Provides clear entry point for exploration alongside Login and Register options
+- ✅ Solves the issue of visitors not knowing they can explore without signing up
+
 **User Experience:**
 
 **Before:**
@@ -73,12 +79,14 @@ The SQLGym Platform has been successfully migrated to the Replit environment!
 **Files Modified:**
 1. `client/src/App.tsx` (routing changes)
 2. `client/src/components/OptimizedEditorOutputSplit.tsx` (login prompt)
+3. `client/src/pages/landing.tsx` (Browse Problems button)
 
 **Verification:**
 ✅ Tested browsing problems page without login - works perfectly
 ✅ Tested viewing problem detail without login - shows login prompt
 ✅ Problem description and schema visible to all users
 ✅ Code editor replaced with attractive sign-in prompt
+✅ Landing page now has clear "Browse Problems" button for easy exploration
 
 ---
 
