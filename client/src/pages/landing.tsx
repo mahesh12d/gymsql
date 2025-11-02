@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Code } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
@@ -447,10 +447,34 @@ export default function Landing() {
         </div>
 
         <div className="absolute bottom-8 flex flex-wrap justify-center gap-6 text-sm text-foreground/70 font-serif">
-          <span>License Free</span>
-          <span>Membership Free</span>
-          <span>Subscription Free</span>
-          <span>1-800-SQLPOWER</span>
+          <Link 
+            href="/terms" 
+            className="hover:text-primary transition-colors"
+            data-testid="link-terms"
+          >
+            /terms - Terms and Conditions
+          </Link>
+          <Link 
+            href="/privacy" 
+            className="hover:text-primary transition-colors"
+            data-testid="link-privacy"
+          >
+            /privacy - Privacy Policy
+          </Link>
+          <Link 
+            href="/about" 
+            className="hover:text-primary transition-colors"
+            data-testid="link-about"
+          >
+            /about - About Us
+          </Link>
+          <Link 
+            href="/contact" 
+            className="hover:text-primary transition-colors"
+            data-testid="link-contact"
+          >
+            /contact - Contact form
+          </Link>
         </div>
       </section>
       
