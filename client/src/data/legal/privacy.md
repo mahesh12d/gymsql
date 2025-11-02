@@ -58,18 +58,15 @@ Usage Data is collected automatically when using the Service.
 
 Usage Data may include information such as Your Device's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that You visit, the time and date of Your visit, the time spent on those pages, unique device identifiers and other diagnostic data.
 
-When You access the Service by or through a mobile device, We may collect certain information automatically, including, but not limited to, the type of mobile device You use, Your mobile device unique ID, the IP address of Your mobile device, Your mobile operating system, the type of mobile Internet browser You use, unique device identifiers and other diagnostic data.
-
-We may also collect information that Your browser sends whenever You visit our Service or when You access the Service by or through a mobile device.
+We may also collect information that Your browser sends whenever You visit our Service or when You access the Service by or through a Website.
 
 #### Information from Third-Party Social Media Services
 
 The Company allows You to create an account and log in to use the Service through the following Third-party Social Media Services:
 
 - Google
-- GitHub (if applicable)
 
-If You decide to register through or otherwise grant us access to a Third-Party Social Media Service, We may collect Personal Data that is already associated with Your Third-Party Social Media Service's account, such as Your name, Your email address, Your profile picture, or Your activities associated with that account.
+If You decide to register through or otherwise grant us access to a Third-Party Social Media Service, We may collect Personal Data that is already associated with Your Third-Party Social Media Service's account, such as Your name, Your email address, Your profile picture.
 
 You may also have the option of sharing additional information with the Company through Your Third-Party Social Media Service's account. If You choose to provide such information and Personal Data, during registration or otherwise, You are giving the Company permission to use, share, and store it in a manner consistent with this Privacy Policy.
 
@@ -259,9 +256,9 @@ Continued use of the Service after such modifications shall constitute Your cons
 
 In accordance with the Information Technology Act, 2000 and the Digital Personal Data Protection Act, 2023, We have appointed a Grievance Officer to address Your concerns regarding data processing:
 
-**Name**: [To be appointed]  
-**Email**: privacy@gymsql.com  
-**Address**: [Your Company Address in India]  
+**Name**: [Mahesh Kumbhar]  
+**Email**: maheshkumbhar14d@gmail.com 
+**Address**: [Gymsql]  
 **Response Time**: Within 30 days of receipt of complaint
 
 The Grievance Officer will address Your grievances within one month from the date of receipt of the grievance.
@@ -276,13 +273,13 @@ For queries related to data protection and privacy:
 
 If you have any questions about this Privacy Policy, You can contact us:
 
-- **Email**: privacy@gymsql.com
+- **Email**: maheshkumbhar14d@gmail.com 
 - **Support Email**: support@gymsql.com
-- **Website**: https://gymsql.com/contact
+- **Website**: https://gymsql.vercel.com/contact
 
 ## Governing Law
 
-This Privacy Policy shall be governed by and construed in accordance with the laws of India. Any disputes arising under or in connection with this Privacy Policy shall be subject to the exclusive jurisdiction of the courts in [Your City, India].
+This Privacy Policy shall be governed by and construed in accordance with the laws of India. Any disputes arising under or in connection with this Privacy Policy shall be subject to the exclusive jurisdiction of the courts in [Pune, India].
 
 ---
 
