@@ -12,6 +12,33 @@
 
 The SQLGym Platform has been successfully migrated to the Replit environment!
 
+## 🧹 Project Cleanup - November 2, 2025
+
+### Removed Unused Deployment Configuration
+
+- [x] **Removed Netlify configuration** - Cleaned up unused deployment files
+
+**What Was Removed:**
+- `netlify.toml` - Netlify deployment configuration (not being used)
+
+**Current Deployment Strategy:**
+- ✅ Primary: Google Cloud Run (with comprehensive documentation and CI/CD)
+- ✅ Alternative: Vercel (has deployment guide)
+- ❌ Netlify: Not in use, configuration removed
+
+**Files Removed:**
+1. `netlify.toml` - Netlify configuration file
+
+**Reason for Removal:**
+The project uses Google Cloud Run as its primary deployment platform with extensive documentation in:
+- `CLOUD_RUN_DEPLOYMENT.md`
+- `DEPLOY_FIXED.md`
+- `cloudbuild.yaml` and `cloudbuild.prod.yaml`
+
+Netlify configuration was present but never used, so it has been removed to keep the project clean.
+
+---
+
 ## 🔓 Public Problem Browsing - October 27, 2025
 
 ### Feature: Browse Problems Without Login
