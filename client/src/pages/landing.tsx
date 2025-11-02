@@ -176,7 +176,7 @@ export default function Landing() {
   return (
     <div className="bg-background">
       <nav className="absolute top-4 left-6 text-sm uppercase tracking-wider text-foreground/70 font-serif z-50">
-        SQLGym
+        GymSql
       </nav>
 
       <section className="relative h-screen flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#FDF6EC] to-[#F8E0C0] overflow-hidden">
@@ -219,7 +219,7 @@ export default function Landing() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Login to SQLGym</DialogTitle>
+                <DialogTitle>Login to GymSql</DialogTitle>
               </DialogHeader>
               <Form {...loginForm}>
                 <form
@@ -319,7 +319,7 @@ export default function Landing() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Join SQLGym</DialogTitle>
+                <DialogTitle>Join GymSql</DialogTitle>
               </DialogHeader>
               <Form {...registerForm}>
                 <form

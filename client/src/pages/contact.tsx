@@ -31,7 +31,7 @@ export default function ContactPage() {
 
   useEffect(() => {
     // Set page title and meta description for SEO
-    document.title = "Contact Us | SQLGym";
+    document.title = "Contact Us | GymSql";
     
     let metaDescription = document.querySelector('meta[name="description"]');
     if (!metaDescription) {
@@ -39,7 +39,7 @@ export default function ContactPage() {
       metaDescription.setAttribute('name', 'description');
       document.head.appendChild(metaDescription);
     }
-    metaDescription.setAttribute('content', "Get in touch with the SQLGym team. We're here to help with questions, feedback, and support.");
+    metaDescription.setAttribute('content', "Get in touch with the GymSql team. We're here to help with questions, feedback, and support.");
 
     // Add Open Graph tags for social sharing
     let ogTitle = document.querySelector('meta[property="og:title"]');
@@ -48,7 +48,7 @@ export default function ContactPage() {
       ogTitle.setAttribute('property', 'og:title');
       document.head.appendChild(ogTitle);
     }
-    ogTitle.setAttribute('content', "Contact Us | SQLGym");
+    ogTitle.setAttribute('content', "Contact Us | GymSql");
 
     let ogDescription = document.querySelector('meta[property="og:description"]');
     if (!ogDescription) {
@@ -56,7 +56,7 @@ export default function ContactPage() {
       ogDescription.setAttribute('property', 'og:description');
       document.head.appendChild(ogDescription);
     }
-    ogDescription.setAttribute('content', "Get in touch with the SQLGym team. We're here to help with questions, feedback, and support.");
+    ogDescription.setAttribute('content', "Get in touch with the GymSql team. We're here to help with questions, feedback, and support.");
   }, []);
 
   const contactMutation = useMutation({

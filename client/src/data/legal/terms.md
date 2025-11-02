@@ -2,15 +2,15 @@
 
 **Last Updated: November 2, 2025**
 
-Welcome to SQLGym ("we," "our," or "us"). By accessing or using our SQL training platform, you agree to be bound by these Terms and Conditions.
+Welcome to GymSql ("we," "our," or "us"). By accessing or using our SQL training platform, you agree to be bound by these Terms and Conditions.
 
 ## 1. Acceptance of Terms
 
-By creating an account or using SQLGym, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions and our Privacy Policy.
+By creating an account or using GymSql, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions and our Privacy Policy.
 
 ## 2. Description of Service
 
-SQLGym provides an interactive platform for learning and practicing SQL through:
+GymSql provides an interactive platform for learning and practicing SQL through:
 - SQL problem sets and challenges
 - Code execution environment
 - Progress tracking and analytics
@@ -43,7 +43,7 @@ You agree NOT to:
 ## 5. Intellectual Property
 
 ### 5.1 Our Content
-- All problems, solutions, and platform content are owned by SQLGym or our licensors
+- All problems, solutions, and platform content are owned by GymSql or our licensors
 - You may not reproduce, distribute, or create derivative works without permission
 - Our trademarks and branding may not be used without prior written consent
 
@@ -55,7 +55,7 @@ You agree NOT to:
 ## 6. Premium Features and Billing
 
 ### 6.1 Free Tier
-- SQLGym offers free access to basic features
+- GymSql offers free access to basic features
 - We reserve the right to modify free tier limitations at any time
 
 ### 6.2 Premium Subscription (if applicable)
@@ -71,14 +71,14 @@ You agree NOT to:
 
 ## 8. Privacy and Data
 
-- Your use of SQLGym is subject to our Privacy Policy
+- Your use of GymSql is subject to our Privacy Policy
 - We collect and process data as described in our Privacy Policy
 - You consent to our use of cookies and similar technologies
 
 ## 9. Disclaimers and Limitations of Liability
 
 ### 9.1 Service Availability
-- SQLGym is provided "as is" without warranties of any kind
+- GymSql is provided "as is" without warranties of any kind
 - We do not guarantee uninterrupted or error-free service
 - We may modify or discontinue features at any time
 
@@ -89,7 +89,7 @@ You agree NOT to:
 
 ## 10. Educational Use
 
-- SQLGym is designed for educational purposes
+- GymSql is designed for educational purposes
 - Users are responsible for ensuring their use complies with academic integrity policies
 - We are not responsible for how users apply knowledge gained from our platform
 
@@ -112,8 +112,8 @@ These Terms are governed by the laws of [Your Jurisdiction], without regard to c
 ## 14. Contact Information
 
 If you have questions about these Terms, please contact us at:
-- Email: [support@sqlgym.com]
-- Website: [https://sqlgym.com/contact]
+- Email: [support@gymsql.com]
+- Website: [https://gymsql.com/contact]
 
 ---
 

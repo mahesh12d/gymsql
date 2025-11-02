@@ -5,7 +5,7 @@ export default function PrivacyPage() {
   return (
     <LegalLayout
       title="Privacy Policy"
-      description="Learn how SQLGym collects, uses, and protects your personal information."
+      description="Learn how GymSql collects, uses, and protects your personal information."
       content={privacyContent}
     />
   );

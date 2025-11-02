@@ -97,18 +97,18 @@ export default function Footer() {
               Join our community and start mastering SQL today.
             </p>
             <a 
-              href="mailto:support@sqlgym.com" 
+              href="mailto:support@gymsql.com" 
               className="text-sm text-primary hover:underline"
               data-testid="link-footer-email"
             >
-              support@sqlgym.com
+              support@gymsql.com
             </a>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground" data-testid="text-copyright">
-            © {currentYear} SQLGym. All rights reserved.
+            © {currentYear} GymSql. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Made with ❤️ for SQL learners everywhere

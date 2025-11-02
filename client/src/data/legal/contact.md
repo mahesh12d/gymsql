@@ -8,21 +8,21 @@ We'd love to hear from you! Whether you have questions, feedback, or need suppor
 
 ### 📧 Email Support
 For general inquiries and support:
-**[support@sqlgym.com]**
+**[support@gymsql.com]**
 
 We typically respond within 24-48 hours during business days.
 
 ### 🔒 Privacy & Legal
 For privacy concerns or legal matters:
-**[legal@sqlgym.com]**
+**[legal@gymsql.com]**
 
 ### 💼 Business & Partnerships
 For business inquiries, partnerships, or enterprise solutions:
-**[business@sqlgym.com]**
+**[business@gymsql.com]**
 
 ### 🐛 Bug Reports
 Found a bug? Help us improve by reporting it:
-**[bugs@sqlgym.com]**
+**[bugs@gymsql.com]**
 
 Please include:
 - Description of the issue
@@ -79,16 +79,16 @@ A: Please see our Terms and Conditions for our refund policy.
 
 Connect with us on social media for updates, tips, and community discussions:
 
-- Twitter/X: [@sqlgym]
-- LinkedIn: [SQLGym Official]
-- GitHub: [github.com/sqlgym]
+- Twitter/X: [@gymsql]
+- LinkedIn: [GymSql Official]
+- GitHub: [github.com/gymsql]
 - Discord: [Join our community server]
 
 ---
 
 ## Mailing Address
 
-**SQLGym**
+**GymSql**
 [Your Company Name]
 [Street Address]
 [City, State ZIP Code]
@@ -99,7 +99,7 @@ Connect with us on social media for updates, tips, and community discussions:
 ## Report Abuse
 
 If you encounter inappropriate content or behavior on our platform:
-**[abuse@sqlgym.com]**
+**[abuse@gymsql.com]**
 
 We take all reports seriously and will investigate promptly.
 

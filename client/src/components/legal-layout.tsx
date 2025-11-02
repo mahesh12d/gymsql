@@ -20,7 +20,7 @@ export default function LegalLayout({
 }: LegalLayoutProps) {
   useEffect(() => {
     // Set page title and meta description for SEO
-    document.title = `${title} | SQLGym`;
+    document.title = `${title} | GymSql`;
     
     // Update meta description
     let metaDescription = document.querySelector('meta[name="description"]');
@@ -38,7 +38,7 @@ export default function LegalLayout({
       ogTitle.setAttribute('property', 'og:title');
       document.head.appendChild(ogTitle);
     }
-    ogTitle.setAttribute('content', `${title} | SQLGym`);
+    ogTitle.setAttribute('content', `${title} | GymSql`);
 
     let ogDescription = document.querySelector('meta[property="og:description"]');
     if (!ogDescription) {

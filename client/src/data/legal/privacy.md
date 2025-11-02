@@ -2,7 +2,7 @@
 
 **Last Updated: November 2, 2025**
 
-SQLGym ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our SQL training platform.
+GymSql ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our SQL training platform.
 
 ## 1. Information We Collect
 
@@ -74,7 +74,7 @@ Depending on your location, you may have rights to:
 - **Opt-Out**: Unsubscribe from marketing communications
 - **Object**: Object to certain data processing activities
 
-**To exercise these rights**, contact us at [privacy@sqlgym.com]
+**To exercise these rights**, contact us at [privacy@gymsql.com]
 
 ## 6. Cookies and Tracking Technologies
 
@@ -97,7 +97,7 @@ However, no system is 100% secure. We cannot guarantee absolute security.
 
 ## 8. Children's Privacy
 
-SQLGym is not intended for children under 13. We do not knowingly collect information from children under 13. If you believe we have inadvertently collected such information, please contact us immediately.
+GymSql is not intended for children under 13. We do not knowingly collect information from children under 13. If you believe we have inadvertently collected such information, please contact us immediately.
 
 ## 9. International Data Transfers
 
@@ -120,7 +120,7 @@ California residents have additional rights:
 EU/EEA residents have rights under GDPR:
 - Legal basis for processing (consent, contract, legitimate interest)
 - Right to lodge a complaint with supervisory authority
-- Data Protection Officer contact: [dpo@sqlgym.com]
+- Data Protection Officer contact: [dpo@gymsql.com]
 
 ## 13. Changes to Privacy Policy
 
@@ -133,9 +133,9 @@ We may update this Privacy Policy from time to time. We will:
 
 For privacy questions or to exercise your rights, contact us at:
 
-- **Email**: [privacy@sqlgym.com]
-- **Support Email**: [support@sqlgym.com]
-- **Website**: [https://sqlgym.com/contact]
+- **Email**: [privacy@gymsql.com]
+- **Support Email**: [support@gymsql.com]
+- **Website**: [https://gymsql.com/contact]
 - **Mailing Address**: [Your Company Address]
 
 ---

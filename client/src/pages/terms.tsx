@@ -5,7 +5,7 @@ export default function TermsPage() {
   return (
     <LegalLayout
       title="Terms and Conditions"
-      description="Read SQLGym's Terms and Conditions governing the use of our SQL training platform."
+      description="Read GymSql's Terms and Conditions governing the use of our SQL training platform."
       content={termsContent}
     />
   );

@@ -1,19 +1,19 @@
-# About SQLGym
+# About GymSql
 
 ## The SQL Training Gymnasium
 
-Welcome to **SQLGym** - your ultimate destination for mastering SQL through hands-on practice and real-world challenges.
+Welcome to **GymSql** - your ultimate destination for mastering SQL through hands-on practice and real-world challenges.
 
 ## Our Mission
 
-At SQLGym, we believe that the best way to learn SQL is by doing. Our mission is to transform aspiring data professionals into confident SQL experts through:
+At GymSql, we believe that the best way to learn SQL is by doing. Our mission is to transform aspiring data professionals into confident SQL experts through:
 
 - **Practical, hands-on learning** that mirrors real-world scenarios
 - **Progressive difficulty levels** that grow with your skills
 - **Instant feedback** on every query you write
 - **Community-driven learning** with peers who share your goals
 
-## What Makes SQLGym Different
+## What Makes GymSql Different
 
 ### 🎯 Real-World Problems
 Our SQL challenges are inspired by actual interview questions and real database scenarios used at top companies. You're not just learning syntax—you're learning how professionals think about data.
@@ -32,7 +32,7 @@ Learn together with thousands of SQL enthusiasts. Share solutions, discuss appro
 
 ## Our Story
 
-SQLGym was born from a simple observation: traditional SQL courses teach theory, but employers want practical skills. We saw talented developers struggle in technical interviews not because they didn't understand SQL, but because they lacked practice with real-world problems.
+GymSql was born from a simple observation: traditional SQL courses teach theory, but employers want practical skills. We saw talented developers struggle in technical interviews not because they didn't understand SQL, but because they lacked practice with real-world problems.
 
 We set out to bridge that gap by creating a platform that combines:
 - The rigor of coding interview platforms
@@ -42,7 +42,7 @@ We set out to bridge that gap by creating a platform that combines:
 
 ## The Technology
 
-SQLGym runs on a modern, production-grade technology stack:
+GymSql runs on a modern, production-grade technology stack:
 
 - **Frontend**: React with TypeScript for a responsive, interactive experience
 - **Backend**: FastAPI (Python) for high-performance API endpoints
@@ -52,7 +52,7 @@ SQLGym runs on a modern, production-grade technology stack:
 
 ## Who We Serve
 
-SQLGym is designed for:
+GymSql is designed for:
 
 - **Job Seekers**: Preparing for data analyst, data engineer, or backend developer interviews
 - **Students**: Learning SQL for coursework or personal development
@@ -72,7 +72,7 @@ We're committed to:
 
 ## Join Our Community
 
-SQLGym is more than a learning platform—it's a community of SQL enthusiasts helping each other grow. Whether you're taking your first steps with SELECT statements or optimizing complex joins, you belong here.
+GymSql is more than a learning platform—it's a community of SQL enthusiasts helping each other grow. Whether you're taking your first steps with SELECT statements or optimizing complex joins, you belong here.
 
 ## Team
 
@@ -86,7 +86,7 @@ We love hearing from our users! Whether you have:
 - Questions about the platform
 - Partnership opportunities
 
-Reach out to us at [support@sqlgym.com] or use our [Contact page](/contact).
+Reach out to us at [support@gymsql.com] or use our [Contact page](/contact).
 
 ---
 
