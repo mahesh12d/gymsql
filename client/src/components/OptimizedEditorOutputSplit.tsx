@@ -1,9 +1,14 @@
 import { memo, useState, useCallback } from "react";
+import { useLocation } from "wouter";
+import { LogIn, Lock, Play, CheckCircle } from "lucide-react";
 import EditorHeader from "@/components/EditorHeader";
 import CodeEditor from "@/components/CodeEditor";
 import OutputPanel from "@/components/OutputPanel";
 import SubmissionResultPanel from "@/components/SubmissionResultPanel";
 import VerticalResizableSplitter from "@/components/vertical-resizable-splitter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Problem {
   company?: string;
@@ -45,6 +50,8 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   onCompanyClick,
   className,
 }: OptimizedEditorOutputSplitProps) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [result, setResult] = useState<QueryResult | null>(null);
   const [submissionResult, setSubmissionResult] = useState<any | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -106,6 +113,73 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
     [handleSubmitSolution],
   );
 
+  // Login prompt panel for unauthenticated users
+  const loginPromptPanel = (
+    <div className="h-full flex flex-col">
+      <EditorHeader
+        company={selectedCompany}
+        difficulty={selectedDifficulty}
+        onCompanyClick={onCompanyClick}
+        onDifficultyClick={onDifficultyClick}
+        problem={problem}
+      />
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-muted/30">
+        <Card className="max-w-md mx-4 shadow-lg border-2">
+          <CardContent className="pt-8 pb-8 px-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Lock className="w-8 h-8 text-primary" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-foreground">Sign in to Code</h3>
+                <p className="text-muted-foreground text-sm">
+                  Create a free account to write and test SQL queries, submit solutions, and track your progress.
+                </p>
+              </div>
+              <div className="space-y-3 pt-2">
+                <div className="flex items-start gap-3 text-left">
+                  <Play className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">Run & Test Your Code</p>
+                    <p className="text-xs text-muted-foreground">Execute SQL queries and see results instantly</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 text-left">
+                  <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">Submit Solutions</p>
+                    <p className="text-xs text-muted-foreground">Get instant feedback and track your submissions</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 text-left">
+                  <LogIn className="w-5 h-5 text-purple-600 dark:text-purple-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">Track Your Progress</p>
+                    <p className="text-xs text-muted-foreground">Monitor your learning journey and achievements</p>
+                  </div>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setLocation("/")}
+                className="w-full mt-4"
+                size="lg"
+                data-testid="button-login-to-code"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In to Start Coding
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Free forever • No credit card required
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
   // Editor panel with header
   const editorPanel = (
     <div className="h-full flex flex-col">
@@ -140,6 +214,11 @@ const OptimizedEditorOutputSplit = memo(function OptimizedEditorOutputSplit({
   ) : (
     <OutputPanel result={result} isLoading={isRunning} />
   );
+
+  // Show login prompt for unauthenticated users
+  if (!user) {
+    return <div className={`h-full ${className || ""}`}>{loginPromptPanel}</div>;
+  }
 
   // Show resizable layout when output is visible, otherwise show just the editor
   if (showOutput) {

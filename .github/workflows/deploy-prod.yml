@@ -13,9 +13,36 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
+  check-changes:
+    name: Check what changed
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'api/**'
+              - 'Dockerfile'
+              - 'requirements.txt'
+            frontend:
+              - 'client/**'
+              - 'shared/**'
+              - 'package.json'
+              - 'vite.config.ts'
+
   deploy-backend:
     name: Deploy Backend to Cloud Run (Production)
     runs-on: ubuntu-latest
+    needs: check-changes
+    if: needs.check-changes.outputs.backend == 'true'
     
     steps:
       - name: Checkout code
@@ -37,7 +64,7 @@ jobs:
           docker build \
             -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:${{ github.sha }} \
             -t gcr.io/${{ env.GCP_PROJECT_ID }}/sqlgym-backend-prod:latest \
-            -f Dockerfile.prod \
+            -f Dockerfile \
             .
 
       - name: Push Docker image to GCR
@@ -74,7 +101,8 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend to Vercel (Production)
     runs-on: ubuntu-latest
-    needs: deploy-backend
+    needs: [check-changes, deploy-backend]
+    if: always() && needs.check-changes.outputs.frontend == 'true'
     
     steps:
       - name: Checkout code
@@ -93,7 +121,7 @@ jobs:
 
       - name: Build Project Artifacts
         env:
-          VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+          VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url || secrets.PROD_BACKEND_URL }}
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy to Vercel Production
@@ -107,9 +135,10 @@ jobs:
           script: |
             const fs = require('fs');
             const url = fs.readFileSync('deployment-url.txt', 'utf8').trim();
+            const backendUrl = '${{ needs.deploy-backend.outputs.backend_url }}' || 'No backend changes';
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `🎉 **Production Deployment Successful!**\n\n**Backend:** ${{ needs.deploy-backend.outputs.backend_url }}\n**Frontend:** ${url}`
+              body: `🎉 **Production Deployment Successful!**\n\n**Backend:** ${backendUrl}\n**Frontend:** ${url}`
             });

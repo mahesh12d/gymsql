@@ -192,6 +192,16 @@ export default function Landing() {
         </h1>
 
         <div className="relative z-10 flex gap-4 mb-8">
+          <Button 
+            variant="outline" 
+            size="lg"
+            className="bg-white/80 hover:bg-white border-2 border-foreground/20 font-serif"
+            onClick={() => setLocation("/problems")}
+            data-testid="button-browse-problems"
+          >
+            Browse Problems
+          </Button>
+
           <Dialog open={isLoginOpen} onOpenChange={(open) => {
             setIsLoginOpen(open);
             if (open) setLoginError("");
