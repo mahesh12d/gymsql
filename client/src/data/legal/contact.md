@@ -1,113 +1,114 @@
-# Contact Us
+# About GymSql  
+### The SQL Training Gymnasium
+
+Welcome to **GymSql** — your ultimate destination for mastering SQL through hands-on practice and real-world challenges.
+
+---
+
+## Our Mission
+We believe the best way to learn SQL is by doing.  
+Our mission is to transform aspiring data professionals into confident SQL experts through:
+
+- Practical, real-world problem solving  
+- Progressive difficulty levels  
+- Instant feedback on every query  
+- A supportive, collaborative community  
+
+---
+
+## What Makes GymSql Different
+
+ **Real-World Challenges**  
+Every question is inspired by actual interview problems and real database scenarios used at top companies.
+
+ **Instant Execution Environment**  
+Write and run SQL directly in your browser.  
+No setup. No installation. Just pure learning.
+
+ **Track Your Growth**  
+Visual analytics show your improvements, strengths, and concepts to revisit.
+
+ **Gamified Learning**  
+Earn badges, hit milestones, and climb the leaderboard as your skills grow.
+
+ **Community Support**  
+Discuss solutions, learn new techniques, and grow with fellow SQL learners worldwide.
+
+---
+
+## Our Story
+GymSql was created from a simple realization:
+
+> **People don’t fail SQL interviews because they don’t understand SQL —  
+> they fail because they don’t practice enough real-world SQL.**
+
+We set out to bridge that gap by building a platform where anyone can:
+
+- Practice interview-style problems
+- Think like data professionals
+- Gain confidence in real database scenarios
+- Continuously improve with measurable progress
+
+GymSql is built **by data engineers for data learners** — and we’re just getting started.
+
+---
+
+## Technology Behind GymSql
+A modern, production-grade architecture powers your learning experience:
+
+- **Frontend:** React + TypeScript  
+- **Backend:** FastAPI (Python)  
+- **Database:** PostgreSQL  
+- **Execution Engine:** Secure DuckDB sandboxes  
+- **Infrastructure:** Scalable deployment on Google Cloud Run  
+
+---
+
+## Who We Serve
+GymSql is designed for:
+
+- 🎓 Students learning SQL for academics or projects  
+- 🚀 Job seekers preparing for interviews  
+- 🧑‍💻 Data analysts & engineers enhancing skills  
+- 🔄 Career changers entering data roles  
+- 🏫 Bootcamp graduates seeking practical practice  
+
+If SQL is part of your future — **GymSql is for you**.
+
+---
+
+## Our Commitment
+We promise to keep:
+
+✅ High-quality, well-tested problems  
+✅ Core learning features free for everyone  
+✅ Your privacy and data secure  
+✅ New content and features released regularly  
+✅ A responsive support experience whenever you need help  
+
+---
+
+## Join the Community
+GymSql isn’t just a platform —  
+it’s a place where SQL learners train together and level up together.
+
+Whether you're writing your first `SELECT` query  
+or optimizing complex joins…
+
+**You belong here.**
+
+---
 
 ## Get In Touch
+Have feedback, ideas, or partnership opportunities?  
+We’d love to hear from you!
 
-We'd love to hear from you! Whether you have questions, feedback, or need support, our team is here to help.
-
-## Contact Methods
-
-### 📧 Email Support
-For general inquiries and support:
-**[support@gymsql.com]**
-
-We typically respond within 24-48 hours during business days.
-
-### 🔒 Privacy & Legal
-For privacy concerns or legal matters:
-**[legal@gymsql.com]**
-
-### 💼 Business & Partnerships
-For business inquiries, partnerships, or enterprise solutions:
-**[business@gymsql.com]**
-
-### 🐛 Bug Reports
-Found a bug? Help us improve by reporting it:
-**[bugs@gymsql.com]**
-
-Please include:
-- Description of the issue
-- Steps to reproduce
-- Browser and device information
-- Screenshots if applicable
+📩 support@gymsql.com  
+🌐 Visit our Contact page
 
 ---
 
-## Use Our Contact Form
+## Ready to start your SQL journey?
+Create your free account today, and start your first SQL workout now! 💪📊
 
-Can't find what you're looking for? Send us a message using the form below, and we'll get back to you as soon as possible.
-
-[Contact form will appear below]
-
----
-
-## Frequently Asked Questions
-
-Before contacting us, check if your question is answered in our FAQ:
-
-### Account Issues
-**Q: I forgot my password. How do I reset it?**
-A: Click "Forgot Password" on the login page to receive a reset link via email.
-
-**Q: Can I change my email address?**
-A: Yes, you can update your email in your profile settings.
-
-### Technical Issues
-**Q: My code isn't running. What should I do?**
-A: Check the error message, ensure your SQL syntax is correct, and verify you're using supported SQL features.
-
-**Q: Why can't I access premium problems?**
-A: Premium problems require a paid subscription or specific access permissions.
-
-### Billing & Subscriptions
-**Q: How do I cancel my subscription?**
-A: You can cancel anytime from your account settings under "Subscription."
-
-**Q: Do you offer refunds?**
-A: Please see our Terms and Conditions for our refund policy.
-
----
-
-## Office Hours (if applicable)
-
-**Support Team Availability:**
-- Monday - Friday: 9:00 AM - 6:00 PM [Your Timezone]
-- Saturday - Sunday: Limited support
-
----
-
-## Social Media
-
-Connect with us on social media for updates, tips, and community discussions:
-
-- Twitter/X: [@gymsql]
-- LinkedIn: [GymSql Official]
-- GitHub: [github.com/gymsql]
-- Discord: [Join our community server]
-
----
-
-## Mailing Address
-
-**GymSql**
-[Your Company Name]
-[Street Address]
-[City, State ZIP Code]
-[Country]
-
----
-
-## Report Abuse
-
-If you encounter inappropriate content or behavior on our platform:
-**[abuse@gymsql.com]**
-
-We take all reports seriously and will investigate promptly.
-
----
-
-**Note to Owner:** Please customize this template with:
-1. Your actual support email addresses
-2. Your company's physical mailing address
-3. Your social media handles
-4. Your support hours and timezone
-5. Any specific contact preferences or SLA commitments
+👉 **Sign Up — It’s Free!**
