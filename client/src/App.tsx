@@ -10,7 +10,6 @@ import Home from "@/pages/home";
 import Problems from "@/pages/problems";
 import ProblemDetail from "@/pages/problem-detail";
 import Leaderboard from "@/pages/leaderboard";
-import Community from "@/pages/community";
 import Submissions from "@/pages/submissions";
 import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
@@ -69,7 +68,6 @@ function AppRouter() {
             <Route path="/">{() => <Redirect to="/home" />}</Route>
             <Route path="/home" component={Home} />
             <Route path="/leaderboard" component={Leaderboard} />
-            <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
             <Route path="/profile" component={Profile} />
           </>

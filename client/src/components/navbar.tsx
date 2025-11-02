@@ -23,7 +23,6 @@ export default function Navbar() {
     { href: '/', label: 'Home' },
     { href: '/problems', label: 'Problems' },
     { href: '/leaderboard', label: 'Leaderboard' },
-    { href: '/community', label: 'Community' },
     { href: '/submissions', label: 'Submissions' },
   ];
 

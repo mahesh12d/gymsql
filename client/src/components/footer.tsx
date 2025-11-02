@@ -78,11 +78,11 @@ export default function Footer() {
               </li>
               <li>
                 <Link 
-                  href="/community"
+                  href="/leaderboard"
                   className="text-muted-foreground hover:text-primary transition-colors"
-                  data-testid="link-footer-community"
+                  data-testid="link-footer-leaderboard"
                 >
-                  Community
+                  Leaderboard
                 </Link>
               </li>
             </ul>
