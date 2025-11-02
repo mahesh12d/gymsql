@@ -446,36 +446,6 @@ export default function Landing() {
           </Dialog>
         </div>
 
-        <div className="absolute bottom-8 flex flex-wrap justify-center gap-6 text-sm text-foreground/70 font-serif">
-          <Link 
-            href="/terms" 
-            className="hover:text-primary transition-colors"
-            data-testid="link-terms"
-          >
-            /terms - Terms and Conditions
-          </Link>
-          <Link 
-            href="/privacy" 
-            className="hover:text-primary transition-colors"
-            data-testid="link-privacy"
-          >
-            /privacy - Privacy Policy
-          </Link>
-          <Link 
-            href="/about" 
-            className="hover:text-primary transition-colors"
-            data-testid="link-about"
-          >
-            /about - About Us
-          </Link>
-          <Link 
-            href="/contact" 
-            className="hover:text-primary transition-colors"
-            data-testid="link-contact"
-          >
-            /contact - Contact form
-          </Link>
-        </div>
       </section>
       
       <Footer />
