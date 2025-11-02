@@ -21,7 +21,7 @@ from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       SubmissionResponse, DetailedSubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
                       PostCommentResponse, SolutionResponse, QuestionData,
-                      VerifyCodeRequest, ResendVerificationRequest)
+                      VerifyCodeRequest, ResendVerificationRequest, ContactRequest)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
@@ -554,6 +554,61 @@ def resend_verification_email(request: ResendVerificationRequest, db: Session = 
         )
     
     return {"message": "Verification code sent successfully"}
+
+
+@app.post("/api/contact")
+def submit_contact_form(request: ContactRequest, db: Session = Depends(get_db)):
+    """Handle contact form submissions"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Log the contact request (for now, we'll just log it)
+    logger.info(f"Contact form submission from {request.email}: {request.subject}")
+    
+    # In a production environment, you would:
+    # 1. Save to database for record-keeping
+    # 2. Send email notification to support team
+    # 3. Send confirmation email to user
+    
+    # For now, we'll use the email service if available
+    try:
+        from .email_service import send_email
+        
+        # Send notification to support team
+        support_email = os.getenv("SUPPORT_EMAIL", "support@sqlgym.com")
+        
+        email_body = f"""
+New Contact Form Submission
+
+From: {request.name} ({request.email})
+Subject: {request.subject}
+
+Message:
+{request.message}
+
+---
+Sent from SQLGym Contact Form
+"""
+        
+        # Try to send email (will fail gracefully if not configured)
+        try:
+            send_email(
+                to_email=support_email,
+                subject=f"Contact Form: {request.subject}",
+                body=email_body
+            )
+        except Exception as e:
+            logger.warning(f"Could not send contact email: {e}")
+            # Continue anyway - we've logged the request
+        
+    except ImportError:
+        # Email service not available, just log
+        pass
+    
+    return {
+        "message": "Thank you for contacting us! We'll get back to you within 24-48 hours.",
+        "success": True
+    }
 
 
 # Problem endpoints

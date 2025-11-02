@@ -25,6 +25,7 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { authApi } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import Footer from "@/components/footer";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -452,6 +453,8 @@ export default function Landing() {
           <span>1-800-SQLPOWER</span>
         </div>
       </section>
+      
+      <Footer />
     </div>
   );
 }

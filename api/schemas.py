@@ -104,6 +104,12 @@ class VerifyCodeRequest(CamelCaseModel):
 class ResendVerificationRequest(CamelCaseModel):
     email: EmailStr
 
+class ContactRequest(CamelCaseModel):
+    name: str
+    email: EmailStr
+    subject: str
+    message: str
+
 # Table column definition for structured display
 class TableColumn(BaseModel):
     name: str

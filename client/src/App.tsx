@@ -16,6 +16,10 @@ import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import VerifyEmail from "@/pages/verify-email";
+import TermsPage from "@/pages/terms";
+import PrivacyPage from "@/pages/privacy";
+import AboutPage from "@/pages/about";
+import ContactPage from "@/pages/contact";
 import Navbar from "@/components/navbar";
 function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,6 +47,12 @@ function AppRouter() {
       <Switch>
         {/* Admin panel is always accessible (uses its own authentication) */}
         <Route path="/admin-panel" component={AdminPanel} />
+        
+        {/* Legal and informational pages are accessible to everyone */}
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/about" component={AboutPage} />
+        <Route path="/contact" component={ContactPage} />
         
         {/* Problems routes are accessible to everyone */}
         <Route path="/problems" component={Problems} />
