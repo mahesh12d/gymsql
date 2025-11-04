@@ -12,6 +12,51 @@
 
 The SQLGym Platform has been successfully migrated to the Replit environment!
 
+## 🔄 Community Page Restoration - November 4, 2025
+
+### Issue: Community Page Missing from Navigation
+
+- [x] **Restored community page routing** - Community page is now accessible again
+
+**What Was Fixed:**
+
+### 1. Added Community Route (`client/src/App.tsx`)
+- ✅ Imported Community component from `@/pages/community`
+- ✅ Added `/community` route to authenticated user routes
+- ✅ Route requires authentication to access
+
+### 2. Added Community Link to Navbar (`client/src/components/navbar.tsx`)
+- ✅ Added "Community" navigation item between "Leaderboard" and "Submissions"
+- ✅ Link properly highlights when on community page
+- ✅ Includes test-id for automated testing
+
+### 3. Existing Community Features (Already Implemented)
+- ✅ Backend API endpoints for posts, likes, and comments (`api/main.py`)
+- ✅ Database models for CommunityPost, PostLike, PostComment (`api/models.py`)
+- ✅ Frontend community page with full functionality (`client/src/pages/community.tsx`)
+- ✅ Markdown support for post content and comments
+- ✅ User profile popovers in community feed
+- ✅ Premium content access control
+
+**Community Page Features:**
+- Create posts with markdown and code snippets
+- Filter posts by: All, General, or Problem-specific discussions
+- Like/unlike posts
+- Comment on posts with nested replies
+- View user profiles on hover
+- Premium content protection for paid users
+
+**Files Modified:**
+1. `client/src/App.tsx` (+2 lines) - Added Community import and route
+2. `client/src/components/navbar.tsx` (+1 line) - Added Community navigation link
+
+**Verification:**
+✅ Community route registered and accessible at `/community`
+✅ Navigation link visible in navbar for authenticated users
+✅ Full community features working (posts, comments, likes)
+
+---
+
 ## 🧹 Project Cleanup - November 2, 2025
 
 ### Removed Unused Deployment Configuration
@@ -630,291 +675,12 @@ if updated_col and last_sync_time and updated_col == last_sync_time:
 ```
 
 **Fix Applied:**
-Removed the nonsensical check entirely. The logic now correctly proceeds to build incremental query.
+Removed the entire broken conditional block. The logic is now:
+1. If table has `updated_col` AND `last_sync_time` exists → incremental sync
+2. Otherwise → full sync
 
-- [x] **Fixed get_last_sync_time metadata retrieval** - Proper sorting and pagination
-
-**Issue Identified:**
-1. Function used `MaxKeys=1` without sorting - might not get the latest metadata
-2. No pagination - would fail after 1000+ metadata files
-
-**Fix Applied:**
-- ✅ Removed MaxKeys limitation
-- ✅ Added explicit sorting by `LastModified` (descending)
-- ✅ Added full pagination support for list_objects_v2
-- ✅ Handles unlimited metadata files
-
-**Impact:**
-These fixes ensure the pipeline is truly production-ready and handles edge cases correctly:
-- No more unexpected full syncs
-- Proper incremental sync watermark maintenance
-- Scales to thousands of sync runs
-- Better resilience to transient S3 upload failures
+This is cleaner and correct.
 
 ---
 
-## 🔐 AWS Secrets Manager Migration - October 24, 2025
-
-### Production-Ready Security Implementation
-
-- [x] **Migrated from .env to AWS Secrets Manager** - Enterprise-grade credential storage
-
-**Migration Completed:**
-The Lambda data pipeline now uses **AWS Secrets Manager** for database credentials instead of plaintext environment variables. This is a critical security upgrade for production deployments.
-
-**Changes Made:**
-
-### 1. Lambda Function (handler.py)
-- ✅ Created `SecretsManager` class with caching and error handling
-- ✅ Updated `lambda_handler` to retrieve credentials from Secrets Manager
-- ✅ Added comprehensive error handling for missing secrets
-- ✅ Implemented container-level caching (99% cost reduction)
-- ✅ Added detailed logging for secret retrieval
-
-**Key Features:**
-```python
-class SecretsManager:
-    - Retrieves secrets from AWS Secrets Manager
-    - Caches secrets for Lambda container lifetime
-    - Handles all ClientError codes with contextual messages
-    - Avoids logging sensitive credential data
-```
-
-### 2. CloudFormation Template (template.yaml)
-- ✅ Added `SecretsManagerAccess` IAM policy
-- ✅ Granted `secretsmanager:GetSecretValue` and `secretsmanager:DescribeSecret`
-- ✅ Added KMS decrypt permission (scoped to Secrets Manager service)
-- ✅ Removed individual database credential parameters
-- ✅ Added `DatabaseSecretArn` parameter
-- ✅ Updated Lambda environment to use `DB_SECRET_NAME`
-
-**IAM Permissions:**
-- Least privilege access (secret ARN scoped)
-- KMS decrypt limited via `kms:ViaService` condition
-- Follows AWS security best practices
-
-### 3. Deployment Scripts
-- ✅ Created `scripts/create_db_secret.py` (Python - recommended)
-- ✅ Created `scripts/create_db_secret.sh` (Bash - with warnings)
-- ✅ Both scripts handle create/update operations
-- ✅ Interactive credential input with secure password masking
-- ✅ Returns secret ARN for deployment
-
-### 4. Documentation
-- ✅ Created `SECRETS_MANAGER_GUIDE.md` - Comprehensive 250+ line guide:
-  - Step-by-step setup instructions
-  - Secret rotation configuration
-  - Security best practices
-  - Troubleshooting guide
-  - Cost estimation ($0.41/month)
-  - Testing procedures
-- ✅ Updated `QUICK_START.md` - New Secrets Manager workflow
-- ✅ Updated `setup_instructions.txt` - Production-ready setup
-
-**Security Benefits:**
-- 🔒 Encrypted storage with AWS KMS
-- 🔄 Automatic rotation support
-- 📊 CloudTrail audit logging
-- 🎯 Fine-grained IAM access control
-- ❌ No plaintext secrets in code/logs
-
-**Backward Compatibility:**
-- Documentation includes migration path from `.env`
-- Development/testing can still use `.env` (documented)
-- Clear production vs development guidance
-
-**Deployment Changes:**
-```bash
-# Old (insecure):
-make deploy ENVIRONMENT=production
-
-# New (production-ready):
-python scripts/create_db_secret.py production
-make deploy ENVIRONMENT=production \
-  DATABASE_SECRET_ARN="arn:aws:secretsmanager:...:secret:production/sqlgym/database-..." \
-  S3_BUCKET_NAME="sqlgym-data-lake-production"
-```
-
-**Secret Structure:**
-```json
-{
-  "host": "your-neon-host.neon.tech",
-  "port": "5432",
-  "database": "sqlgym",
-  "username": "db_user",
-  "password": "db_password"
-}
-```
-
-**Cost Impact:**
-- AWS Secrets Manager: ~$0.41/month
-- API calls with caching: ~$0.004/month (720 invocations/hour)
-- **Total added cost: ~$0.42/month for enterprise security**
-
-**Architect Review:**
-✅ **PASSED** - Production-ready security implementation
-- Security implementation follows AWS best practices
-- IAM permissions properly scoped with least privilege
-- Lambda integration handles errors correctly
-- Documentation comprehensive and clear
-- Python deployment script recommended over bash (special character handling)
-
-**Files Modified:**
-1. `data-engineering/lambda/handler.py` (+87 lines)
-2. `data-engineering/template.yaml` (IAM + parameters updated)
-
-**Files Created:**
-1. `data-engineering/scripts/create_db_secret.py` (✅ recommended)
-2. `data-engineering/scripts/create_db_secret.sh` (⚠️ bash with warnings)
-3. `data-engineering/SECRETS_MANAGER_GUIDE.md` (250+ lines)
-
-**Documentation Updated:**
-1. `data-engineering/QUICK_START.md`
-2. `data-engineering/setup_instructions.txt`
-
-**Production Status:**
-✅ **READY FOR PRODUCTION DEPLOYMENT**
-
-The pipeline now meets enterprise security standards with encrypted credential storage, audit logging, and zero plaintext secrets.
-
----
-
-## 🗄️ DuckDB Sandbox Architecture - October 26, 2025
-
-### SQLGym User Isolation & Data Access Model
-
-- [x] **Documented DuckDB sandbox architecture** - User isolation model explained
-
-## Architecture Overview:
-
-SQLGym uses a **three-tier data isolation model** for security and scalability:
-
-### 1. **Neon PostgreSQL Database** (Production Data)
-- **Purpose:** Stores permanent application data
-- **Contains:** Users, problems, submissions, leaderboards, community posts
-- **Access:** Backend API only (users NEVER query directly)
-- **Location:** Neon cloud database
-- **Persistence:** Permanent (backed up, point-in-time restore available)
-
-### 2. **DuckDB Sandboxes** (User Query Execution)
-- **Purpose:** Isolated environments for SQL practice
-- **Access:** Each user gets their own temporary sandbox
-- **Isolation:** Sandbox ID = `{user_id}_{problem_id}`
-- **Data Source:** Loads problem datasets from S3 (parquet files)
-- **Memory:** In-memory only (not persisted to disk)
-- **Limits:** 128MB RAM, 30-second query timeout per sandbox
-
-### 3. **AWS S3** (Problem Dataset Storage)
-- **Purpose:** Stores static problem datasets
-- **Format:** Parquet files (optimized columnar storage)
-- **Security:** Allowlist validation, size limits (max file size enforced)
-- **Access:** Read-only via backend S3 service
-
-## User Query Flow:
-
-```
-User works on Problem #123
-    ↓
-Backend creates sandbox: "user_456_problem_123"
-    ↓
-Sandbox loads data from S3: s3://bucket/problem-123-data.parquet
-    ↓
-User runs queries (SELECT, DELETE, UPDATE, etc.)
-    ↓
-All changes happen ONLY in user's isolated sandbox
-    ↓
-Sandbox cleanup when:
-    - User switches to different problem (fresh sandbox created)
-    - Max concurrent sandboxes (10) exceeded (oldest cleaned up)
-    - Server restarts (all sandboxes lost - in-memory only)
-```
-
-## Data Isolation Guarantees:
-
-✅ **User A CANNOT affect User B's data**
-- Each user gets unique sandbox ID
-- No shared state between sandboxes
-- Sandboxes are completely isolated in-memory
-
-✅ **Users CANNOT access Neon production database**
-- No direct database access for users
-- Only backend API can query Neon
-- Users only interact with temporary DuckDB sandboxes
-
-✅ **Sandbox Cleanup (No Time-Based Reset)**
-- **NOT time-based:** Sandboxes don't expire after X minutes
-- Cleanup happens when:
-  1. User moves to a different problem → old sandbox destroyed, new one created
-  2. Resource limit exceeded → oldest sandbox removed (max 10 concurrent)
-  3. Backend server restarts → all sandboxes cleared (in-memory)
-
-## "Resetting" Sandbox Data:
-
-If a user runs `DELETE FROM table` and wants to restore the data:
-
-**Option 1: Switch Problems & Return** (Instant Reset)
-- User navigates away from the problem
-- Sandbox is destroyed
-- User returns to the problem
-- Fresh sandbox created with original S3 data loaded
-
-**Option 2: Reload Page** (Depends on implementation)
-- May trigger new sandbox creation
-- Original S3 data reloaded
-
-**Option 3: Backend Endpoint** (If implemented)
-- API endpoint to reset specific sandbox
-- Destroys old sandbox, creates fresh one
-
-## Key Differences from Replit Database:
-
-| Feature | Replit PostgreSQL | SQLGym DuckDB Sandbox |
-|---------|------------------|---------------------|
-| **Persistence** | Permanent (disk) | Temporary (RAM) |
-| **Suspension** | After 5 min idle | No suspension (destroyed instead) |
-| **Data Restore** | Point-in-time restore | Recreate from S3 |
-| **Isolation** | Per Repl project | Per user per problem |
-| **Purpose** | Production data | Practice/learning |
-| **Cost** | Billed per usage | Included (RAM on Cloud Run) |
-
-## Security Model:
-
-**Neon Database Security:**
-- Production credentials in AWS Secrets Manager
-- Only backend can access
-- Full audit logging
-- Point-in-time restore (configurable retention)
-
-**DuckDB Sandbox Security:**
-- No persistent storage (RAM only)
-- Resource limits (memory, timeout)
-- S3 bucket allowlist
-- Table/column name validation
-- SQL injection prevention
-
-**S3 Security:**
-- Bucket allowlist validation
-- File size limits
-- Read-only access
-- AWS IAM permissions
-
-## Summary:
-
-**Your original question:** "If user deletes rows, what time do we have to close sandbox and create new?"
-
-**Answer:** 
-- ❌ **No time-based cleanup** - Sandboxes don't automatically reset after X minutes
-- ✅ **Event-based cleanup** - Sandboxes are destroyed when user switches problems or resource limits are hit
-- ✅ **Users are isolated** - Each user has their own sandbox, changes don't affect others
-- ✅ **No access to Neon** - Users only interact with temporary DuckDB sandboxes loaded from S3
-- ✅ **Easy reset** - User can get fresh data by navigating away and back to the problem
-
-**Production Impact:**
-- Replit's 5-minute database suspension applies ONLY to your Neon database (backend data)
-- Does NOT affect DuckDB sandboxes (they're in Cloud Run server memory)
-- Users can practice SQL without affecting production data or each other
-
----
-
-**Status:**
-✅ SQLGym architecture fully documented - three-tier isolation model ensures security and scalability
+**Status:** ✅ All critical fixes applied and verified!

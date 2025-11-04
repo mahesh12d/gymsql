@@ -13,6 +13,7 @@ import Leaderboard from "@/pages/leaderboard";
 import Submissions from "@/pages/submissions";
 import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
+import Community from "@/pages/community";
 import NotFound from "@/pages/not-found";
 import VerifyEmail from "@/pages/verify-email";
 import TermsPage from "@/pages/terms";
@@ -69,6 +70,7 @@ function AppRouter() {
             <Route path="/home" component={Home} />
             <Route path="/leaderboard" component={Leaderboard} />
             <Route path="/submissions" component={Submissions} />
+            <Route path="/community" component={Community} />
             <Route path="/profile" component={Profile} />
           </>
         )}
