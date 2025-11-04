@@ -1,7 +1,9 @@
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const { isAuthenticated } = useAuth();
 
   return (
     <footer className="border-t border-border bg-background dark:bg-background mt-auto">
@@ -76,15 +78,17 @@ export default function Footer() {
                   Browse Problems
                 </Link>
               </li>
-              <li>
-                <Link 
-                  href="/leaderboard"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                  data-testid="link-footer-leaderboard"
-                >
-                  Leaderboard
-                </Link>
-              </li>
+              {isAuthenticated && (
+                <li>
+                  <Link 
+                    href="/leaderboard"
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    data-testid="link-footer-leaderboard"
+                  >
+                    Leaderboard
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
