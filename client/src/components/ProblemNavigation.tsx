@@ -13,6 +13,7 @@ interface Problem {
   title?: string;
   likes?: number; // For backward compatibility
   upvotesCount?: number;
+  submissionsCount?: number; // Total number of submission attempts
   company?: string;
   difficulty?: string;
   premium?: boolean | null;
@@ -204,7 +205,7 @@ const ProblemNavigation = memo(function ProblemNavigation({
             <div className="flex items-center space-x-3 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Users className="h-3 w-3" />
-                <span>2.1k</span>
+                <span>{problem.submissionsCount || 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <ThumbsUp className="h-3 w-3" />
@@ -222,7 +223,7 @@ const ProblemNavigation = memo(function ProblemNavigation({
             <div className="flex items-center space-x-3 text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Users className="h-3 w-3" />
-                <span>2.1k</span>
+                <span>{problem.submissionsCount || 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <ThumbsUp className="h-3 w-3" />

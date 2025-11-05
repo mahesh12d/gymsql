@@ -160,6 +160,7 @@ class ProblemResponse(ProblemBase):
     id: str
     created_at: datetime
     solved_count: Optional[int] = 0
+    submissions_count: Optional[int] = 0  # Total number of submission attempts
     is_user_solved: Optional[bool] = False
     is_bookmarked: Optional[bool] = False
     is_liked: Optional[bool] = False  # For backward compatibility

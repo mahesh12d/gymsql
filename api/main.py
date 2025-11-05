@@ -621,14 +621,16 @@ def get_problems(
         premium: Optional[str] = Query(None),
         current_user: Optional[User] = Depends(get_current_user_optional),
         db: Session = Depends(get_db)):
-    # Base query with solved count
+    # Base query with solved count and total submissions count
     query = db.query(
         Problem,
         func.coalesce(
             func.count(
                 case((Submission.is_correct == True, Submission.user_id),
                      else_=None).distinct()),
-            0).label("solved_count")).outerjoin(Submission)
+            0).label("solved_count"),
+        func.coalesce(func.count(Submission.id), 0).label("submissions_count")
+    ).outerjoin(Submission)
 
     # Add user-specific solved status if authenticated
     if current_user:
@@ -662,7 +664,7 @@ def get_problems(
 
     # Format response
     problems = []
-    for problem, solved_count, is_user_solved in results:
+    for problem, solved_count, submissions_count, is_user_solved in results:
         # Handle JSON parsing for question field if it's a string
         import json
         if isinstance(problem.question, str):
@@ -678,6 +680,7 @@ def get_problems(
         
         problem_data = ProblemResponse.from_orm(problem)
         problem_data.solved_count = int(solved_count)
+        problem_data.submissions_count = int(submissions_count)
         problem_data.is_user_solved = bool(
             is_user_solved) if current_user else False
         
@@ -1068,6 +1071,19 @@ def get_problem(problem_id: str,
     
     # For backward compatibility, set likes_count = upvotes_count
     problem_data.likes_count = upvotes_count
+    
+    # Get total submissions count for this problem
+    submissions_count = db.query(Submission).filter(
+        Submission.problem_id == problem_id
+    ).count()
+    problem_data.submissions_count = submissions_count
+    
+    # Get solved count (distinct users who solved it)
+    solved_count = db.query(func.count(Submission.user_id.distinct())).filter(
+        Submission.problem_id == problem_id,
+        Submission.is_correct == True
+    ).scalar()
+    problem_data.solved_count = solved_count or 0
     
     # Use expected_display for user-facing expected output (separate from validation)
     if hasattr(problem, 'expected_display') and problem.expected_display is not None:
