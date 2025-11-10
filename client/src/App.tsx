@@ -10,12 +10,16 @@ import Home from "@/pages/home";
 import Problems from "@/pages/problems";
 import ProblemDetail from "@/pages/problem-detail";
 import Leaderboard from "@/pages/leaderboard";
-import Community from "@/pages/community";
 import Submissions from "@/pages/submissions";
 import AdminPanel from "@/pages/admin-panel";
 import Profile from "@/pages/profile";
+import Community from "@/pages/community";
 import NotFound from "@/pages/not-found";
 import VerifyEmail from "@/pages/verify-email";
+import TermsPage from "@/pages/terms";
+import PrivacyPage from "@/pages/privacy";
+import AboutPage from "@/pages/about";
+import ContactPage from "@/pages/contact";
 import Navbar from "@/components/navbar";
 function AppRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,7 +30,7 @@ function AppRouter() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading SQLGym...</p>
+          <p className="text-muted-foreground">Loading GymSql...</p>
         </div>
       </div>
     );
@@ -44,6 +48,12 @@ function AppRouter() {
         {/* Admin panel is always accessible (uses its own authentication) */}
         <Route path="/admin-panel" component={AdminPanel} />
         
+        {/* Legal and informational pages are accessible to everyone */}
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/about" component={AboutPage} />
+        <Route path="/contact" component={ContactPage} />
+        
         {/* Problems routes are accessible to everyone */}
         <Route path="/problems" component={Problems} />
         <Route path="/problems/:id" component={ProblemDetail} />
@@ -59,8 +69,8 @@ function AppRouter() {
             <Route path="/">{() => <Redirect to="/home" />}</Route>
             <Route path="/home" component={Home} />
             <Route path="/leaderboard" component={Leaderboard} />
-            <Route path="/community" component={Community} />
             <Route path="/submissions" component={Submissions} />
+            <Route path="/community" component={Community} />
             <Route path="/profile" component={Profile} />
           </>
         )}

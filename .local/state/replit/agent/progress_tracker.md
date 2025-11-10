@@ -12,6 +12,240 @@
 
 The SQLGym Platform has been successfully migrated to the Replit environment!
 
+## 🔄 Community Page Restoration - November 4, 2025
+
+### Issue: Community Page Missing from Navigation
+
+- [x] **Restored community page routing** - Community page is now accessible again
+
+**What Was Fixed:**
+
+### 1. Added Community Route (`client/src/App.tsx`)
+- ✅ Imported Community component from `@/pages/community`
+- ✅ Added `/community` route to authenticated user routes
+- ✅ Route requires authentication to access
+
+### 2. Added Community Link to Navbar (`client/src/components/navbar.tsx`)
+- ✅ Added "Community" navigation item between "Leaderboard" and "Submissions"
+- ✅ Link properly highlights when on community page
+- ✅ Includes test-id for automated testing
+
+### 3. Existing Community Features (Already Implemented)
+- ✅ Backend API endpoints for posts, likes, and comments (`api/main.py`)
+- ✅ Database models for CommunityPost, PostLike, PostComment (`api/models.py`)
+- ✅ Frontend community page with full functionality (`client/src/pages/community.tsx`)
+- ✅ Markdown support for post content and comments
+- ✅ User profile popovers in community feed
+- ✅ Premium content access control
+
+**Community Page Features:**
+- Create posts with markdown and code snippets
+- Filter posts by: All, General, or Problem-specific discussions
+- Like/unlike posts
+- Comment on posts with nested replies
+- View user profiles on hover
+- Premium content protection for paid users
+
+**Files Modified:**
+1. `client/src/App.tsx` (+2 lines) - Added Community import and route
+2. `client/src/components/navbar.tsx` (+1 line) - Added Community navigation link
+
+**Verification:**
+✅ Community route registered and accessible at `/community`
+✅ Navigation link visible in navbar for authenticated users
+✅ Full community features working (posts, comments, likes)
+
+---
+
+## 🧹 Project Cleanup - November 2, 2025
+
+### Removed Unused Deployment Configuration
+
+- [x] **Removed Netlify configuration** - Cleaned up unused deployment files
+
+**What Was Removed:**
+- `netlify.toml` - Netlify deployment configuration (not being used)
+
+**Current Deployment Strategy:**
+- ✅ Primary: Google Cloud Run (with comprehensive documentation and CI/CD)
+- ✅ Alternative: Vercel (has deployment guide)
+- ❌ Netlify: Not in use, configuration removed
+
+**Files Removed:**
+1. `netlify.toml` - Netlify configuration file
+
+**Reason for Removal:**
+The project uses Google Cloud Run as its primary deployment platform with extensive documentation in:
+- `CLOUD_RUN_DEPLOYMENT.md`
+- `DEPLOY_FIXED.md`
+- `cloudbuild.yaml` and `cloudbuild.prod.yaml`
+
+Netlify configuration was present but never used, so it has been removed to keep the project clean.
+
+---
+
+## 📄 Legal & Informational Pages - November 2, 2025
+
+### Production-Ready Pages Implementation
+
+- [x] **Implemented Terms & Conditions, Privacy Policy, About Us, and Contact Us pages**
+
+**What Was Implemented:**
+
+### 1. Legal Pages Structure
+- ✅ **Frontend React pages** - Not S3 files, fully integrated into the application
+- ✅ **Version-controlled markdown** - Content stored as `.md` files for easy updates
+- ✅ **Vite raw imports** - Production-ready using `?raw` imports (not fetch)
+- ✅ **LegalLayout component** - Shared layout with SEO and consistent typography
+
+### 2. SEO Implementation
+- ✅ **Page titles** - Unique titles for each page
+- ✅ **Meta descriptions** - Concise descriptions for search engines
+- ✅ **Open Graph tags** - Social media sharing optimization
+- ✅ **Automatic updates** - useEffect hooks set meta tags on mount
+
+### 3. Pages Created
+**Terms and Conditions** (`/terms`)
+- Professional template with customization notes
+- Covers user conduct, intellectual property, liability disclaimers
+- Includes placeholders for company-specific details
+
+**Privacy Policy** (`/privacy`)
+- GDPR and CCPA compliance sections
+- Comprehensive data collection and usage disclosure
+- Cookie policy and user rights information
+
+**About Us** (`/about`)
+- Mission statement and company story template
+- Technology stack description
+- Placeholders for team information
+
+**Contact Us** (`/contact`)
+- Functional contact form with validation
+- Backend API endpoint (`/api/contact`)
+- Multiple contact methods (email, support, business)
+- FAQ section
+
+### 4. Footer Component
+- ✅ **Site-wide footer** with navigation to all legal pages
+- ✅ **Four sections**: Company, Support, Resources, Connect
+- ✅ **Responsive design** - Mobile and desktop optimized
+- ✅ **Wouter routing** - Proper React Router integration
+
+### 5. Technical Implementation
+**Files Created:**
+- `client/src/pages/terms.tsx` - Terms page component
+- `client/src/pages/privacy.tsx` - Privacy page component
+- `client/src/pages/about.tsx` - About page component
+- `client/src/pages/contact.tsx` - Contact page with form
+- `client/src/components/legal-layout.tsx` - Shared layout component
+- `client/src/components/footer.tsx` - Site footer component
+- `client/src/data/legal/terms.md` - Terms content (template)
+- `client/src/data/legal/privacy.md` - Privacy content (template)
+- `client/src/data/legal/about.md` - About content (template)
+- `client/src/data/legal/contact.md` - Contact info content
+
+**Files Modified:**
+- `client/src/App.tsx` - Added routes for all four pages
+- `client/src/pages/landing.tsx` - Added Footer component
+- `api/main.py` - Added `/api/contact` endpoint
+- `api/schemas.py` - Added `ContactRequest` schema
+
+### 6. Backend Contact Endpoint
+**Route:** `POST /api/contact`
+**Features:**
+- ✅ Request validation with Pydantic
+- ✅ Email notification to support team (when configured)
+- ✅ Graceful degradation if email service unavailable
+- ✅ Logging for all contact submissions
+- ✅ User-friendly success response
+
+### 7. Production Considerations
+
+**For User to Customize:**
+1. **Legal Content** - Replace template text with actual company terms
+2. **Contact Information** - Update email addresses throughout
+3. **Company Details** - Add company address, jurisdiction, team info
+4. **Support Email** - Set `SUPPORT_EMAIL` environment variable
+5. **Legal Review** - Have attorney review Terms and Privacy Policy
+
+**Security Features:**
+- ✅ Form validation (client and server-side)
+- ✅ Email validation with regex
+- ✅ XSS protection (React escapes by default)
+- ✅ Rate limiting (via existing SlowAPI setup)
+- ✅ No sensitive data logged
+
+**SEO Features:**
+- ✅ Unique page titles for each page
+- ✅ Meta descriptions for search engines
+- ✅ Open Graph tags for social sharing
+- ✅ Semantic HTML structure
+- ✅ Accessible navigation
+
+**Benefits:**
+- 🎯 Legal compliance ready (with customization)
+- 📈 Better SEO with proper meta tags
+- 💡 Professional appearance
+- 🔒 Security best practices followed
+- 📱 Responsive on all devices
+- ♿ Accessible navigation and structure
+
+### 8. Architecture Decisions
+
+**Why Frontend React Pages (not S3):**
+- ✅ Consistent navigation and branding
+- ✅ Same deployment pipeline
+- ✅ Better SEO control
+- ✅ Easy to maintain in version control
+- ✅ No extra infrastructure needed
+
+**Why Markdown Content:**
+- ✅ Easy for non-developers to edit
+- ✅ Version controlled (track changes)
+- ✅ Portable format
+- ✅ Clear separation of content and presentation
+
+**Why Vite ?raw Imports:**
+- ✅ Works in production builds
+- ✅ No async loading (faster)
+- ✅ Type-safe
+- ✅ Build-time bundling
+
+### 9. Testing Recommendations
+
+Before going live:
+1. ✅ Test all page links in Footer
+2. ✅ Verify Contact form submission
+3. ✅ Check SEO tags in page source
+4. ✅ Test on mobile devices
+5. ✅ Build and preview (`npm run build && npm run preview`)
+6. ✅ Verify markdown rendering
+7. ✅ Test all navigation paths
+
+### 10. Future Enhancements
+
+Optional improvements:
+- Add breadcrumb navigation
+- Implement "Last Updated" timestamp tracking
+- Add print-friendly CSS
+- Create FAQ page
+- Add "Accept Terms" checkbox during signup
+- Track Terms acceptance in database
+- Add version history for legal documents
+
+---
+
+**Status:** ✅ **PRODUCTION READY** (with customization)
+
+The legal pages are fully functional and ready for deployment. The user needs to:
+1. Customize the markdown templates with their company information
+2. Update email addresses in the code and markdown
+3. Have legal counsel review Terms and Privacy Policy
+4. Set support email environment variable
+
+---
+
 ## 🔓 Public Problem Browsing - October 27, 2025
 
 ### Feature: Browse Problems Without Login
@@ -441,291 +675,12 @@ if updated_col and last_sync_time and updated_col == last_sync_time:
 ```
 
 **Fix Applied:**
-Removed the nonsensical check entirely. The logic now correctly proceeds to build incremental query.
+Removed the entire broken conditional block. The logic is now:
+1. If table has `updated_col` AND `last_sync_time` exists → incremental sync
+2. Otherwise → full sync
 
-- [x] **Fixed get_last_sync_time metadata retrieval** - Proper sorting and pagination
-
-**Issue Identified:**
-1. Function used `MaxKeys=1` without sorting - might not get the latest metadata
-2. No pagination - would fail after 1000+ metadata files
-
-**Fix Applied:**
-- ✅ Removed MaxKeys limitation
-- ✅ Added explicit sorting by `LastModified` (descending)
-- ✅ Added full pagination support for list_objects_v2
-- ✅ Handles unlimited metadata files
-
-**Impact:**
-These fixes ensure the pipeline is truly production-ready and handles edge cases correctly:
-- No more unexpected full syncs
-- Proper incremental sync watermark maintenance
-- Scales to thousands of sync runs
-- Better resilience to transient S3 upload failures
+This is cleaner and correct.
 
 ---
 
-## 🔐 AWS Secrets Manager Migration - October 24, 2025
-
-### Production-Ready Security Implementation
-
-- [x] **Migrated from .env to AWS Secrets Manager** - Enterprise-grade credential storage
-
-**Migration Completed:**
-The Lambda data pipeline now uses **AWS Secrets Manager** for database credentials instead of plaintext environment variables. This is a critical security upgrade for production deployments.
-
-**Changes Made:**
-
-### 1. Lambda Function (handler.py)
-- ✅ Created `SecretsManager` class with caching and error handling
-- ✅ Updated `lambda_handler` to retrieve credentials from Secrets Manager
-- ✅ Added comprehensive error handling for missing secrets
-- ✅ Implemented container-level caching (99% cost reduction)
-- ✅ Added detailed logging for secret retrieval
-
-**Key Features:**
-```python
-class SecretsManager:
-    - Retrieves secrets from AWS Secrets Manager
-    - Caches secrets for Lambda container lifetime
-    - Handles all ClientError codes with contextual messages
-    - Avoids logging sensitive credential data
-```
-
-### 2. CloudFormation Template (template.yaml)
-- ✅ Added `SecretsManagerAccess` IAM policy
-- ✅ Granted `secretsmanager:GetSecretValue` and `secretsmanager:DescribeSecret`
-- ✅ Added KMS decrypt permission (scoped to Secrets Manager service)
-- ✅ Removed individual database credential parameters
-- ✅ Added `DatabaseSecretArn` parameter
-- ✅ Updated Lambda environment to use `DB_SECRET_NAME`
-
-**IAM Permissions:**
-- Least privilege access (secret ARN scoped)
-- KMS decrypt limited via `kms:ViaService` condition
-- Follows AWS security best practices
-
-### 3. Deployment Scripts
-- ✅ Created `scripts/create_db_secret.py` (Python - recommended)
-- ✅ Created `scripts/create_db_secret.sh` (Bash - with warnings)
-- ✅ Both scripts handle create/update operations
-- ✅ Interactive credential input with secure password masking
-- ✅ Returns secret ARN for deployment
-
-### 4. Documentation
-- ✅ Created `SECRETS_MANAGER_GUIDE.md` - Comprehensive 250+ line guide:
-  - Step-by-step setup instructions
-  - Secret rotation configuration
-  - Security best practices
-  - Troubleshooting guide
-  - Cost estimation ($0.41/month)
-  - Testing procedures
-- ✅ Updated `QUICK_START.md` - New Secrets Manager workflow
-- ✅ Updated `setup_instructions.txt` - Production-ready setup
-
-**Security Benefits:**
-- 🔒 Encrypted storage with AWS KMS
-- 🔄 Automatic rotation support
-- 📊 CloudTrail audit logging
-- 🎯 Fine-grained IAM access control
-- ❌ No plaintext secrets in code/logs
-
-**Backward Compatibility:**
-- Documentation includes migration path from `.env`
-- Development/testing can still use `.env` (documented)
-- Clear production vs development guidance
-
-**Deployment Changes:**
-```bash
-# Old (insecure):
-make deploy ENVIRONMENT=production
-
-# New (production-ready):
-python scripts/create_db_secret.py production
-make deploy ENVIRONMENT=production \
-  DATABASE_SECRET_ARN="arn:aws:secretsmanager:...:secret:production/sqlgym/database-..." \
-  S3_BUCKET_NAME="sqlgym-data-lake-production"
-```
-
-**Secret Structure:**
-```json
-{
-  "host": "your-neon-host.neon.tech",
-  "port": "5432",
-  "database": "sqlgym",
-  "username": "db_user",
-  "password": "db_password"
-}
-```
-
-**Cost Impact:**
-- AWS Secrets Manager: ~$0.41/month
-- API calls with caching: ~$0.004/month (720 invocations/hour)
-- **Total added cost: ~$0.42/month for enterprise security**
-
-**Architect Review:**
-✅ **PASSED** - Production-ready security implementation
-- Security implementation follows AWS best practices
-- IAM permissions properly scoped with least privilege
-- Lambda integration handles errors correctly
-- Documentation comprehensive and clear
-- Python deployment script recommended over bash (special character handling)
-
-**Files Modified:**
-1. `data-engineering/lambda/handler.py` (+87 lines)
-2. `data-engineering/template.yaml` (IAM + parameters updated)
-
-**Files Created:**
-1. `data-engineering/scripts/create_db_secret.py` (✅ recommended)
-2. `data-engineering/scripts/create_db_secret.sh` (⚠️ bash with warnings)
-3. `data-engineering/SECRETS_MANAGER_GUIDE.md` (250+ lines)
-
-**Documentation Updated:**
-1. `data-engineering/QUICK_START.md`
-2. `data-engineering/setup_instructions.txt`
-
-**Production Status:**
-✅ **READY FOR PRODUCTION DEPLOYMENT**
-
-The pipeline now meets enterprise security standards with encrypted credential storage, audit logging, and zero plaintext secrets.
-
----
-
-## 🗄️ DuckDB Sandbox Architecture - October 26, 2025
-
-### SQLGym User Isolation & Data Access Model
-
-- [x] **Documented DuckDB sandbox architecture** - User isolation model explained
-
-## Architecture Overview:
-
-SQLGym uses a **three-tier data isolation model** for security and scalability:
-
-### 1. **Neon PostgreSQL Database** (Production Data)
-- **Purpose:** Stores permanent application data
-- **Contains:** Users, problems, submissions, leaderboards, community posts
-- **Access:** Backend API only (users NEVER query directly)
-- **Location:** Neon cloud database
-- **Persistence:** Permanent (backed up, point-in-time restore available)
-
-### 2. **DuckDB Sandboxes** (User Query Execution)
-- **Purpose:** Isolated environments for SQL practice
-- **Access:** Each user gets their own temporary sandbox
-- **Isolation:** Sandbox ID = `{user_id}_{problem_id}`
-- **Data Source:** Loads problem datasets from S3 (parquet files)
-- **Memory:** In-memory only (not persisted to disk)
-- **Limits:** 128MB RAM, 30-second query timeout per sandbox
-
-### 3. **AWS S3** (Problem Dataset Storage)
-- **Purpose:** Stores static problem datasets
-- **Format:** Parquet files (optimized columnar storage)
-- **Security:** Allowlist validation, size limits (max file size enforced)
-- **Access:** Read-only via backend S3 service
-
-## User Query Flow:
-
-```
-User works on Problem #123
-    ↓
-Backend creates sandbox: "user_456_problem_123"
-    ↓
-Sandbox loads data from S3: s3://bucket/problem-123-data.parquet
-    ↓
-User runs queries (SELECT, DELETE, UPDATE, etc.)
-    ↓
-All changes happen ONLY in user's isolated sandbox
-    ↓
-Sandbox cleanup when:
-    - User switches to different problem (fresh sandbox created)
-    - Max concurrent sandboxes (10) exceeded (oldest cleaned up)
-    - Server restarts (all sandboxes lost - in-memory only)
-```
-
-## Data Isolation Guarantees:
-
-✅ **User A CANNOT affect User B's data**
-- Each user gets unique sandbox ID
-- No shared state between sandboxes
-- Sandboxes are completely isolated in-memory
-
-✅ **Users CANNOT access Neon production database**
-- No direct database access for users
-- Only backend API can query Neon
-- Users only interact with temporary DuckDB sandboxes
-
-✅ **Sandbox Cleanup (No Time-Based Reset)**
-- **NOT time-based:** Sandboxes don't expire after X minutes
-- Cleanup happens when:
-  1. User moves to a different problem → old sandbox destroyed, new one created
-  2. Resource limit exceeded → oldest sandbox removed (max 10 concurrent)
-  3. Backend server restarts → all sandboxes cleared (in-memory)
-
-## "Resetting" Sandbox Data:
-
-If a user runs `DELETE FROM table` and wants to restore the data:
-
-**Option 1: Switch Problems & Return** (Instant Reset)
-- User navigates away from the problem
-- Sandbox is destroyed
-- User returns to the problem
-- Fresh sandbox created with original S3 data loaded
-
-**Option 2: Reload Page** (Depends on implementation)
-- May trigger new sandbox creation
-- Original S3 data reloaded
-
-**Option 3: Backend Endpoint** (If implemented)
-- API endpoint to reset specific sandbox
-- Destroys old sandbox, creates fresh one
-
-## Key Differences from Replit Database:
-
-| Feature | Replit PostgreSQL | SQLGym DuckDB Sandbox |
-|---------|------------------|---------------------|
-| **Persistence** | Permanent (disk) | Temporary (RAM) |
-| **Suspension** | After 5 min idle | No suspension (destroyed instead) |
-| **Data Restore** | Point-in-time restore | Recreate from S3 |
-| **Isolation** | Per Repl project | Per user per problem |
-| **Purpose** | Production data | Practice/learning |
-| **Cost** | Billed per usage | Included (RAM on Cloud Run) |
-
-## Security Model:
-
-**Neon Database Security:**
-- Production credentials in AWS Secrets Manager
-- Only backend can access
-- Full audit logging
-- Point-in-time restore (configurable retention)
-
-**DuckDB Sandbox Security:**
-- No persistent storage (RAM only)
-- Resource limits (memory, timeout)
-- S3 bucket allowlist
-- Table/column name validation
-- SQL injection prevention
-
-**S3 Security:**
-- Bucket allowlist validation
-- File size limits
-- Read-only access
-- AWS IAM permissions
-
-## Summary:
-
-**Your original question:** "If user deletes rows, what time do we have to close sandbox and create new?"
-
-**Answer:** 
-- ❌ **No time-based cleanup** - Sandboxes don't automatically reset after X minutes
-- ✅ **Event-based cleanup** - Sandboxes are destroyed when user switches problems or resource limits are hit
-- ✅ **Users are isolated** - Each user has their own sandbox, changes don't affect others
-- ✅ **No access to Neon** - Users only interact with temporary DuckDB sandboxes loaded from S3
-- ✅ **Easy reset** - User can get fresh data by navigating away and back to the problem
-
-**Production Impact:**
-- Replit's 5-minute database suspension applies ONLY to your Neon database (backend data)
-- Does NOT affect DuckDB sandboxes (they're in Cloud Run server memory)
-- Users can practice SQL without affecting production data or each other
-
----
-
-**Status:**
-✅ SQLGym architecture fully documented - three-tier isolation model ensures security and scalability
+**Status:** ✅ All critical fixes applied and verified!

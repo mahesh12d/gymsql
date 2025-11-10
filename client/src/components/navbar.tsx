@@ -34,7 +34,7 @@ export default function Navbar() {
           <div className="flex items-center space-x-8">
             <Link href="/" className="flex items-center space-x-2" data-testid="link-home">
               <Dumbbell className="text-primary text-xl" />
-              <span className="text-xl font-bold text-foreground">SQLGym</span>
+              <span className="text-xl font-bold text-foreground">GymSql</span>
             </Link>
             
             <div className="hidden md:flex items-center space-x-6">

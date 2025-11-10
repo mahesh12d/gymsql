@@ -104,6 +104,12 @@ class VerifyCodeRequest(CamelCaseModel):
 class ResendVerificationRequest(CamelCaseModel):
     email: EmailStr
 
+class ContactRequest(CamelCaseModel):
+    name: str
+    email: EmailStr
+    subject: str
+    message: str
+
 # Table column definition for structured display
 class TableColumn(BaseModel):
     name: str
@@ -154,6 +160,7 @@ class ProblemResponse(ProblemBase):
     id: str
     created_at: datetime
     solved_count: Optional[int] = 0
+    submissions_count: Optional[int] = 0  # Total number of submission attempts
     is_user_solved: Optional[bool] = False
     is_bookmarked: Optional[bool] = False
     is_liked: Optional[bool] = False  # For backward compatibility

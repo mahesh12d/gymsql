@@ -55,7 +55,7 @@ export default function VerifyEmail() {
 
       toast({
         title: "Email Verified",
-        description: "Your email has been verified successfully. Welcome to SQLGym!",
+        description: "Your email has been verified successfully. Welcome to GymSql!",
       });
 
       // Redirect to home after 2 seconds

@@ -21,7 +21,7 @@ from .schemas import (UserCreate, UserResponse, UserLogin, LoginResponse,
                       SubmissionResponse, DetailedSubmissionResponse, CommunityPostCreate,
                       CommunityPostResponse, PostCommentCreate,
                       PostCommentResponse, SolutionResponse, QuestionData,
-                      VerifyCodeRequest, ResendVerificationRequest)
+                      VerifyCodeRequest, ResendVerificationRequest, ContactRequest)
 from .auth import (get_password_hash, verify_password, create_access_token,
                    get_current_user, get_current_user_optional)
 from .secure_execution import secure_executor
@@ -556,6 +556,61 @@ def resend_verification_email(request: ResendVerificationRequest, db: Session = 
     return {"message": "Verification code sent successfully"}
 
 
+@app.post("/api/contact")
+def submit_contact_form(request: ContactRequest, db: Session = Depends(get_db)):
+    """Handle contact form submissions"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Log the contact request (for now, we'll just log it)
+    logger.info(f"Contact form submission from {request.email}: {request.subject}")
+    
+    # In a production environment, you would:
+    # 1. Save to database for record-keeping
+    # 2. Send email notification to support team
+    # 3. Send confirmation email to user
+    
+    # For now, we'll use the email service if available
+    try:
+        from .email_service import send_email
+        
+        # Send notification to support team
+        support_email = os.getenv("SUPPORT_EMAIL", "support@sqlgym.com")
+        
+        email_body = f"""
+New Contact Form Submission
+
+From: {request.name} ({request.email})
+Subject: {request.subject}
+
+Message:
+{request.message}
+
+---
+Sent from SQLGym Contact Form
+"""
+        
+        # Try to send email (will fail gracefully if not configured)
+        try:
+            send_email(
+                to_email=support_email,
+                subject=f"Contact Form: {request.subject}",
+                body=email_body
+            )
+        except Exception as e:
+            logger.warning(f"Could not send contact email: {e}")
+            # Continue anyway - we've logged the request
+        
+    except ImportError:
+        # Email service not available, just log
+        pass
+    
+    return {
+        "message": "Thank you for contacting us! We'll get back to you within 24-48 hours.",
+        "success": True
+    }
+
+
 # Problem endpoints
 @app.get("/api/problems",
          response_model=List[ProblemResponse],
@@ -566,14 +621,16 @@ def get_problems(
         premium: Optional[str] = Query(None),
         current_user: Optional[User] = Depends(get_current_user_optional),
         db: Session = Depends(get_db)):
-    # Base query with solved count
+    # Base query with solved count and total submissions count
     query = db.query(
         Problem,
         func.coalesce(
             func.count(
                 case((Submission.is_correct == True, Submission.user_id),
                      else_=None).distinct()),
-            0).label("solved_count")).outerjoin(Submission)
+            0).label("solved_count"),
+        func.coalesce(func.count(Submission.id), 0).label("submissions_count")
+    ).outerjoin(Submission)
 
     # Add user-specific solved status if authenticated
     if current_user:
@@ -607,7 +664,7 @@ def get_problems(
 
     # Format response
     problems = []
-    for problem, solved_count, is_user_solved in results:
+    for problem, solved_count, submissions_count, is_user_solved in results:
         # Handle JSON parsing for question field if it's a string
         import json
         if isinstance(problem.question, str):
@@ -623,6 +680,7 @@ def get_problems(
         
         problem_data = ProblemResponse.from_orm(problem)
         problem_data.solved_count = int(solved_count)
+        problem_data.submissions_count = int(submissions_count)
         problem_data.is_user_solved = bool(
             is_user_solved) if current_user else False
         
@@ -1013,6 +1071,19 @@ def get_problem(problem_id: str,
     
     # For backward compatibility, set likes_count = upvotes_count
     problem_data.likes_count = upvotes_count
+    
+    # Get total submissions count for this problem
+    submissions_count = db.query(Submission).filter(
+        Submission.problem_id == problem_id
+    ).count()
+    problem_data.submissions_count = submissions_count
+    
+    # Get solved count (distinct users who solved it)
+    solved_count = db.query(func.count(Submission.user_id.distinct())).filter(
+        Submission.problem_id == problem_id,
+        Submission.is_correct == True
+    ).scalar()
+    problem_data.solved_count = solved_count or 0
     
     # Use expected_display for user-facing expected output (separate from validation)
     if hasattr(problem, 'expected_display') and problem.expected_display is not None:
